@@ -86,7 +86,7 @@ export default function OrdersPage() {
   const [lines, setLines] = useState<LineDraft[]>([]);
 
   // recent
-  const [range, setRange] = useState<OrderRange>("last30");
+  const [range, setRange] = useState<OrderRange>("today");
   const [recent, setRecent] = useState<any[]>([]);
   const [statusDrafts, setStatusDrafts] = useState<Record<string, OrderStatus>>({});
   const [savingStatus, setSavingStatus] = useState<string | null>(null);
