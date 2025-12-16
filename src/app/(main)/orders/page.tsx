@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import { motion } from "framer-motion";
 import { generateInvoice, sendInvoiceWhatsApp } from "./invoiceActions";
+import { getProductInfo } from "./actions";
 import {
   getCategories,
   getProductsByCategory,
@@ -11,10 +12,14 @@ import {
   getColorsByProductAndSize,
   getVariant,
   getRecentOrders,
+  getOrderDetails,
   createOrder,
-  updateOrderStatus, // NEW
+  updateOrder,
+  updateOrderStatus,
+  deleteOrder,
   type OrderItemInput,
   type OrderPayload,
+  type OrderRange,
 } from "./actions";
 import {
   ShoppingBag,
@@ -25,6 +30,11 @@ import {
   User,
   Calendar,
   FileText,
+  Pencil,
+  ChevronDown,
+  ChevronUp,
+  Phone,
+  MapPin,
 } from "lucide-react";
 
 type Opt = { Id: string; Name: string };
@@ -39,18 +49,23 @@ type LineDraft = {
   price: number;
 };
 
-// allowed statuses
 const ORDER_STATUSES = ["Pending", "Paid", "Partial", "Canceled"] as const;
 type OrderStatus = (typeof ORDER_STATUSES)[number];
 
+const RANGE_OPTIONS: Array<{ key: OrderRange; label: string }> = [
+  { key: "today", label: "Today" },
+  { key: "yesterday", label: "Yesterday" },
+  { key: "last7", label: "Last 7 Days" },
+  { key: "last30", label: "Last 30 Days" },
+  { key: "all", label: "All" },
+];
+
 export default function OrdersPage() {
-  // lookups
   const [categories, setCategories] = useState<Opt[]>([]);
   const [products, setProducts] = useState<Opt[]>([]);
   const [sizes, setSizes] = useState<Opt[]>([]);
   const [colors, setColors] = useState<Opt[]>([]);
 
-  // pickers
   const [selCat, setSelCat] = useState("");
   const [selProd, setSelProd] = useState("");
   const [selSize, setSelSize] = useState("");
@@ -59,49 +74,106 @@ export default function OrdersPage() {
   const [lineQty, setLineQty] = useState<number>(1);
   const [linePrice, setLinePrice] = useState<number>(0);
 
-  // order details
+  // create form
   const [customer, setCustomer] = useState("");
-  const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [address, setAddress] = useState(""); // ✅ NEW
   const [status, setStatus] = useState<OrderStatus>("Pending");
-  const [orderDate, setOrderDate] = useState<string>(() =>
-    new Date().toISOString().slice(0, 10)
-  );
+  const [orderDate, setOrderDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [discount, setDiscount] = useState<number>(0);
   const [deliveryFee, setDeliveryFee] = useState<number>(0);
-  const [note, setNote] = useState("");
 
-  // cart + recent
   const [lines, setLines] = useState<LineDraft[]>([]);
-  const [recent, setRecent] = useState<any[]>([]);
 
-  // per-card editable status drafts
-  // { [orderId]: "Paid" | "Pending" | etc. }
-  const [statusDrafts, setStatusDrafts] = useState<Record<string, OrderStatus>>(
-    {}
-  );
-  const [savingStatus, setSavingStatus] = useState<string | null>(null); // orderId being saved
+  // recent
+  const [range, setRange] = useState<OrderRange>("last30");
+  const [recent, setRecent] = useState<any[]>([]);
+  const [statusDrafts, setStatusDrafts] = useState<Record<string, OrderStatus>>({});
+  const [savingStatus, setSavingStatus] = useState<string | null>(null);
+
+  // details
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [details, setDetails] = useState<Record<string, any[]>>({});
+
+  // edit modal
+  const [editOpen, setEditOpen] = useState(false);
+  const [editOrderId, setEditOrderId] = useState<string | null>(null);
+
+  const [editCustomer, setEditCustomer] = useState("");
+  const [editCustomerPhone, setEditCustomerPhone] = useState("");
+  const [editAddress, setEditAddress] = useState(""); // ✅ NEW
+  const [editStatus, setEditStatus] = useState<OrderStatus>("Pending");
+  const [editOrderDate, setEditOrderDate] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [editDiscount, setEditDiscount] = useState<number>(0);
+  const [editDeliveryFee, setEditDeliveryFee] = useState<number>(0);
+  const [editLines, setEditLines] = useState<LineDraft[]>([]);
+
+  // edit pickers
+  const [editProducts, setEditProducts] = useState<Opt[]>([]);
+  const [editSizes, setEditSizes] = useState<Opt[]>([]);
+  const [editColors, setEditColors] = useState<Opt[]>([]);
+  const [editSelCat, setEditSelCat] = useState("");
+  const [editSelProd, setEditSelProd] = useState("");
+  const [editSelSize, setEditSelSize] = useState("");
+  const [editSelColor, setEditSelColor] = useState("");
+  const [editLineQty, setEditLineQty] = useState<number>(1);
+  const [editLinePrice, setEditLinePrice] = useState<number>(0);
+
+  const [editSelectedKey, setEditSelectedKey] = useState<string | null>(null);
+  const [editMode, setEditMode] = useState<"add" | "replace">("add");
 
   useEffect(() => {
     (async () => {
-      const cats = await getCategories();
-      setCategories(cats);
+      setCategories(await getCategories());
       await loadRecent();
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadRecent() {
-    const r = await getRecentOrders(12);
+    const r = await getRecentOrders(100, range);
     setRecent(r);
-    // initialize drafts from actual status
+
     const draftMap: Record<string, OrderStatus> = {};
-    r.forEach((o) => {
-      draftMap[o.Id] = o.PaymentStatus as OrderStatus;
-    });
+    r.forEach((o) => (draftMap[o.Id] = o.PaymentStatus as OrderStatus));
     setStatusDrafts(draftMap);
   }
 
-  /* ---- cascading pickers ---- */
+  useEffect(() => {
+    loadRecent();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [range]);
+
+  async function focusEditLine(line: LineDraft) {
+    setEditSelectedKey(line.key);
+    setEditMode("replace");
+
+    const pid = line.productId;
+    const sid = line.sizeId;
+    const cid = line.colorId;
+    if (!pid || !sid || !cid) return;
+
+    const info = await getProductInfo(pid);
+    if (!info?.CategoryId) return;
+
+    setEditSelCat(info.CategoryId);
+    const prods = await getProductsByCategory(info.CategoryId);
+    setEditProducts(prods);
+    setEditSelProd(pid);
+
+    const szs = await getSizesByProduct(pid);
+    setEditSizes(szs);
+    setEditSelSize(sid);
+
+    const cols = await getColorsByProductAndSize(pid, sid);
+    setEditColors(cols);
+    setEditSelColor(cid);
+
+    setEditLineQty(line.qty);
+    setEditLinePrice(line.price);
+  }
+
+  /* ---- cascading pickers (CREATE) ---- */
   async function onPickCategory(catId: string) {
     setSelCat(catId);
     setSelProd("");
@@ -112,10 +184,8 @@ export default function OrdersPage() {
     setColors([]);
     setLineQty(1);
     setLinePrice(0);
-
     if (!catId) return;
-    const prods = await getProductsByCategory(catId);
-    setProducts(prods);
+    setProducts(await getProductsByCategory(catId));
   }
 
   async function onPickProduct(prodId: string) {
@@ -126,10 +196,8 @@ export default function OrdersPage() {
     setColors([]);
     setLineQty(1);
     setLinePrice(0);
-
     if (!prodId) return;
-    const s = await getSizesByProduct(prodId);
-    setSizes(s);
+    setSizes(await getSizesByProduct(prodId));
   }
 
   async function onPickSize(sizeId: string) {
@@ -138,10 +206,8 @@ export default function OrdersPage() {
     setColors([]);
     setLineQty(1);
     setLinePrice(0);
-
     if (!selProd || !sizeId) return;
-    const c = await getColorsByProductAndSize(selProd, sizeId);
-    setColors(c);
+    setColors(await getColorsByProductAndSize(selProd, sizeId));
   }
 
   async function onPickColor(colorId: string) {
@@ -149,105 +215,168 @@ export default function OrdersPage() {
     setLineQty(1);
     if (selProd && selSize && colorId) {
       const v = await getVariant(selProd, selSize, colorId);
-      if (!v) {
-        toast.error("Variant not found.");
-        return;
-      }
+      if (!v) return toast.error("Variant not found.");
       setLinePrice(Number(v.SellingPrice) || 0);
     }
   }
 
-  async function addLine() {
-    if (!selProd || !selSize || !selColor) {
-      toast.error("Pick Product, Size, Color first.");
-      return;
-    }
-    const v = await getVariant(selProd, selSize, selColor);
-    if (!v) {
-      toast.error("Variant not found.");
-      return;
-    }
-    if (lineQty <= 0) {
-      toast.error("Qty must be > 0");
-      return;
-    }
-    if (lineQty > v.InStock) {
-      toast.error(`Only ${v.InStock} in stock for this variant.`);
-      return;
-    }
+  /* ---- cascading pickers (EDIT) ---- */
+  async function onPickCategoryEdit(catId: string) {
+    setEditSelCat(catId);
+    setEditSelProd("");
+    setEditProducts([]);
+    setEditSelSize("");
+    setEditSizes([]);
+    setEditSelColor("");
+    setEditColors([]);
+    setEditLineQty(1);
+    setEditLinePrice(0);
+    setEditMode("add");
+    setEditSelectedKey(null);
+    if (!catId) return;
+    setEditProducts(await getProductsByCategory(catId));
+  }
 
-    const key = `${v.VariantId}-${Date.now()}`;
-    setLines((prev) => [
-      ...prev,
-      {
-        key,
+  async function onPickProductEdit(prodId: string) {
+    setEditSelProd(prodId);
+    setEditSelSize("");
+    setEditSizes([]);
+    setEditSelColor("");
+    setEditColors([]);
+    setEditLineQty(1);
+    setEditLinePrice(0);
+    setEditMode("add");
+    setEditSelectedKey(null);
+    if (!prodId) return;
+    setEditSizes(await getSizesByProduct(prodId));
+  }
+
+  async function onPickSizeEdit(sizeId: string) {
+    setEditSelSize(sizeId);
+    setEditSelColor("");
+    setEditColors([]);
+    setEditLineQty(1);
+    setEditLinePrice(0);
+    setEditMode("add");
+    setEditSelectedKey(null);
+    if (!editSelProd || !sizeId) return;
+    setEditColors(await getColorsByProductAndSize(editSelProd, sizeId));
+  }
+
+  async function onPickColorEdit(colorId: string) {
+    setEditSelColor(colorId);
+    setEditLineQty(1);
+    if (editSelProd && editSelSize && colorId) {
+      const v = await getVariant(editSelProd, editSelSize, colorId);
+      if (!v) return toast.error("Variant not found.");
+      setEditLinePrice(Number(v.SellingPrice) || 0);
+    }
+  }
+
+  async function addLine(target: "create" | "edit") {
+    if (target === "create") {
+      if (!selProd || !selSize || !selColor) return toast.error("Pick Product, Size, Color first.");
+      const v = await getVariant(selProd, selSize, selColor);
+      if (!v) return toast.error("Variant not found.");
+      if (lineQty <= 0) return toast.error("Qty must be > 0");
+      if (lineQty > v.InStock) return toast.error(`Only ${v.InStock} in stock for this variant.`);
+
+      const row: LineDraft = {
+        key: `${v.VariantId}-${Date.now()}`,
         productId: selProd,
         sizeId: selSize,
         colorId: selColor,
         variant: v,
         qty: lineQty,
         price: Number(linePrice || v.SellingPrice || 0),
-      },
-    ]);
-    setLineQty(1);
-  }
+      };
 
-  function removeLine(key: string) {
-    setLines((prev) => prev.filter((l) => l.key !== key));
-  }
-
-  function updateLineQty(key: string, qty: number) {
-    setLines((prev) =>
-      prev.map((l) => (l.key === key ? { ...l, qty } : l))
-    );
-  }
-
-  function updateLinePrice(key: string, price: number) {
-    setLines((prev) =>
-      prev.map((l) => (l.key === key ? { ...l, price } : l))
-    );
-  }
-
-  const subtotal = useMemo(
-    () => lines.reduce((s, l) => s + l.qty * l.price, 0),
-    [lines]
-  );
-  const total = useMemo(
-    () => Math.max(0, subtotal - (discount || 0) + (deliveryFee || 0)),
-    [subtotal, discount, deliveryFee]
-  );
-
-  async function saveOrder() {
-    if (!lines.length) {
-      toast.error("No items in order");
+      setLines((p) => [...p, row]);
+      setLineQty(1);
       return;
     }
-    for (const l of lines) {
-      if (!l.variant) {
-        toast.error("Variant missing.");
-        return;
-      }
-      if (l.qty <= 0) {
-        toast.error("Qty must be > 0");
-        return;
-      }
-      if (l.qty > l.variant.InStock) {
-        toast.error("One line exceeds available stock.");
-        return;
+
+    // EDIT add/replace
+    if (!editSelProd || !editSelSize || !editSelColor) return toast.error("Pick Product, Size, Color first.");
+    const v = await getVariant(editSelProd, editSelSize, editSelColor);
+    if (!v) return toast.error("Variant not found.");
+    if (editLineQty <= 0) return toast.error("Qty must be > 0");
+    if (editLineQty > v.InStock) return toast.error(`Only ${v.InStock} in stock for this variant.`);
+
+    const row: LineDraft = {
+      key: editSelectedKey ?? `${v.VariantId}-${Date.now()}`,
+      productId: editSelProd,
+      sizeId: editSelSize,
+      colorId: editSelColor,
+      variant: v,
+      qty: editLineQty,
+      price: Number(editLinePrice || v.SellingPrice || 0),
+    };
+
+    if (editMode === "replace" && editSelectedKey) {
+      setEditLines((prev) => prev.map((x) => (x.key === editSelectedKey ? row : x)));
+      toast.success("Item updated");
+    } else {
+      setEditLines((prev) => [...prev, { ...row, key: `${row.key}-${Date.now()}` }]);
+      toast.success("Item added");
+    }
+
+    // reset to ADD mode after action
+    setEditMode("add");
+    setEditSelectedKey(null);
+    setEditSelCat("");
+    setEditSelProd("");
+    setEditSelSize("");
+    setEditSelColor("");
+    setEditProducts([]);
+    setEditSizes([]);
+    setEditColors([]);
+    setEditLineQty(1);
+    setEditLinePrice(0);
+  }
+
+  function removeLine(target: "create" | "edit", key: string) {
+    if (target === "create") setLines((p) => p.filter((l) => l.key !== key));
+    else {
+      setEditLines((p) => p.filter((l) => l.key !== key));
+      if (editSelectedKey === key) {
+        setEditSelectedKey(null);
+        setEditMode("add");
       }
     }
+  }
+
+  function updateLineQty(target: "create" | "edit", key: string, qty: number) {
+    const fn = (arr: LineDraft[]) => arr.map((l) => (l.key === key ? { ...l, qty } : l));
+    if (target === "create") setLines(fn);
+    else setEditLines(fn);
+  }
+
+  function updateLinePrice(target: "create" | "edit", key: string, price: number) {
+    const fn = (arr: LineDraft[]) => arr.map((l) => (l.key === key ? { ...l, price } : l));
+    if (target === "create") setLines(fn);
+    else setEditLines(fn);
+  }
+
+  const subtotal = useMemo(() => lines.reduce((s, l) => s + l.qty * l.price, 0), [lines]);
+  const total = useMemo(() => Math.max(0, subtotal - (discount || 0) + (deliveryFee || 0)), [subtotal, discount, deliveryFee]);
+
+  const editSubtotal = useMemo(() => editLines.reduce((s, l) => s + l.qty * l.price, 0), [editLines]);
+  const editTotal = useMemo(() => Math.max(0, editSubtotal - (editDiscount || 0) + (editDeliveryFee || 0)), [editSubtotal, editDiscount, editDeliveryFee]);
+
+  async function saveOrder() {
+    if (!lines.length) return toast.error("No items in order");
 
     const payload: OrderPayload = {
       Customer: customer || null,
-      Phone: phone || null,
-      Address: address || null,
+      CustomerPhone: customerPhone || null,
+      Address: address || null, // ✅ NEW
       PaymentStatus: status,
       OrderDate: orderDate,
       Subtotal: Number(subtotal.toFixed(2)),
       Discount: Number((discount || 0).toFixed(2)),
       DeliveryFee: Number((deliveryFee || 0).toFixed(2)),
       Total: Number(total.toFixed(2)),
-      Note: note || null,
       Items: lines.map<OrderItemInput>((l) => ({
         VariantId: l.variant!.VariantId,
         Qty: l.qty,
@@ -258,16 +387,12 @@ export default function OrdersPage() {
     try {
       await createOrder(payload);
       toast.success("Order saved");
-
-      // reset form/cart
       setLines([]);
       setCustomer("");
-      setPhone("");
+      setCustomerPhone("");
       setAddress("");
       setDiscount(0);
       setDeliveryFee(0);
-      setNote("");
-
       await loadRecent();
     } catch (e: any) {
       toast.error(e.message ?? "Failed to save order");
@@ -282,14 +407,7 @@ export default function OrdersPage() {
       setSavingStatus(orderId);
       await updateOrderStatus(orderId, nextStatus);
       toast.success("Status updated");
-
-      setRecent((prev) =>
-        prev.map((ord) =>
-          ord.Id === orderId
-            ? { ...ord, PaymentStatus: nextStatus }
-            : ord
-        )
-      );
+      setRecent((prev) => prev.map((ord) => (ord.Id === orderId ? { ...ord, PaymentStatus: nextStatus } : ord)));
     } catch (e: any) {
       toast.error(e.message ?? "Failed to update status");
     } finally {
@@ -297,10 +415,118 @@ export default function OrdersPage() {
     }
   }
 
+  async function toggleDetails(orderId: string) {
+    setExpanded((p) => ({ ...p, [orderId]: !p[orderId] }));
+    if (!details[orderId]) {
+      try {
+        const d = await getOrderDetails(orderId);
+        setDetails((p) => ({ ...p, [orderId]: d.items }));
+      } catch (e: any) {
+        toast.error(e.message ?? "Failed to load order details");
+      }
+    }
+  }
+
+  function resetEditPickers() {
+    setEditSelCat("");
+    setEditSelProd("");
+    setEditSelSize("");
+    setEditSelColor("");
+    setEditProducts([]);
+    setEditSizes([]);
+    setEditColors([]);
+    setEditLineQty(1);
+    setEditLinePrice(0);
+    setEditMode("add");
+    setEditSelectedKey(null);
+  }
+
+  async function openEdit(orderId: string) {
+    try {
+      const d = await getOrderDetails(orderId);
+
+      setEditOrderId(orderId);
+      setEditCustomer(d.order.Customer ?? "");
+      setEditCustomerPhone(d.order.CustomerPhone ?? "");
+      setEditAddress(d.order.Address ?? "");
+      setEditStatus(d.order.PaymentStatus as OrderStatus);
+      setEditOrderDate(new Date(d.order.OrderDate).toISOString().slice(0, 10));
+      setEditDiscount(Number(d.order.Discount ?? 0));
+      setEditDeliveryFee(Number(d.order.DeliveryFee ?? 0));
+
+      const mapped: LineDraft[] = d.items.map((it: any) => ({
+        key: `${it.VariantId}-${crypto.randomUUID()}`,
+        productId: it.ProductId,
+        sizeId: it.SizeId,
+        colorId: it.ColorId,
+        variant: { VariantId: it.VariantId, InStock: 999999, SellingPrice: Number(it.SellingPrice) },
+        qty: Number(it.Qty),
+        price: Number(it.SellingPrice),
+      }));
+
+      resetEditPickers();
+      setEditLines(mapped);
+      setEditOpen(true);
+
+      // ✅ auto select first line AFTER modal opens + states are set
+      if (mapped.length > 0) {
+        await focusEditLine(mapped[0]);
+      }
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to open edit");
+    }
+  }
+
+  async function saveEdit() {
+    if (!editOrderId) return;
+    if (!editLines.length) return toast.error("No items in order");
+
+    const payload: OrderPayload = {
+      Customer: editCustomer || null,
+      CustomerPhone: editCustomerPhone || null,
+      Address: editAddress || null, // ✅ NEW
+      PaymentStatus: editStatus,
+      OrderDate: editOrderDate,
+      Subtotal: Number(editSubtotal.toFixed(2)),
+      Discount: Number((editDiscount || 0).toFixed(2)),
+      DeliveryFee: Number((editDeliveryFee || 0).toFixed(2)),
+      Total: Number(editTotal.toFixed(2)),
+      Items: editLines.map<OrderItemInput>((l) => ({
+        VariantId: l.variant!.VariantId,
+        Qty: l.qty,
+        SellingPrice: Number(l.price || 0),
+      })),
+    };
+
+    try {
+      await updateOrder(editOrderId, payload);
+      toast.success("Order updated");
+      setEditOpen(false);
+      setEditOrderId(null);
+      await loadRecent();
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to update order");
+    }
+  }
+
+  async function doDelete(orderId: string) {
+    const ok = window.confirm("Delete this order? This will also remove sales & restore stock.");
+    if (!ok) return;
+
+    try {
+      await deleteOrder(orderId);
+      toast.success("Order deleted");
+      await loadRecent();
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to delete order");
+    }
+  }
+
   function copySummary() {
     const s = [
       `Customer: ${customer}`,
-      `Phone: ${phone}`,
+      `Phone: ${customerPhone}`,
+      `Address: ${address}`,
       `Date: ${orderDate}`,
       `Status: ${status}`,
       `Subtotal: Rs ${subtotal.toFixed(2)}`,
@@ -308,12 +534,9 @@ export default function OrdersPage() {
       `Delivery: Rs ${Number(deliveryFee || 0).toFixed(2)}`,
       `Total: Rs ${total.toFixed(2)}`,
       `Items:`,
-      ...lines.map(
-        (l) =>
-          ` - ${l.variant?.VariantId}  x${l.qty}  @Rs ${l.price.toFixed(2)}`
-      ),
-      note ? `Note: ${note}` : "",
+      ...lines.map((l) => ` - ${l.variant?.VariantId}  x${l.qty}  @Rs ${l.price.toFixed(2)}`),
     ].join("\n");
+
     navigator.clipboard.writeText(s).then(
       () => toast.success("Copied"),
       () => toast.error("Copy failed")
@@ -324,414 +547,151 @@ export default function OrdersPage() {
     <div className="text-gray-900 dark:text-white">
       <Toaster position="top-right" />
 
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-8">
+      <div className="flex items-center gap-3 mb-6">
         <div className="bg-primary/20 p-3 rounded-lg">
           <ShoppingBag className="w-6 h-6 text-primary" />
         </div>
         <h1 className="text-xl font-bold">Orders</h1>
+
+        <div className="ml-auto flex items-center gap-2">
+          <select
+            value={range}
+            onChange={(e) => setRange(e.target.value as OrderRange)}
+            className="bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
+          >
+            {RANGE_OPTIONS.map((r) => (
+              <option key={r.key} value={r.key}>
+                {r.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      {/* Customer + Order meta */}
-      <section className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-xl p-6 mb-8">
+      {/* Create */}
+      <section className="bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl p-6 mb-8">
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <User className="w-5 h-5 text-primary" />
-          Customer Information
+          Create Order
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Customer */}
+
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Customer Name
-            </label>
-            <input
-              placeholder="Enter customer name"
-              value={customer}
-              onChange={(e) => setCustomer(e.target.value)}
-              className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-            />
+            <label className="block text-sm mb-2">Customer Name</label>
+            <input value={customer} onChange={(e) => setCustomer(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3" placeholder="Customer" />
           </div>
 
-          {/* Phone */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Phone
-            </label>
-            <input
-              placeholder="Enter phone number"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-            />
+            <label className="block text-sm mb-2">Customer Phone</label>
+            <input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3" placeholder="07XXXXXXXX" />
           </div>
 
-          {/* Address */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Address
+          <div className="md:col-span-2">
+            <label className="block text-sm mb-2 flex items-center gap-1">
+              <MapPin className="w-4 h-4" /> Address
             </label>
-            <input
-              placeholder="Enter address"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-            />
+            <input value={address} onChange={(e) => setAddress(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3" placeholder="Delivery Address" />
           </div>
 
-          {/* Status */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Payment Status
-            </label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value as OrderStatus)}
-              className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-            >
+            <label className="block text-sm mb-2">Order Date</label>
+            <input type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+          <div>
+            <label className="block text-sm mb-2">Payment Status</label>
+            <select value={status} onChange={(e) => setStatus(e.target.value as OrderStatus)} className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3">
               {ORDER_STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
+                <option key={s} value={s}>{s}</option>
               ))}
             </select>
-          </div>
-
-          {/* Date */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Order Date
-            </label>
-            <input
-              type="date"
-              value={orderDate}
-              onChange={(e) => setOrderDate(e.target.value)}
-              className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-            />
-          </div>
-
-          {/* Note */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Note (Optional)
-            </label>
-            <input
-              placeholder="Add a note"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Add line */}
-      <section className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-xl p-6 mb-8">
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Plus className="w-5 h-5 text-primary" />
-          Add Line Item
-        </h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {/* Category */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Category
-            </label>
-            <select
-              value={selCat}
-              onChange={(e) => onPickCategory(e.target.value)}
-              className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-            >
-              <option value="">Select</option>
-              {categories.map((c) => (
-                <option key={c.Id} value={c.Id}>
-                  {c.Name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Product */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Product
-            </label>
-            <select
-              value={selProd}
-              onChange={(e) => onPickProduct(e.target.value)}
-              disabled={!selCat}
-              className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all disabled:opacity-50"
-            >
-              <option value="">Select</option>
-              {products.map((p) => (
-                <option key={p.Id} value={p.Id}>
-                  {p.Name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Size */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Size
-            </label>
-            <select
-              value={selSize}
-              onChange={(e) => onPickSize(e.target.value)}
-              disabled={!selProd}
-              className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all disabled:opacity-50"
-            >
-              <option value="">Select</option>
-              {sizes.map((s) => (
-                <option key={s.Id} value={s.Id}>
-                  {s.Name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Color */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Color
-            </label>
-            <select
-              value={selColor}
-              onChange={(e) => onPickColor(e.target.value)}
-              disabled={!selSize}
-              className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all disabled:opacity-50"
-            >
-              <option value="">Select</option>
-              {colors.map((c) => (
-                <option key={c.Id} value={c.Id}>
-                  {c.Name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Qty */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Quantity
-            </label>
-            <input
-              type="number"
-              min={1}
-              value={lineQty}
-              onChange={(e) =>
-                setLineQty(Math.max(1, parseInt(e.target.value || "1")))
-              }
-              className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-              placeholder="Qty"
-            />
-          </div>
-
-          {/* Price */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Price (Rs)
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              value={linePrice}
-              onChange={(e) => setLinePrice(parseFloat(e.target.value || "0"))}
-              className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-              placeholder="Price"
-            />
           </div>
         </div>
 
-        <div className="mt-4 flex justify-end">
-          <button
-            onClick={addLine}
-            className="bg-primary hover:bg-primary/90 text-white px-6 py-3 rounded-lg flex items-center gap-2 font-semibold transition-colors"
-          >
+        {/* Add line */}
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <select value={selCat} onChange={(e) => onPickCategory(e.target.value)} className="bg-gray-50 dark:bg-gray-800/50 border rounded-lg px-4 py-3">
+            <option value="">Category</option>
+            {categories.map((c) => <option key={c.Id} value={c.Id}>{c.Name}</option>)}
+          </select>
+
+          <select value={selProd} onChange={(e) => onPickProduct(e.target.value)} disabled={!selCat} className="bg-gray-50 dark:bg-gray-800/50 border rounded-lg px-4 py-3 disabled:opacity-50">
+            <option value="">Product</option>
+            {products.map((p) => <option key={p.Id} value={p.Id}>{p.Name}</option>)}
+          </select>
+
+          <select value={selSize} onChange={(e) => onPickSize(e.target.value)} disabled={!selProd} className="bg-gray-50 dark:bg-gray-800/50 border rounded-lg px-4 py-3 disabled:opacity-50">
+            <option value="">Size</option>
+            {sizes.map((s) => <option key={s.Id} value={s.Id}>{s.Name}</option>)}
+          </select>
+
+          <select value={selColor} onChange={(e) => onPickColor(e.target.value)} disabled={!selSize} className="bg-gray-50 dark:bg-gray-800/50 border rounded-lg px-4 py-3 disabled:opacity-50">
+            <option value="">Color</option>
+            {colors.map((c) => <option key={c.Id} value={c.Id}>{c.Name}</option>)}
+          </select>
+
+          <input type="number" min={1} value={lineQty} onChange={(e) => setLineQty(Math.max(1, parseInt(e.target.value || "1")))} className="bg-gray-50 dark:bg-gray-800/50 border rounded-lg px-4 py-3" placeholder="Qty" />
+          <input type="number" step="0.01" value={linePrice} onChange={(e) => setLinePrice(parseFloat(e.target.value || "0"))} className="bg-gray-50 dark:bg-gray-800/50 border rounded-lg px-4 py-3" placeholder="Price" />
+        </div>
+
+        <div className="mt-3 flex justify-end">
+          <button onClick={() => addLine("create")} className="bg-primary text-white px-5 py-3 rounded-lg flex items-center gap-2">
             <Plus className="w-4 h-4" /> Add Item
           </button>
         </div>
-      </section>
 
-      {/* Cart lines */}
-      <section className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden mb-8">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <ShoppingBag className="w-5 h-5 text-primary" />
-            Order Items
-          </h2>
+        {/* cart */}
+        <div className="mt-6 border-t border-gray-200 dark:border-gray-700 pt-4">
+          {lines.length === 0 ? (
+            <div className="text-sm text-gray-500">No items yet.</div>
+          ) : (
+            <div className="space-y-2">
+              {lines.map((l) => (
+                <div key={l.key} className="flex items-center justify-between gap-3 bg-gray-50 dark:bg-gray-900/30 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+                  <div className="text-sm">
+                    <div className="font-mono">{l.variant?.VariantId}</div>
+                    <div className="text-xs text-gray-500">Qty {l.qty} × Rs {l.price.toFixed(2)}</div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input className="w-20 text-center bg-white dark:bg-gray-800 border rounded-lg px-2 py-1" type="number" min={1} value={l.qty} onChange={(e) => updateLineQty("create", l.key, Math.max(1, parseInt(e.target.value || "1")))} />
+                    <input className="w-28 text-center bg-white dark:bg-gray-800 border rounded-lg px-2 py-1" type="number" step="0.01" value={l.price} onChange={(e) => updateLinePrice("create", l.key, parseFloat(e.target.value || "0"))} />
+                    <button onClick={() => removeLine("create", l.key)} className="text-red-600 px-2 py-2">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+                <div className="text-sm">Subtotal: <b>Rs {subtotal.toFixed(2)}</b></div>
+                <div className="flex items-center gap-2 text-sm">
+                  Discount:
+                  <input className="w-24 bg-white dark:bg-gray-800 border rounded-lg px-2 py-1" type="number" step="0.01" value={discount} onChange={(e) => setDiscount(parseFloat(e.target.value || "0"))} />
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  Delivery:
+                  <input className="w-24 bg-white dark:bg-gray-800 border rounded-lg px-2 py-1" type="number" step="0.01" value={deliveryFee} onChange={(e) => setDeliveryFee(parseFloat(e.target.value || "0"))} />
+                </div>
+                <div className="text-sm">Total: <b className="text-primary">Rs {total.toFixed(2)}</b></div>
+              </div>
+
+              <div className="flex justify-end gap-2 mt-3">
+                <button onClick={copySummary} className="bg-gray-200 dark:bg-gray-700 px-4 py-2 rounded-lg flex items-center gap-2">
+                  <Clipboard className="w-4 h-4" /> Copy
+                </button>
+                <button onClick={saveOrder} className="bg-primary text-white px-4 py-2 rounded-lg flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4" /> Save Order
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-
-        {lines.length === 0 ? (
-          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-            <ShoppingBag className="w-12 h-12 mx-auto mb-3 opacity-50" />
-            <p>No items yet. Add items from above.</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-100 dark:bg-gray-700/50">
-                <tr>
-                  <th className="p-4 text-left font-semibold text-gray-700 dark:text-gray-300">
-                    Variant
-                  </th>
-                  <th className="p-4 text-center font-semibold text-gray-700 dark:text-gray-300">
-                    In Stock
-                  </th>
-                  <th className="p-4 text-center font-semibold text-gray-700 dark:text-gray-300">
-                    Price (Rs)
-                  </th>
-                  <th className="p-4 text-center font-semibold text-gray-700 dark:text-gray-300">
-                    Qty
-                  </th>
-                  <th className="p-4 text-center font-semibold text-gray-700 dark:text-gray-300">
-                    Total (Rs)
-                  </th>
-                  <th className="p-4 text-center font-semibold text-gray-700 dark:text-gray-300">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {lines.map((l) => (
-                  <tr
-                    key={l.key}
-                    className="border-t border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
-                  >
-                    <td className="p-4">
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        Variant ID
-                      </div>
-                      <div className="font-mono text-sm">
-                        {l.variant?.VariantId}
-                      </div>
-                    </td>
-
-                    <td className="p-4 text-center">
-                      {l.variant?.InStock ?? 0}
-                    </td>
-
-                    <td className="p-4 text-center">
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={l.price}
-                        onChange={(e) =>
-                          updateLinePrice(
-                            l.key,
-                            parseFloat(e.target.value || "0")
-                          )
-                        }
-                        className="w-24 text-center bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1"
-                      />
-                    </td>
-
-                    <td className="p-4 text-center">
-                      <input
-                        type="number"
-                        min={1}
-                        value={l.qty}
-                        onChange={(e) =>
-                          updateLineQty(
-                            l.key,
-                            Math.max(1, parseInt(e.target.value || "1"))
-                          )
-                        }
-                        className="w-20 text-center bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1"
-                      />
-                    </td>
-
-                    <td className="p-4 text-center font-semibold">
-                      {(l.qty * l.price).toFixed(2)}
-                    </td>
-
-                    <td className="p-4 text-center">
-                      <button
-                        onClick={() => removeLine(l.key)}
-                        className="text-red-600 hover:text-red-700 px-3 py-1.5 rounded-lg inline-flex items-center gap-1 transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" /> Remove
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-
-              <tfoot className="bg-gray-50 dark:bg-gray-700/30">
-                <tr>
-                  <td colSpan={6} className="p-6">
-                    <div className="flex flex-col lg:flex-row gap-6 items-end justify-between">
-                      {/* totals */}
-                      <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
-                        <div className="text-gray-600 dark:text-gray-300">
-                          Subtotal:
-                        </div>
-                        <div className="text-center font-semibold">
-                          Rs {subtotal.toFixed(2)}
-                        </div>
-
-                        <div className="text-gray-600 dark:text-gray-300">
-                          Discount:
-                        </div>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={discount}
-                          onChange={(e) =>
-                            setDiscount(parseFloat(e.target.value || "0"))
-                          }
-                          className="w-32 text-center bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-1.5"
-                        />
-
-                        <div className="text-gray-600 dark:text-gray-300">
-                          Delivery Fee:
-                        </div>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={deliveryFee}
-                          onChange={(e) =>
-                            setDeliveryFee(parseFloat(e.target.value || "0"))
-                          }
-                          className="w-32 text-center bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-1.5"
-                        />
-
-                        <div className="text-lg font-bold text-gray-900 dark:text-white">
-                          Total:
-                        </div>
-                        <div className="text-center text-xl font-bold text-primary">
-                          Rs {total.toFixed(2)}
-                        </div>
-                      </div>
-
-                      {/* buttons */}
-                      <div className="flex gap-3">
-                        <button
-                          onClick={copySummary}
-                          className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white px-5 py-3 rounded-lg flex items-center gap-2 font-medium transition-colors"
-                        >
-                          <Clipboard className="w-4 h-4" /> Copy
-                        </button>
-
-                        <button
-                          onClick={saveOrder}
-                          className="bg-primary hover:bg-primary/90 text-white px-6 py-3 rounded-lg flex items-center gap-2 font-semibold transition-colors"
-                        >
-                          <CheckCircle2 className="w-5 h-5" /> Save Order
-                        </button>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        )}
       </section>
 
-      {/* Recent orders */}
+      {/* Recent Orders */}
       <section>
         <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
           <Calendar className="w-5 h-5 text-primary" />
@@ -739,105 +699,84 @@ export default function OrdersPage() {
         </h2>
 
         {recent.length === 0 ? (
-          <div className="text-center py-12 text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl">
-            <ShoppingBag className="w-12 h-12 mx-auto mb-3 opacity-50" />
-            <p>No orders yet.</p>
+          <div className="text-center py-10 text-gray-500 bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl">
+            No orders.
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {recent.map((o) => (
-              <motion.div
-                key={o.Id}
-                layout
-                className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-xl p-5 hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-start justify-between mb-3">
+              <motion.div key={o.Id} layout className="bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+                <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="font-semibold text-lg">
-                      {o.Customer || "Walk-in"}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      {new Date(o.OrderDate).toLocaleString()}
-                    </div>
-                    {o.Phone && (
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        📞 {o.Phone}
+                    <div className="font-semibold text-lg">{o.Customer || "Walk-in"}</div>
+
+                    {o.CustomerPhone && (
+                      <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                        <Phone className="w-3 h-3" /> {o.CustomerPhone}
                       </div>
                     )}
+
+                    {o.Address && (
+                      <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                        <MapPin className="w-3 h-3" /> {o.Address}
+                      </div>
+                    )}
+
+                    <div className="text-xs text-gray-500 mt-1">{new Date(o.OrderDate).toLocaleString()}</div>
+                    <div className="text-xs text-gray-500 mt-1">Items: {o.LineCount}</div>
+                    <div className="text-sm font-bold text-primary mt-1">Rs {Number(o.Total).toFixed(2)}</div>
                   </div>
 
-                  <span
-                    className={`text-xs px-3 py-1 rounded-full font-medium ${
-                      o.PaymentStatus === "Paid"
-                        ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                        : o.PaymentStatus === "Pending"
-                        ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"
-                        : o.PaymentStatus === "Partial"
-                        ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
-                        : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
-                    }`}
-                  >
+                  <span className="text-xs px-3 py-1 rounded-full font-medium bg-gray-100 dark:bg-gray-900/30">
                     {o.PaymentStatus}
                   </span>
                 </div>
 
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">
-                      Items
-                    </span>
-                    <span className="font-medium">{o.LineCount}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">
-                      Total
-                    </span>
-                    <span className="font-bold text-primary">
-                      Rs {o.Total.toFixed(2)}
-                    </span>
-                  </div>
-                </div>
+                <button
+                  onClick={() => toggleDetails(o.Id)}
+                  className="mt-3 w-full text-sm bg-gray-100 dark:bg-gray-900/30 hover:bg-gray-200 dark:hover:bg-gray-900/50 rounded-lg px-3 py-2 flex items-center justify-between"
+                >
+                  <span>Order Details</span>
+                  {expanded[o.Id] ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
 
-                {/* inline status edit */}
-                <div className="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4 flex flex-col gap-3">
-                  <div className="flex flex-col">
-                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                      Update Status
-                    </label>
+                {expanded[o.Id] && (
+                  <div className="mt-3 text-sm space-y-2">
+                    {(details[o.Id] || []).map((it: any) => (
+                      <div key={it.Id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+                        <div className="font-medium">{it.ProductName}</div>
+                        <div className="text-xs text-gray-500">{it.SizeName || "-"} / {it.ColorName || "-"}</div>
+                        <div className="text-xs font-mono text-gray-500">Variant: {it.VariantId}</div>
+                        <div className="text-xs">Qty: {it.Qty} × Rs {Number(it.SellingPrice).toFixed(2)}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4 space-y-3">
+                  <div>
+                    <label className="text-xs text-gray-500">Update Status</label>
                     <select
                       value={statusDrafts[o.Id] ?? o.PaymentStatus}
-                      onChange={(e) =>
-                        setStatusDrafts((prev) => ({
-                          ...prev,
-                          [o.Id]: e.target.value as OrderStatus,
-                        }))
-                      }
-                      className="bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white"
+                      onChange={(e) => setStatusDrafts((p) => ({ ...p, [o.Id]: e.target.value as OrderStatus }))}
+                      className="mt-1 w-full bg-gray-50 dark:bg-gray-900/30 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
                     >
-                      {ORDER_STATUSES.map((st) => (
-                        <option key={st} value={st}>
-                          {st}
-                        </option>
-                      ))}
+                      {ORDER_STATUSES.map((st) => <option key={st} value={st}>{st}</option>)}
                     </select>
                   </div>
 
-                  <div className="flex justify-end gap-2 flex-wrap">
-                    <button
-                      onClick={async () => {
-                        await saveOrderStatus(o.Id);
-                      }}
-                      disabled={savingStatus === o.Id}
-                      className="bg-primary hover:bg-primary/90 disabled:opacity-50 text-white px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2"
-                    >
-                      {savingStatus === o.Id ? (
-                        <span className="animate-pulse">Saving…</span>
-                      ) : (
-                        <>
-                          <CheckCircle2 className="w-4 h-4" />
-                          Save Status
-                        </>
-                      )}
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <button onClick={() => saveOrderStatus(o.Id)} disabled={savingStatus === o.Id} className="bg-primary disabled:opacity-50 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4" />
+                      {savingStatus === o.Id ? "Saving..." : "Save Status"}
+                    </button>
+
+                    <button onClick={() => openEdit(o.Id)} className="bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2 rounded-lg text-sm flex items-center gap-2">
+                      <Pencil className="w-4 h-4" /> Edit
+                    </button>
+
+                    <button onClick={() => doDelete(o.Id)} className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-2">
+                      <Trash2 className="w-4 h-4" /> Delete
                     </button>
 
                     <button
@@ -850,7 +789,7 @@ export default function OrdersPage() {
                           toast.error(e.message);
                         }
                       }}
-                      className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-white px-3 py-2 rounded-lg text-sm font-medium"
+                      className="bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2 rounded-lg text-sm"
                     >
                       <FileText className="w-4 h-4 inline-block mr-1" />
                       Invoice
@@ -858,18 +797,14 @@ export default function OrdersPage() {
 
                     <button
                       onClick={async () => {
-                        if (!o.Phone) {
-                          toast.error("No phone number for this order");
-                          return;
-                        }
                         try {
-                          await sendInvoiceWhatsApp(o.Id, o.Phone);
+                          await sendInvoiceWhatsApp(o.Id, o.CustomerPhone || "");
                           toast.success("Sent via WhatsApp");
                         } catch (e: any) {
                           toast.error(e.message);
                         }
                       }}
-                      className="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg text-sm font-medium"
+                      className="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg text-sm"
                     >
                       Send WhatsApp
                     </button>
@@ -880,6 +815,146 @@ export default function OrdersPage() {
           </div>
         )}
       </section>
+
+      {/* EDIT MODAL */}
+      {editOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-end">
+          <div className="w-full max-w-7xl bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="font-semibold text-lg">Edit Order</div>
+              <button onClick={() => setEditOpen(false)} className="text-sm px-3 py-2 rounded-lg bg-gray-200 dark:bg-gray-800">
+                Close
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-3">
+              <input value={editCustomer} onChange={(e) => setEditCustomer(e.target.value)} className="bg-gray-50 dark:bg-gray-800 border rounded-lg px-3 py-2" placeholder="Customer" />
+              <input value={editCustomerPhone} onChange={(e) => setEditCustomerPhone(e.target.value)} className="bg-gray-50 dark:bg-gray-800 border rounded-lg px-3 py-2" placeholder="Phone" />
+              <input value={editAddress} onChange={(e) => setEditAddress(e.target.value)} className="bg-gray-50 dark:bg-gray-800 border rounded-lg px-3 py-2 md:col-span-2" placeholder="Address" />
+              <input type="date" value={editOrderDate} onChange={(e) => setEditOrderDate(e.target.value)} className="bg-gray-50 dark:bg-gray-800 border rounded-lg px-3 py-2" />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+              <select value={editStatus} onChange={(e) => setEditStatus(e.target.value as OrderStatus)} className="bg-gray-50 dark:bg-gray-800 border rounded-lg px-3 py-2">
+                {ORDER_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+
+            {/* edit add/replace line */}
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
+              <select value={editSelCat} onChange={(e) => onPickCategoryEdit(e.target.value)} className="bg-gray-50 dark:bg-gray-800/50 border rounded-lg px-3 py-2">
+                <option value="">Category</option>
+                {categories.map((c) => <option key={c.Id} value={c.Id}>{c.Name}</option>)}
+              </select>
+
+              <select value={editSelProd} onChange={(e) => onPickProductEdit(e.target.value)} disabled={!editSelCat} className="bg-gray-50 dark:bg-gray-800/50 border rounded-lg px-3 py-2 disabled:opacity-50">
+                <option value="">Product</option>
+                {editProducts.map((p) => <option key={p.Id} value={p.Id}>{p.Name}</option>)}
+              </select>
+
+              <select value={editSelSize} onChange={(e) => onPickSizeEdit(e.target.value)} disabled={!editSelProd} className="bg-gray-50 dark:bg-gray-800/50 border rounded-lg px-3 py-2 disabled:opacity-50">
+                <option value="">Size</option>
+                {editSizes.map((s) => <option key={s.Id} value={s.Id}>{s.Name}</option>)}
+              </select>
+
+              <select value={editSelColor} onChange={(e) => onPickColorEdit(e.target.value)} disabled={!editSelSize} className="bg-gray-50 dark:bg-gray-800/50 border rounded-lg px-3 py-2 disabled:opacity-50">
+                <option value="">Color</option>
+                {editColors.map((c) => <option key={c.Id} value={c.Id}>{c.Name}</option>)}
+              </select>
+
+              <input type="number" min={1} value={editLineQty} onChange={(e) => setEditLineQty(Math.max(1, parseInt(e.target.value || "1")))} className="bg-gray-50 dark:bg-gray-800/50 border rounded-lg px-3 py-2" placeholder="Qty" />
+              <input type="number" step="0.01" value={editLinePrice} onChange={(e) => setEditLinePrice(parseFloat(e.target.value || "0"))} className="bg-gray-50 dark:bg-gray-800/50 border rounded-lg px-3 py-2" placeholder="Price" />
+            </div>
+
+            <div className="flex justify-end mb-4 gap-2">
+              {editMode === "replace" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetEditPickers();
+                    toast.success("Ready to add new item");
+                  }}
+                  className="bg-gray-200 dark:bg-gray-800 px-4 py-2 rounded-lg"
+                >
+                  New Item
+                </button>
+              )}
+
+              <button onClick={() => addLine("edit")} className="bg-primary text-white px-4 py-2 rounded-lg flex items-center gap-2">
+                <Plus className="w-4 h-4" />
+                {editMode === "replace" ? "Update Item" : "Add Item"}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+              <div className="text-sm">Subtotal: <b>Rs {editSubtotal.toFixed(2)}</b></div>
+              <div className="flex items-center gap-2 text-sm">
+                Discount:
+                <input className="w-24 bg-gray-50 dark:bg-gray-800 border rounded-lg px-2 py-1" type="number" step="0.01" value={editDiscount} onChange={(e) => setEditDiscount(parseFloat(e.target.value || "0"))} />
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                Delivery:
+                <input className="w-24 bg-gray-50 dark:bg-gray-800 border rounded-lg px-2 py-1" type="number" step="0.01" value={editDeliveryFee} onChange={(e) => setEditDeliveryFee(parseFloat(e.target.value || "0"))} />
+              </div>
+              <div className="text-sm">Total: <b className="text-primary">Rs {editTotal.toFixed(2)}</b></div>
+            </div>
+
+            {/* ✅ NO nested button now: outer is DIV */}
+            <div className="space-y-2 max-h-72 overflow-auto border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+              {editLines.map((l) => (
+                <div
+                  key={l.key}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => focusEditLine(l)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") focusEditLine(l);
+                  }}
+                  className={`w-full text-left flex items-center justify-between gap-2 p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer ${
+                    editSelectedKey === l.key ? "ring-2 ring-primary" : ""
+                  }`}
+                  title="Click to load this item into the pickers"
+                >
+                  <div className="text-xs font-mono">{l.variant?.VariantId}</div>
+
+                  <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      className="w-20 text-center bg-gray-50 dark:bg-gray-800 border rounded-lg px-2 py-1"
+                      type="number"
+                      min={1}
+                      value={l.qty}
+                      onChange={(e) => updateLineQty("edit", l.key, Math.max(1, parseInt(e.target.value || "1")))}
+                    />
+                    <input
+                      className="w-28 text-center bg-gray-50 dark:bg-gray-800 border rounded-lg px-2 py-1"
+                      type="number"
+                      step="0.01"
+                      value={l.price}
+                      onChange={(e) => updateLinePrice("edit", l.key, parseFloat(e.target.value || "0"))}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeLine("edit", l.key)}
+                      className="text-red-600 px-2 py-2"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => setEditOpen(false)} className="bg-gray-200 dark:bg-gray-800 px-4 py-2 rounded-lg">
+                Cancel
+              </button>
+              <button onClick={saveEdit} className="bg-primary text-white px-4 py-2 rounded-lg">
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -3,6 +3,9 @@
 import { getDb } from "@/lib/db";
 import sql, { NVarChar, UniqueIdentifier, Int, Decimal } from "mssql";
 
+type OrderStatus = "Pending" | "Paid" | "Partial" | "Canceled";
+export type OrderRange = "today" | "yesterday" | "last7" | "last30" | "all";
+
 /* ---------- Lookups ---------- */
 
 export async function getCategories() {
@@ -22,7 +25,7 @@ export async function getProductsByCategory(categoryId: string) {
       SELECT Id, Name FROM Products
       WHERE CategoryId=@cat
       ORDER BY Name
-  `);
+    `);
   return res.recordset as { Id: string; Name: string }[];
 }
 
@@ -37,14 +40,11 @@ export async function getSizesByProduct(productId: string) {
       JOIN Sizes s ON s.Id = v.SizeId
       WHERE v.ProductId=@pid
       ORDER BY s.Name
-  `);
+    `);
   return res.recordset as { Id: string; Name: string }[];
 }
 
-export async function getColorsByProductAndSize(
-  productId: string,
-  sizeId: string
-) {
+export async function getColorsByProductAndSize(productId: string, sizeId: string) {
   const pool = await getDb();
   const res = await pool
     .request()
@@ -56,16 +56,11 @@ export async function getColorsByProductAndSize(
       JOIN Colors c ON c.Id = v.ColorId
       WHERE v.ProductId=@pid AND v.SizeId=@sid
       ORDER BY c.Name
-  `);
+    `);
   return res.recordset as { Id: string; Name: string }[];
 }
 
-/* ---------- Variant Info ---------- */
-export async function getVariant(
-  productId: string,
-  sizeId: string,
-  colorId: string
-) {
+export async function getVariant(productId: string, sizeId: string, colorId: string) {
   const pool = await getDb();
   const res = await pool
     .request()
@@ -80,136 +75,28 @@ export async function getVariant(
       FROM ProductVariants v
       JOIN Products p ON p.Id = v.ProductId
       WHERE v.ProductId=@pid AND v.SizeId=@sid AND v.ColorId=@cid
-  `);
-  return res.recordset[0];
+    `);
+
+  return res.recordset[0] as
+    | { VariantId: string; InStock: number; SellingPrice: number }
+    | undefined;
 }
 
-/* ---------- Recent Orders ---------- */
-export async function getRecentOrders(limit: number = 10) {
+export async function getProductInfo(productId: string) {
   const pool = await getDb();
   const res = await pool
     .request()
-    .input("n", Int, limit)
+    .input("pid", UniqueIdentifier, productId)
     .query(`
-      SELECT TOP (@n) *
-      FROM v_RecentOrders
-      ORDER BY OrderDate DESC
-  `);
+      SELECT TOP 1 Id, CategoryId
+      FROM Products
+      WHERE Id=@pid
+    `);
 
-  return res.recordset as {
-    Id: string;
-    Customer: string | null;
-    Phone: string | null;
-    PaymentStatus: string;
-    OrderDate: Date;
-    Subtotal: number;
-    Discount: number;
-    DeliveryFee: number;
-    Total: number;
-    LineCount: number;
-  }[];
+  return res.recordset[0] as { Id: string; CategoryId: string } | undefined;
 }
 
-/* ---------- UPDATE order status ---------- */
-/**
- * Update only the status of an order.
- * This does NOT touch Sales (your proc already handled sales on create).
- */
-export async function updateOrderStatus(
-  orderId: string,
-  newStatus: "Pending" | "Paid" | "Partial" | "Canceled"
-) {
-  const pool = await getDb();
-  await pool
-    .request()
-    .input("Id", UniqueIdentifier, orderId)
-    .input("Status", NVarChar(20), newStatus)
-    .query(`
-      UPDATE Orders
-      SET PaymentStatus = @Status
-      WHERE Id = @Id
-  `);
-
-  return true;
-}
-
-/* ---------- Customer Upsert ---------- */
-async function upsertCustomer(
-  name: string | null,
-  phone: string | null,
-  address: string | null
-) {
-  if (!name) return null; // anonymous walk-in
-
-  const pool = await getDb();
-
-  // check existing by phone
-  const existing = await pool
-    .request()
-    .input("Phone", NVarChar(50), phone ?? null)
-    .query(`SELECT TOP 1 Id FROM Customers WHERE Phone=@Phone`);
-
-  if (existing.recordset.length > 0) {
-    const id = existing.recordset[0].Id;
-    await pool
-      .request()
-      .input("Id", UniqueIdentifier, id)
-      .input("Name", NVarChar(200), name)
-      .input("Address", NVarChar(500), address ?? null)
-      .query(
-        `UPDATE Customers SET Name=@Name, Address=@Address WHERE Id=@Id`
-      );
-    return id;
-  }
-
-  const newId = crypto.randomUUID();
-  await pool
-    .request()
-    .input("Id", UniqueIdentifier, newId)
-    .input("Name", NVarChar(200), name)
-    .input("Phone", NVarChar(50), phone ?? null)
-    .input("Address", NVarChar(500), address ?? null)
-    .input("CreatedAt", sql.DateTime2, new Date())
-    .query(`
-      INSERT INTO Customers (Id, Name, Phone, Address, CreatedAt)
-      VALUES (@Id, @Name, @Phone, @Address, @CreatedAt)
-  `);
-
-  return newId;
-}
-
-/* ---------- Customers (GET + DELETE) ---------- */
-export async function getCustomers() {
-  const pool = await getDb();
-  const res = await pool.request().query(`
-    SELECT 
-      Id, 
-      Name, 
-      Phone, 
-      Address, 
-      CreatedAt
-    FROM Customers
-    ORDER BY CreatedAt DESC
-  `);
-  return res.recordset as {
-    Id: string;
-    Name: string;
-    Phone: string | null;
-    Address: string | null;
-    CreatedAt: Date;
-  }[];
-}
-
-export async function deleteCustomer(id: string) {
-  const pool = await getDb();
-  await pool
-    .request()
-    .input("Id", UniqueIdentifier, id)
-    .query("DELETE FROM Customers WHERE Id=@Id");
-  return true;
-}
-
-/* ---------- Order Creation ---------- */
+/* ---------- Types ---------- */
 
 export type OrderItemInput = {
   VariantId: string;
@@ -219,62 +106,369 @@ export type OrderItemInput = {
 
 export type OrderPayload = {
   Customer?: string | null;
-  Phone?: string | null;
-  Address?: string | null;
-  PaymentStatus: "Pending" | "Paid" | "Partial" | "Canceled";
-  OrderDate: string;
+  CustomerPhone?: string | null;
+  Address?: string | null; // ✅ NEW
+  PaymentStatus: OrderStatus;
+  OrderDate: string; // yyyy-mm-dd
   Subtotal: number;
   Discount: number;
   DeliveryFee: number;
   Total: number;
-  Note?: string | null;
   Items: OrderItemInput[];
 };
+
+/* ---------- Date range helper ---------- */
+
+function rangeToFromTo(range: OrderRange): { from: Date | null; to: Date | null } {
+  const now = new Date();
+  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const endToday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+
+  if (range === "today") return { from: startToday, to: endToday };
+  if (range === "yesterday") {
+    const from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+    const to = startToday;
+    return { from, to };
+  }
+  if (range === "last7") return { from: new Date(now.getTime() - 7 * 86400000), to: null };
+  if (range === "last30") return { from: new Date(now.getTime() - 30 * 86400000), to: null };
+  return { from: null, to: null };
+}
+
+/* ---------- Recent Orders ---------- */
+
+export async function getRecentOrders(limit: number = 20, range: OrderRange = "all") {
+  const pool = await getDb();
+  const { from, to } = rangeToFromTo(range);
+
+  const req = pool.request().input("n", Int, limit);
+  req.input("from", sql.DateTime2, from);
+  req.input("to", sql.DateTime2, to);
+
+  const res = await req.query(`
+    SELECT TOP (@n)
+      o.Id,
+      o.Customer,
+      o.CustomerPhone,
+      o.Address,
+      o.PaymentStatus,
+      o.OrderDate,
+      o.Subtotal,
+      o.Discount,
+      o.DeliveryFee,
+      o.Total,
+      (SELECT COUNT(*) FROM OrderItems oi WHERE oi.OrderId = o.Id) AS LineCount
+    FROM Orders o
+    WHERE (@from IS NULL OR o.OrderDate >= @from)
+      AND (@to IS NULL OR o.OrderDate < @to)
+    ORDER BY o.OrderDate DESC
+  `);
+
+  return res.recordset as Array<{
+    Id: string;
+    Customer: string | null;
+    CustomerPhone: string | null;
+    Address: string | null;
+    PaymentStatus: OrderStatus;
+    OrderDate: Date;
+    Subtotal: number;
+    Discount: number;
+    DeliveryFee: number;
+    Total: number;
+    LineCount: number;
+  }>;
+}
+
+/* ---------- Order Details ---------- */
+
+export async function getOrderDetails(orderId: string) {
+  const pool = await getDb();
+
+  const header = await pool
+    .request()
+    .input("Id", UniqueIdentifier, orderId)
+    .query(`
+      SELECT TOP 1
+        Id, Customer, CustomerPhone, Address, PaymentStatus, OrderDate, Subtotal, Discount, DeliveryFee, Total
+      FROM Orders
+      WHERE Id=@Id
+    `);
+
+  if (!header.recordset[0]) throw new Error("Order not found");
+
+  const items = await pool
+    .request()
+    .input("Id", UniqueIdentifier, orderId)
+    .query(`
+      SELECT
+        oi.Id,
+        oi.VariantId,
+        oi.Qty,
+        oi.SellingPrice,
+
+        -- ✅ IDs needed for edit pickers
+        p.Id          AS ProductId,
+        p.CategoryId  AS CategoryId,
+        v.SizeId      AS SizeId,
+        v.ColorId     AS ColorId,
+
+        -- existing display fields
+        p.Name AS ProductName,
+        s.Name AS SizeName,
+        c.Name AS ColorName
+      FROM OrderItems oi
+      JOIN ProductVariants v ON v.Id = oi.VariantId
+      JOIN Products p ON p.Id = v.ProductId
+      LEFT JOIN Sizes s ON s.Id = v.SizeId
+      LEFT JOIN Colors c ON c.Id = v.ColorId
+      WHERE oi.OrderId=@Id
+      ORDER BY p.Name
+    `);
+
+  return { order: header.recordset[0], items: items.recordset };
+}
+
+/* ---------- Stock helpers ---------- */
+
+async function validateAndReduceStock(tx: sql.Transaction, items: OrderItemInput[]) {
+  for (const it of items) {
+    if (!it.VariantId) throw new Error("VariantId missing");
+    if (!it.Qty || it.Qty <= 0) throw new Error("Qty must be > 0");
+
+    const chk = await new sql.Request(tx)
+      .input("VariantId", UniqueIdentifier, it.VariantId)
+      .query(`SELECT TOP 1 Qty FROM ProductVariants WHERE Id=@VariantId`);
+
+    const inStock = chk.recordset?.[0]?.Qty ?? 0;
+    if (it.Qty > inStock) {
+      throw new Error(`Not enough stock for variant ${it.VariantId}. In stock: ${inStock}`);
+    }
+  }
+
+  for (const it of items) {
+    await new sql.Request(tx)
+      .input("VariantId", UniqueIdentifier, it.VariantId)
+      .input("Qty", Int, it.Qty)
+      .query(`UPDATE ProductVariants SET Qty = Qty - @Qty WHERE Id=@VariantId`);
+  }
+}
+
+async function restoreStockFromOrder(tx: sql.Transaction, orderId: string) {
+  await new sql.Request(tx)
+    .input("OrderId", UniqueIdentifier, orderId)
+    .query(`
+      UPDATE v
+      SET v.Qty = v.Qty + oi.Qty
+      FROM ProductVariants v
+      JOIN OrderItems oi ON oi.VariantId = v.Id
+      WHERE oi.OrderId=@OrderId
+    `);
+}
+
+/* ---------- Sales helpers ---------- */
+
+async function insertSalesRows(
+  tx: sql.Transaction,
+  orderId: string,
+  status: OrderStatus,
+  orderDate: Date,
+  items: OrderItemInput[]
+) {
+  for (const it of items) {
+    await new sql.Request(tx)
+      .input("Id", UniqueIdentifier, crypto.randomUUID())
+      .input("OrderId", UniqueIdentifier, orderId)
+      .input("VariantId", UniqueIdentifier, it.VariantId)
+      .input("Qty", Int, it.Qty)
+      .input("SellingPrice", Decimal(18, 2), it.SellingPrice)
+      .input("PaymentMethod", NVarChar(50), "Order")
+      .input("PaymentStatus", NVarChar(20), status)
+      .input("SaleDate", sql.DateTime2(7), orderDate)
+      .query(`
+        INSERT INTO Sales
+          (Id, OrderId, VariantId, Qty, SellingPrice, PaymentMethod, PaymentStatus, SaleDate)
+        VALUES
+          (@Id, @OrderId, @VariantId, @Qty, @SellingPrice, @PaymentMethod, @PaymentStatus, @SaleDate)
+      `);
+  }
+}
+
+/* ---------- CREATE Order ---------- */
 
 export async function createOrder(payload: OrderPayload) {
   if (!payload.Items?.length) throw new Error("No items in order.");
 
   const pool = await getDb();
+  const tx = new sql.Transaction(pool);
 
-  const customerId = await upsertCustomer(
-    payload.Customer ?? null,
-    payload.Phone ?? null,
-    payload.Address ?? null
-  );
+  try {
+    await tx.begin();
 
-  // Prepare TVP rows for procedure
-  const tvp = new sql.Table("dbo.udt_OrderItems");
-  tvp.columns.add("VariantId", sql.UniqueIdentifier, { nullable: false });
-  tvp.columns.add("Qty", sql.Int, { nullable: false });
-  tvp.columns.add("SellingPrice", sql.Decimal(18, 2), { nullable: false });
+    const orderId = crypto.randomUUID();
+    const orderDate = new Date(payload.OrderDate);
 
-  for (const it of payload.Items) {
-    tvp.rows.add(it.VariantId, it.Qty, it.SellingPrice);
+    await new sql.Request(tx)
+      .input("Id", UniqueIdentifier, orderId)
+      .input("Customer", NVarChar(200), payload.Customer ?? null)
+      .input("CustomerPhone", NVarChar(20), payload.CustomerPhone ?? null)
+      .input("Address", NVarChar(300), payload.Address ?? null) // ✅ NEW
+      .input("PaymentStatus", NVarChar(20), payload.PaymentStatus)
+      .input("OrderDate", sql.DateTime2(7), orderDate)
+      .input("Subtotal", Decimal(18, 2), payload.Subtotal)
+      .input("Discount", Decimal(18, 2), payload.Discount)
+      .input("DeliveryFee", Decimal(18, 2), payload.DeliveryFee)
+      .input("Total", Decimal(18, 2), payload.Total)
+      .query(`
+        INSERT INTO Orders (Id, Customer, CustomerPhone, Address, PaymentStatus, OrderDate, Subtotal, Discount, DeliveryFee, Total)
+        VALUES (@Id, @Customer, @CustomerPhone, @Address, @PaymentStatus, @OrderDate, @Subtotal, @Discount, @DeliveryFee, @Total)
+      `);
+
+    await validateAndReduceStock(tx, payload.Items);
+
+    for (const it of payload.Items) {
+      await new sql.Request(tx)
+        .input("Id", UniqueIdentifier, crypto.randomUUID())
+        .input("OrderId", UniqueIdentifier, orderId)
+        .input("VariantId", UniqueIdentifier, it.VariantId)
+        .input("Qty", Int, it.Qty)
+        .input("SellingPrice", Decimal(18, 2), it.SellingPrice)
+        .query(`
+          INSERT INTO OrderItems (Id, OrderId, VariantId, Qty, SellingPrice)
+          VALUES (@Id, @OrderId, @VariantId, @Qty, @SellingPrice)
+        `);
+    }
+
+    await insertSalesRows(tx, orderId, payload.PaymentStatus, orderDate, payload.Items);
+
+    await tx.commit();
+    return { OrderId: orderId };
+  } catch (err) {
+    try { await tx.rollback(); } catch {}
+    throw err;
   }
+}
 
-  const req = pool.request();
-  req.input("CustomerId", UniqueIdentifier, customerId);
-  req.input("Customer", NVarChar(200), payload.Customer ?? null);
-  req.input("Phone", NVarChar(50), payload.Phone ?? null);
-  req.input("Address", NVarChar(500), payload.Address ?? null);
-  req.input("PaymentStatus", NVarChar(20), payload.PaymentStatus);
-  req.input("OrderDate", sql.DateTime2(7), new Date(payload.OrderDate));
-  req.input("Subtotal", Decimal(18, 2), payload.Subtotal);
-  req.input("Discount", Decimal(18, 2), payload.Discount);
-  req.input("DeliveryFee", Decimal(18, 2), payload.DeliveryFee);
-  req.input("Total", Decimal(18, 2), payload.Total);
-  req.input("Note", NVarChar(1000), payload.Note ?? null);
-  req.input("Items", tvp);
+/* ---------- UPDATE Order Status ---------- */
 
-  // This proc is already doing:
-  // - insert Orders
-  // - insert OrderItems
-  // - insert Sales rows (your dashboard proved this ✅)
-  // - reduce stock
-  const out = await req.execute("dbo.sp_create_order");
+export async function updateOrderStatus(orderId: string, newStatus: OrderStatus) {
+  const pool = await getDb();
 
-  const OrderId = out.recordset?.[0]?.OrderId as string | undefined;
-  if (!OrderId) throw new Error("Order creation failed.");
+  await pool
+    .request()
+    .input("Id", UniqueIdentifier, orderId)
+    .input("Status", NVarChar(20), newStatus)
+    .query(`UPDATE Orders SET PaymentStatus=@Status WHERE Id=@Id`);
 
-  return { OrderId };
+  await pool
+    .request()
+    .input("OrderId", UniqueIdentifier, orderId)
+    .input("Status", NVarChar(20), newStatus)
+    .query(`UPDATE Sales SET PaymentStatus=@Status WHERE OrderId=@OrderId`);
+
+  return true;
+}
+
+/* ---------- EDIT Order ---------- */
+
+export async function updateOrder(orderId: string, payload: OrderPayload) {
+  if (!orderId) throw new Error("OrderId required");
+  if (!payload.Items?.length) throw new Error("No items in order.");
+
+  const pool = await getDb();
+  const tx = new sql.Transaction(pool);
+
+  try {
+    await tx.begin();
+
+    await restoreStockFromOrder(tx, orderId);
+
+    await new sql.Request(tx)
+      .input("OrderId", UniqueIdentifier, orderId)
+      .query(`DELETE FROM OrderItems WHERE OrderId=@OrderId`);
+
+    await new sql.Request(tx)
+      .input("OrderId", UniqueIdentifier, orderId)
+      .query(`DELETE FROM Sales WHERE OrderId=@OrderId`);
+
+    const orderDate = new Date(payload.OrderDate);
+
+    await new sql.Request(tx)
+      .input("Id", UniqueIdentifier, orderId)
+      .input("Customer", NVarChar(200), payload.Customer ?? null)
+      .input("CustomerPhone", NVarChar(20), payload.CustomerPhone ?? null)
+      .input("Address", NVarChar(300), payload.Address ?? null) // ✅ NEW
+      .input("PaymentStatus", NVarChar(20), payload.PaymentStatus)
+      .input("OrderDate", sql.DateTime2(7), orderDate)
+      .input("Subtotal", Decimal(18, 2), payload.Subtotal)
+      .input("Discount", Decimal(18, 2), payload.Discount)
+      .input("DeliveryFee", Decimal(18, 2), payload.DeliveryFee)
+      .input("Total", Decimal(18, 2), payload.Total)
+      .query(`
+        UPDATE Orders
+        SET Customer=@Customer,
+            CustomerPhone=@CustomerPhone,
+            Address=@Address,
+            PaymentStatus=@PaymentStatus,
+            OrderDate=@OrderDate,
+            Subtotal=@Subtotal,
+            Discount=@Discount,
+            DeliveryFee=@DeliveryFee,
+            Total=@Total
+        WHERE Id=@Id
+      `);
+
+    await validateAndReduceStock(tx, payload.Items);
+
+    for (const it of payload.Items) {
+      await new sql.Request(tx)
+        .input("Id", UniqueIdentifier, crypto.randomUUID())
+        .input("OrderId", UniqueIdentifier, orderId)
+        .input("VariantId", UniqueIdentifier, it.VariantId)
+        .input("Qty", Int, it.Qty)
+        .input("SellingPrice", Decimal(18, 2), it.SellingPrice)
+        .query(`
+          INSERT INTO OrderItems (Id, OrderId, VariantId, Qty, SellingPrice)
+          VALUES (@Id, @OrderId, @VariantId, @Qty, @SellingPrice)
+        `);
+    }
+
+    await insertSalesRows(tx, orderId, payload.PaymentStatus, orderDate, payload.Items);
+
+    await tx.commit();
+    return true;
+  } catch (err) {
+    try { await tx.rollback(); } catch {}
+    throw err;
+  }
+}
+
+/* ---------- DELETE Order ---------- */
+
+export async function deleteOrder(orderId: string) {
+  const pool = await getDb();
+  const tx = new sql.Transaction(pool);
+
+  try {
+    await tx.begin();
+
+    await restoreStockFromOrder(tx, orderId);
+
+    await new sql.Request(tx)
+      .input("OrderId", UniqueIdentifier, orderId)
+      .query(`DELETE FROM OrderItems WHERE OrderId=@OrderId`);
+
+    await new sql.Request(tx)
+      .input("OrderId", UniqueIdentifier, orderId)
+      .query(`DELETE FROM Sales WHERE OrderId=@OrderId`);
+
+    await new sql.Request(tx)
+      .input("Id", UniqueIdentifier, orderId)
+      .query(`DELETE FROM Orders WHERE Id=@Id`);
+
+    await tx.commit();
+    return true;
+  } catch (err) {
+    try { await tx.rollback(); } catch {}
+    throw err;
+  }
 }
