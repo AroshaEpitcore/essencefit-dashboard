@@ -3,10 +3,13 @@
 import { getDb } from "@/lib/db";
 import sql from "mssql";
 
-// ✅ Reuse existing lookups (Category → Product → Size → Color → Variant)
+/* ---------- Lookups ---------- */
+
 export async function getCategories() {
   const db = await getDb();
-  const res = await db.request().query("SELECT Id, Name FROM Categories ORDER BY Name");
+  const res = await db.request().query(`
+    SELECT Id, Name FROM Categories ORDER BY Name
+  `);
   return res.recordset;
 }
 
@@ -15,7 +18,23 @@ export async function getProductsByCategory(categoryId: string) {
   const res = await db
     .request()
     .input("cat", sql.UniqueIdentifier, categoryId)
-    .query("SELECT Id, Name FROM Products WHERE CategoryId=@cat ORDER BY Name");
+    .query(`
+      SELECT Id, Name FROM Products WHERE CategoryId=@cat ORDER BY Name
+    `);
+  return res.recordset;
+}
+
+export async function getOrdersForReturn() {
+  const db = await getDb();
+  const res = await db.request().query(`
+    SELECT TOP 50
+      Id,
+      Customer,
+      OrderDate,
+      Total
+    FROM Orders
+    ORDER BY OrderDate DESC
+  `);
   return res.recordset;
 }
 
@@ -65,9 +84,16 @@ export async function getVariant(productId: string, sizeId: string, colorId: str
   return res.recordset[0];
 }
 
-// ✅ Save Sales Return
-export async function createSalesReturn(orderId: string | null, reason: string, items: { VariantId: string; Qty: number }[]) {
+/* ---------- Sales Returns ---------- */
+
+export async function createSalesReturn(
+  orderId: string,
+  reason: string,
+  items: { VariantId: string; Qty: number }[]
+) {
+  if (!orderId) throw new Error("OrderId is required");
   if (!items.length) throw new Error("No return items");
+  if (!reason?.trim()) throw new Error("Reason is required");
 
   const db = await getDb();
   const tx = new sql.Transaction(db);
@@ -75,56 +101,76 @@ export async function createSalesReturn(orderId: string | null, reason: string, 
   try {
     await tx.begin();
 
-    const req1 = new sql.Request(tx);
-    req1.input("OrderId", sql.UniqueIdentifier, orderId || null);
-    req1.input("Reason", sql.NVarChar(500), reason || null);
-    const res = await req1.query(`
-      INSERT INTO SalesReturns (OrderId, Reason)
-      OUTPUT INSERTED.Id
-      VALUES (@OrderId, @Reason)
-    `);
-    const returnId = res.recordset[0].Id;
+    // validate order exists
+    const check = await new sql.Request(tx)
+      .input("OrderId", sql.UniqueIdentifier, orderId)
+      .query(`SELECT TOP 1 Id FROM Orders WHERE Id=@OrderId`);
 
+    if (check.recordset.length === 0) {
+      throw new Error("Invalid OrderId (order not found)");
+    }
+
+    // insert header
+    const res = await new sql.Request(tx)
+      .input("OrderId", sql.UniqueIdentifier, orderId)
+      .input("Reason", sql.NVarChar(500), reason)
+      .query(`
+        INSERT INTO SalesReturns (OrderId, Reason)
+        OUTPUT INSERTED.Id
+        VALUES (@OrderId, @Reason)
+      `);
+
+    const returnId = res.recordset[0].Id as string;
+
+    // insert items + restock
     for (const it of items) {
-      const req2 = new sql.Request(tx);
-      req2.input("ReturnId", sql.UniqueIdentifier, returnId);
-      req2.input("VariantId", sql.UniqueIdentifier, it.VariantId);
-      req2.input("Qty", sql.Int, it.Qty);
-      await req2.query(`
-        INSERT INTO SalesReturnItems (ReturnId, VariantId, Qty)
-        VALUES (@ReturnId, @VariantId, @Qty)
-      `);
+      if (!it.VariantId) throw new Error("VariantId missing");
+      if (!it.Qty || it.Qty <= 0) throw new Error("Qty must be > 0");
 
-      // ✅ Optionally update stock (increase)
-      const req3 = new sql.Request(tx);
-      req3.input("VariantId", sql.UniqueIdentifier, it.VariantId);
-      req3.input("Qty", sql.Int, it.Qty);
-      await req3.query(`
-        UPDATE ProductVariants
-        SET Qty = Qty + @Qty
-        WHERE Id=@VariantId
-      `);
+      await new sql.Request(tx)
+        .input("ReturnId", sql.UniqueIdentifier, returnId)
+        .input("VariantId", sql.UniqueIdentifier, it.VariantId)
+        .input("Qty", sql.Int, it.Qty)
+        .query(`
+          INSERT INTO SalesReturnItems (ReturnId, VariantId, Qty)
+          VALUES (@ReturnId, @VariantId, @Qty)
+        `);
+
+      await new sql.Request(tx)
+        .input("VariantId", sql.UniqueIdentifier, it.VariantId)
+        .input("Qty", sql.Int, it.Qty)
+        .query(`
+          UPDATE ProductVariants
+          SET Qty = Qty + @Qty
+          WHERE Id=@VariantId
+        `);
     }
 
     await tx.commit();
     return { success: true, returnId };
   } catch (err) {
-    await tx.rollback();
+    try {
+      await tx.rollback();
+    } catch {}
     throw err;
   }
 }
 
-// ✅ Fetch recent returns
 export async function getRecentReturns(limit: number = 10) {
   const db = await getDb();
   const res = await db
     .request()
     .input("n", sql.Int, limit)
     .query(`
-      SELECT TOP (@n) r.Id, r.Reason, r.CreatedAt, COUNT(ri.Id) AS ItemCount
+      SELECT TOP (@n)
+        r.Id,
+        r.OrderId,
+        r.Reason,
+        r.CreatedAt,
+        COUNT(ri.Id) AS ItemCount
       FROM SalesReturns r
       LEFT JOIN SalesReturnItems ri ON ri.ReturnId = r.Id
-      GROUP BY r.Id, r.Reason, r.CreatedAt
+      GROUP BY r.Id, r.OrderId, r.Reason, r.CreatedAt
       ORDER BY r.CreatedAt DESC
     `);
   return res.recordset;
