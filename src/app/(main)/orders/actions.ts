@@ -107,9 +107,9 @@ export type OrderItemInput = {
 export type OrderPayload = {
   Customer?: string | null;
   CustomerPhone?: string | null;
-  Address?: string | null; // ✅ NEW
+  Address?: string | null;
   PaymentStatus: OrderStatus;
-  OrderDate: string; // yyyy-mm-dd
+  OrderDate: string;
   Subtotal: number;
   Discount: number;
   DeliveryFee: number;
@@ -164,19 +164,7 @@ export async function getRecentOrders(limit: number = 20, range: OrderRange = "a
     ORDER BY o.OrderDate DESC
   `);
 
-  return res.recordset as Array<{
-    Id: string;
-    Customer: string | null;
-    CustomerPhone: string | null;
-    Address: string | null;
-    PaymentStatus: OrderStatus;
-    OrderDate: Date;
-    Subtotal: number;
-    Discount: number;
-    DeliveryFee: number;
-    Total: number;
-    LineCount: number;
-  }>;
+  return res.recordset;
 }
 
 /* ---------- Order Details ---------- */
@@ -206,13 +194,11 @@ export async function getOrderDetails(orderId: string) {
         oi.Qty,
         oi.SellingPrice,
 
-        -- ✅ IDs needed for edit pickers
         p.Id          AS ProductId,
         p.CategoryId  AS CategoryId,
         v.SizeId      AS SizeId,
         v.ColorId     AS ColorId,
 
-        -- existing display fields
         p.Name AS ProductName,
         s.Name AS SizeName,
         c.Name AS ColorName
@@ -232,17 +218,12 @@ export async function getOrderDetails(orderId: string) {
 
 async function validateAndReduceStock(tx: sql.Transaction, items: OrderItemInput[]) {
   for (const it of items) {
-    if (!it.VariantId) throw new Error("VariantId missing");
-    if (!it.Qty || it.Qty <= 0) throw new Error("Qty must be > 0");
-
     const chk = await new sql.Request(tx)
       .input("VariantId", UniqueIdentifier, it.VariantId)
       .query(`SELECT TOP 1 Qty FROM ProductVariants WHERE Id=@VariantId`);
 
     const inStock = chk.recordset?.[0]?.Qty ?? 0;
-    if (it.Qty > inStock) {
-      throw new Error(`Not enough stock for variant ${it.VariantId}. In stock: ${inStock}`);
-    }
+    if (it.Qty > inStock) throw new Error(`Not enough stock. In stock: ${inStock}`);
   }
 
   for (const it of items) {
@@ -265,6 +246,53 @@ async function restoreStockFromOrder(tx: sql.Transaction, orderId: string) {
     `);
 }
 
+/* ---------- Customer upsert inside TX ---------- */
+async function upsertCustomerTx(
+  tx: sql.Transaction,
+  name?: string | null,
+  phone?: string | null,
+  address?: string | null
+): Promise<string | null> {
+  const n = (name ?? "").trim();
+  const p = (phone ?? "").trim();
+  const a = (address ?? "").trim();
+
+  if (!n && !p) return null;
+
+  if (p) {
+    const existing = await new sql.Request(tx)
+      .input("Phone", NVarChar(50), p)
+      .query(`SELECT TOP 1 Id FROM Customers WHERE Phone=@Phone`);
+
+    if (existing.recordset.length) {
+      const id = existing.recordset[0].Id as string;
+
+      await new sql.Request(tx)
+        .input("Id", UniqueIdentifier, id)
+        .input("Name", NVarChar(200), n || null)
+        .input("Address", NVarChar(500), a || null)
+        .query(`
+          UPDATE Customers
+          SET Name = COALESCE(@Name, Name),
+              Address = COALESCE(@Address, Address)
+          WHERE Id=@Id
+        `);
+
+      return id;
+    }
+  }
+
+  const newId = crypto.randomUUID();
+  await new sql.Request(tx)
+    .input("Id", UniqueIdentifier, newId)
+    .input("Name", NVarChar(200), n || (p ? `Customer ${p}` : "Customer"))
+    .input("Phone", NVarChar(50), p || null)
+    .input("Address", NVarChar(500), a || null)
+    .query(`INSERT INTO Customers (Id, Name, Phone, Address) VALUES (@Id, @Name, @Phone, @Address)`);
+
+  return newId;
+}
+
 /* ---------- Sales helpers ---------- */
 
 async function insertSalesRows(
@@ -285,10 +313,8 @@ async function insertSalesRows(
       .input("PaymentStatus", NVarChar(20), status)
       .input("SaleDate", sql.DateTime2(7), orderDate)
       .query(`
-        INSERT INTO Sales
-          (Id, OrderId, VariantId, Qty, SellingPrice, PaymentMethod, PaymentStatus, SaleDate)
-        VALUES
-          (@Id, @OrderId, @VariantId, @Qty, @SellingPrice, @PaymentMethod, @PaymentStatus, @SaleDate)
+        INSERT INTO Sales (Id, OrderId, VariantId, Qty, SellingPrice, PaymentMethod, PaymentStatus, SaleDate)
+        VALUES (@Id, @OrderId, @VariantId, @Qty, @SellingPrice, @PaymentMethod, @PaymentStatus, @SaleDate)
       `);
   }
 }
@@ -307,11 +333,19 @@ export async function createOrder(payload: OrderPayload) {
     const orderId = crypto.randomUUID();
     const orderDate = new Date(payload.OrderDate);
 
+    const customerId = await upsertCustomerTx(
+      tx,
+      payload.Customer ?? null,
+      payload.CustomerPhone ?? null,
+      payload.Address ?? null
+    );
+
     await new sql.Request(tx)
       .input("Id", UniqueIdentifier, orderId)
       .input("Customer", NVarChar(200), payload.Customer ?? null)
       .input("CustomerPhone", NVarChar(20), payload.CustomerPhone ?? null)
-      .input("Address", NVarChar(300), payload.Address ?? null) // ✅ NEW
+      .input("Address", NVarChar(300), payload.Address ?? null)
+      .input("CustomerId", UniqueIdentifier, customerId) // ✅ IMPORTANT
       .input("PaymentStatus", NVarChar(20), payload.PaymentStatus)
       .input("OrderDate", sql.DateTime2(7), orderDate)
       .input("Subtotal", Decimal(18, 2), payload.Subtotal)
@@ -319,8 +353,8 @@ export async function createOrder(payload: OrderPayload) {
       .input("DeliveryFee", Decimal(18, 2), payload.DeliveryFee)
       .input("Total", Decimal(18, 2), payload.Total)
       .query(`
-        INSERT INTO Orders (Id, Customer, CustomerPhone, Address, PaymentStatus, OrderDate, Subtotal, Discount, DeliveryFee, Total)
-        VALUES (@Id, @Customer, @CustomerPhone, @Address, @PaymentStatus, @OrderDate, @Subtotal, @Discount, @DeliveryFee, @Total)
+        INSERT INTO Orders (Id, Customer, CustomerPhone, Address, CustomerId, PaymentStatus, OrderDate, Subtotal, Discount, DeliveryFee, Total)
+        VALUES (@Id, @Customer, @CustomerPhone, @Address, @CustomerId, @PaymentStatus, @OrderDate, @Subtotal, @Discount, @DeliveryFee, @Total)
       `);
 
     await validateAndReduceStock(tx, payload.Items);
@@ -353,14 +387,12 @@ export async function createOrder(payload: OrderPayload) {
 export async function updateOrderStatus(orderId: string, newStatus: OrderStatus) {
   const pool = await getDb();
 
-  await pool
-    .request()
+  await pool.request()
     .input("Id", UniqueIdentifier, orderId)
     .input("Status", NVarChar(20), newStatus)
     .query(`UPDATE Orders SET PaymentStatus=@Status WHERE Id=@Id`);
 
-  await pool
-    .request()
+  await pool.request()
     .input("OrderId", UniqueIdentifier, orderId)
     .input("Status", NVarChar(20), newStatus)
     .query(`UPDATE Sales SET PaymentStatus=@Status WHERE OrderId=@OrderId`);
@@ -371,7 +403,6 @@ export async function updateOrderStatus(orderId: string, newStatus: OrderStatus)
 /* ---------- EDIT Order ---------- */
 
 export async function updateOrder(orderId: string, payload: OrderPayload) {
-  if (!orderId) throw new Error("OrderId required");
   if (!payload.Items?.length) throw new Error("No items in order.");
 
   const pool = await getDb();
@@ -382,21 +413,27 @@ export async function updateOrder(orderId: string, payload: OrderPayload) {
 
     await restoreStockFromOrder(tx, orderId);
 
-    await new sql.Request(tx)
-      .input("OrderId", UniqueIdentifier, orderId)
+    await new sql.Request(tx).input("OrderId", UniqueIdentifier, orderId)
       .query(`DELETE FROM OrderItems WHERE OrderId=@OrderId`);
 
-    await new sql.Request(tx)
-      .input("OrderId", UniqueIdentifier, orderId)
+    await new sql.Request(tx).input("OrderId", UniqueIdentifier, orderId)
       .query(`DELETE FROM Sales WHERE OrderId=@OrderId`);
 
     const orderDate = new Date(payload.OrderDate);
+
+    const customerId = await upsertCustomerTx(
+      tx,
+      payload.Customer ?? null,
+      payload.CustomerPhone ?? null,
+      payload.Address ?? null
+    );
 
     await new sql.Request(tx)
       .input("Id", UniqueIdentifier, orderId)
       .input("Customer", NVarChar(200), payload.Customer ?? null)
       .input("CustomerPhone", NVarChar(20), payload.CustomerPhone ?? null)
-      .input("Address", NVarChar(300), payload.Address ?? null) // ✅ NEW
+      .input("Address", NVarChar(300), payload.Address ?? null)
+      .input("CustomerId", UniqueIdentifier, customerId)
       .input("PaymentStatus", NVarChar(20), payload.PaymentStatus)
       .input("OrderDate", sql.DateTime2(7), orderDate)
       .input("Subtotal", Decimal(18, 2), payload.Subtotal)
@@ -408,6 +445,7 @@ export async function updateOrder(orderId: string, payload: OrderPayload) {
         SET Customer=@Customer,
             CustomerPhone=@CustomerPhone,
             Address=@Address,
+            CustomerId=@CustomerId,
             PaymentStatus=@PaymentStatus,
             OrderDate=@OrderDate,
             Subtotal=@Subtotal,
@@ -453,16 +491,13 @@ export async function deleteOrder(orderId: string) {
 
     await restoreStockFromOrder(tx, orderId);
 
-    await new sql.Request(tx)
-      .input("OrderId", UniqueIdentifier, orderId)
+    await new sql.Request(tx).input("OrderId", UniqueIdentifier, orderId)
       .query(`DELETE FROM OrderItems WHERE OrderId=@OrderId`);
 
-    await new sql.Request(tx)
-      .input("OrderId", UniqueIdentifier, orderId)
+    await new sql.Request(tx).input("OrderId", UniqueIdentifier, orderId)
       .query(`DELETE FROM Sales WHERE OrderId=@OrderId`);
 
-    await new sql.Request(tx)
-      .input("Id", UniqueIdentifier, orderId)
+    await new sql.Request(tx).input("Id", UniqueIdentifier, orderId)
       .query(`DELETE FROM Orders WHERE Id=@Id`);
 
     await tx.commit();
