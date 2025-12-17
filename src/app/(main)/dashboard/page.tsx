@@ -11,6 +11,7 @@ import {
   ShoppingCart,
   Banknote,
   AlertTriangle,
+  ClipboardList,
 } from "lucide-react";
 import { getDashboardStats, getLowStockItems, getChartData } from "./actions";
 import {
@@ -40,6 +41,10 @@ type DashboardStats = {
   Products: number;
   Variants: number;
   LowStock: number;
+
+  // ✅ new
+  OrdersToday: number;
+  OrdersMonth: number;
   NewOrdersCount: number;
 };
 
@@ -70,6 +75,7 @@ export default function DashboardPage() {
   return (
     <div className="text-gray-900 dark:text-white">
       <Toaster position="top-right" />
+
       <h1 className="text-xl font-bold mb-8 flex items-center gap-2">
         <Package className="w-7 h-7 text-primary" />
         Dashboard
@@ -80,19 +86,17 @@ export default function DashboardPage() {
       ) : (
         <>
           {/* === Congratulations Section === */}
-          {stats?.NewOrdersCount > 0 && (
+          {stats.NewOrdersCount > 0 && (
             <div className="relative overflow-hidden text-sm font-medium text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-2xl px-6 py-10 mb-10 flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-bold mb-1">
-                  Congratulations 🎉
-                </h2>
+                <h2 className="text-xl font-bold mb-1">Congratulations 🎉</h2>
                 <p className="text-sm opacity-90 mb-3">
-                  You have more sales this week check your new orders.
+                  You have new pending orders. Check and confirm them.
                 </p>
                 <div className="text-lg font-semibold">
                   {stats.NewOrdersCount} new orders
                   <span className="ml-2 text-sm font-normal opacity-80">
-                    Processing
+                    Pending
                   </span>
                 </div>
               </div>
@@ -115,22 +119,36 @@ export default function DashboardPage() {
             />
             <Card
               title="Today's Sales"
-              value={`Rs ${stats.TodaysSales}`}
+              value={`Rs ${Number(stats.TodaysSales).toFixed(2)}`}
               icon={<DollarSign className="w-5 h-5" />}
               color="bg-green-500/20 text-green-600 dark:text-green-400"
             />
             <Card
               title="This Month Sales"
-              value={`Rs ${stats.ThisMonthSales}`}
+              value={`Rs ${Number(stats.ThisMonthSales).toFixed(2)}`}
               icon={<TrendingUp className="w-5 h-5" />}
               color="bg-green-500/20 text-green-600 dark:text-green-400"
             />
             <Card
               title="This Month Profit"
-              value={`Rs ${stats.ThisMonthProfit}`}
+              value={`Rs ${Number(stats.ThisMonthProfit).toFixed(2)}`}
               icon={<Banknote className="w-5 h-5" />}
               color="bg-purple-500/20 text-purple-600 dark:text-purple-400"
             />
+
+            <Card
+              title="Orders Today"
+              value={stats.OrdersToday}
+              icon={<ClipboardList className="w-5 h-5" />}
+              color="bg-indigo-500/20 text-indigo-600 dark:text-indigo-400"
+            />
+            <Card
+              title="Orders This Month"
+              value={stats.OrdersMonth}
+              icon={<ClipboardList className="w-5 h-5" />}
+              color="bg-indigo-500/20 text-indigo-600 dark:text-indigo-400"
+            />
+
             <Card
               title="Units Sold Today"
               value={stats.UnitsSoldToday}
@@ -145,25 +163,25 @@ export default function DashboardPage() {
             />
             <Card
               title="Expenses (Month)"
-              value={`Rs ${stats.ExpensesMonth}`}
+              value={`Rs ${Number(stats.ExpensesMonth).toFixed(2)}`}
               icon={<TrendingDown className="w-5 h-5" />}
               color="bg-red-500/20 text-red-600 dark:text-red-400"
             />
             <Card
               title="This Month Net"
-              value={`Rs ${stats.ThisMonthNet}`}
+              value={`Rs ${Number(stats.ThisMonthNet).toFixed(2)}`}
               icon={<DollarSign className="w-5 h-5" />}
               color="bg-teal-500/20 text-teal-600 dark:text-teal-400"
             />
             <Card
               title="All-time Sales"
-              value={`Rs ${stats.AllTimeSales}`}
+              value={`Rs ${Number(stats.AllTimeSales).toFixed(2)}`}
               icon={<DollarSign className="w-5 h-5" />}
               color="bg-indigo-500/20 text-indigo-600 dark:text-indigo-400"
             />
             <Card
               title="All-time Profit"
-              value={`Rs ${stats.AllTimeProfit}`}
+              value={`Rs ${Number(stats.AllTimeProfit).toFixed(2)}`}
               icon={<Banknote className="w-5 h-5" />}
               color="bg-purple-500/20 text-purple-600 dark:text-purple-400"
             />
@@ -217,12 +235,7 @@ export default function DashboardPage() {
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="sales"
-                    stroke="#3b82f6"
-                    name="Sales"
-                  />
+                  <Line type="monotone" dataKey="sales" stroke="#3b82f6" name="Sales" />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -234,6 +247,7 @@ export default function DashboardPage() {
               <AlertTriangle className="w-5 h-5 text-red-500" />
               Low-stock Products
             </h2>
+
             {lowStock.length === 0 ? (
               <p className="text-gray-500 text-center py-6">
                 All stocks are healthy 🎉

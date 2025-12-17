@@ -9,63 +9,71 @@ export async function getDashboardStats() {
     DECLARE @MonthStart DATE = DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1);
 
     SELECT
-      -- Stock
-      (SELECT SUM(Qty) FROM ProductVariants) AS TotalStock,
+      /* ---------------- Stock ---------------- */
+      (SELECT ISNULL(SUM(Qty),0) FROM ProductVariants) AS TotalStock,
 
-      -- Today Sales
+      /* ---------------- Sales ---------------- */
       (SELECT ISNULL(SUM(S.Qty * S.SellingPrice),0)
-       FROM Sales S WHERE CAST(S.SaleDate AS DATE) = @Today) AS TodaysSales,
+       FROM Sales S
+       WHERE CAST(S.SaleDate AS DATE) = @Today) AS TodaysSales,
 
-      -- This Month Sales
       (SELECT ISNULL(SUM(S.Qty * S.SellingPrice),0)
-       FROM Sales S WHERE S.SaleDate >= @MonthStart) AS ThisMonthSales,
+       FROM Sales S
+       WHERE S.SaleDate >= @MonthStart) AS ThisMonthSales,
 
-      -- This Month Profit (Gross)
+      /* ---------------- Profit (Gross) ---------------- */
       (SELECT ISNULL(SUM((S.Qty * S.SellingPrice) - (S.Qty * P.CostPrice)),0)
        FROM Sales S
        JOIN ProductVariants V ON S.VariantId = V.Id
        JOIN Products P ON V.ProductId = P.Id
        WHERE S.SaleDate >= @MonthStart) AS ThisMonthProfit,
 
-      -- Units Sold
+      /* ---------------- Units Sold ---------------- */
       (SELECT ISNULL(SUM(S.Qty),0)
-       FROM Sales S WHERE CAST(S.SaleDate AS DATE) = @Today) AS UnitsSoldToday,
+       FROM Sales S
+       WHERE CAST(S.SaleDate AS DATE) = @Today) AS UnitsSoldToday,
 
       (SELECT ISNULL(SUM(S.Qty),0)
-       FROM Sales S WHERE S.SaleDate >= @MonthStart) AS UnitsSoldMonth,
+       FROM Sales S
+       WHERE S.SaleDate >= @MonthStart) AS UnitsSoldMonth,
 
-      -- Expenses
+      /* ---------------- Expenses ---------------- */
       (SELECT ISNULL(SUM(E.Amount),0)
-       FROM Expenses E WHERE E.ExpenseDate >= @MonthStart) AS ExpensesMonth,
+       FROM Expenses E
+       WHERE E.ExpenseDate >= @MonthStart) AS ExpensesMonth,
 
-      -- This Month Net (Gross − Expenses)
-      (SELECT 
+      /* ---------------- Net (Gross - Expenses) ---------------- */
+      (SELECT
          ISNULL(SUM((S.Qty * S.SellingPrice) - (S.Qty * P.CostPrice)),0)
          - ISNULL((SELECT SUM(E.Amount) FROM Expenses E WHERE E.ExpenseDate >= @MonthStart),0)
-       FROM Sales S 
+       FROM Sales S
        JOIN ProductVariants V ON S.VariantId = V.Id
        JOIN Products P ON V.ProductId = P.Id
        WHERE S.SaleDate >= @MonthStart) AS ThisMonthNet,
 
-      -- All-time Totals
+      /* ---------------- All-time Totals ---------------- */
       (SELECT ISNULL(SUM(S.Qty * S.SellingPrice),0) FROM Sales S) AS AllTimeSales,
+
       (SELECT ISNULL(SUM((S.Qty * S.SellingPrice) - (S.Qty * P.CostPrice)),0)
        FROM Sales S
        JOIN ProductVariants V ON S.VariantId = V.Id
        JOIN Products P ON V.ProductId = P.Id) AS AllTimeProfit,
 
-      -- Counts
+      /* ---------------- Counts ---------------- */
       (SELECT COUNT(*) FROM Products) AS Products,
       (SELECT COUNT(*) FROM ProductVariants) AS Variants,
       (SELECT COUNT(*) FROM ProductVariants WHERE Qty < 5) AS LowStock,
 
-      -- ✅ New Orders (based on PaymentStatus)
-      (SELECT COUNT(*) FROM Orders WHERE PaymentStatus IN ('Pending', 'Processing')) AS NewOrdersCount
+      /* ✅ Orders counts */
+      (SELECT COUNT(*) FROM Orders WHERE CAST(OrderDate AS DATE) = @Today) AS OrdersToday,
+      (SELECT COUNT(*) FROM Orders WHERE OrderDate >= @MonthStart) AS OrdersMonth,
+
+      /* ✅ New Orders = Pending only (since you don't have "Processing") */
+      (SELECT COUNT(*) FROM Orders WHERE PaymentStatus = 'Pending') AS NewOrdersCount
   `);
 
   return result.recordset[0];
 }
-
 
 export async function getLowStockItems() {
   const pool = await getDb();
