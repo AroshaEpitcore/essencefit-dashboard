@@ -50,7 +50,7 @@ type LineDraft = {
   price: number;
 };
 
-const ORDER_STATUSES = ["Pending", "Paid", "Partial", "Canceled"] as const;
+const ORDER_STATUSES = ["Pending", "Paid", "Partial", "Completed", "Canceled"] as const;
 type OrderStatus = (typeof ORDER_STATUSES)[number];
 
 const RANGE_OPTIONS: Array<{ key: OrderRange; label: string }> = [

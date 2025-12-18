@@ -3,7 +3,7 @@
 import { getDb } from "@/lib/db";
 import sql, { NVarChar, UniqueIdentifier, Int, Decimal } from "mssql";
 
-type OrderStatus = "Pending" | "Paid" | "Partial" | "Canceled";
+type OrderStatus = "Pending" | "Paid" | "Partial" | "Completed" | "Canceled";
 export type OrderRange = "today" | "yesterday" | "last7" | "last30" | "all";
 
 /* ---------- Lookups ---------- */
