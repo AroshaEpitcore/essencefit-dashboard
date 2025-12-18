@@ -112,8 +112,8 @@ export type OrderPayload = {
   OrderDate: string;
 
   Subtotal: number;
-  Discount: number;     // ✅ we will store delivery-saving inside Discount
-  DeliveryFee: number;  // ✅ actual delivery fee after free-delivery applied
+  Discount: number;     // includes delivery-saving
+  DeliveryFee: number;  // always 0 by your rule
   Total: number;
 
   Items: OrderItemInput[];
@@ -249,6 +249,7 @@ async function restoreStockFromOrder(tx: sql.Transaction, orderId: string) {
 }
 
 /* ---------- Customer upsert inside TX ---------- */
+
 async function upsertCustomerTx(
   tx: sql.Transaction,
   name?: string | null,
@@ -297,6 +298,10 @@ async function upsertCustomerTx(
 
 /* ---------- Sales helpers ---------- */
 
+function shouldCreateSales(status: OrderStatus) {
+  return status === "Paid" || status === "Completed";
+}
+
 async function insertSalesRows(
   tx: sql.Transaction,
   orderId: string,
@@ -319,6 +324,12 @@ async function insertSalesRows(
         VALUES (@Id, @OrderId, @VariantId, @Qty, @SellingPrice, @PaymentMethod, @PaymentStatus, @SaleDate)
       `);
   }
+}
+
+async function deleteSalesForOrder(tx: sql.Transaction, orderId: string) {
+  await new sql.Request(tx)
+    .input("OrderId", UniqueIdentifier, orderId)
+    .query(`DELETE FROM Sales WHERE OrderId=@OrderId`);
 }
 
 /* ---------- CREATE Order ---------- */
@@ -374,7 +385,10 @@ export async function createOrder(payload: OrderPayload) {
         `);
     }
 
-    await insertSalesRows(tx, orderId, payload.PaymentStatus, orderDate, payload.Items);
+    // ✅ only create sales when status is Paid or Completed
+    if (shouldCreateSales(payload.PaymentStatus)) {
+      await insertSalesRows(tx, orderId, payload.PaymentStatus, orderDate, payload.Items);
+    }
 
     await tx.commit();
     return { OrderId: orderId };
@@ -388,18 +402,46 @@ export async function createOrder(payload: OrderPayload) {
 
 export async function updateOrderStatus(orderId: string, newStatus: OrderStatus) {
   const pool = await getDb();
+  const tx = new sql.Transaction(pool);
 
-  await pool.request()
-    .input("Id", UniqueIdentifier, orderId)
-    .input("Status", NVarChar(20), newStatus)
-    .query(`UPDATE Orders SET PaymentStatus=@Status WHERE Id=@Id`);
+  try {
+    await tx.begin();
 
-  await pool.request()
-    .input("OrderId", UniqueIdentifier, orderId)
-    .input("Status", NVarChar(20), newStatus)
-    .query(`UPDATE Sales SET PaymentStatus=@Status WHERE OrderId=@OrderId`);
+    // update order status
+    await new sql.Request(tx)
+      .input("Id", UniqueIdentifier, orderId)
+      .input("Status", NVarChar(20), newStatus)
+      .query(`UPDATE Orders SET PaymentStatus=@Status WHERE Id=@Id`);
 
-  return true;
+    // always remove old sales rows
+    await deleteSalesForOrder(tx, orderId);
+
+    // if new status is Paid/Completed, recreate sales rows using current order items
+    if (shouldCreateSales(newStatus)) {
+      const header = await new sql.Request(tx)
+        .input("Id", UniqueIdentifier, orderId)
+        .query(`SELECT TOP 1 OrderDate FROM Orders WHERE Id=@Id`);
+
+      const orderDate: Date = header.recordset?.[0]?.OrderDate ?? new Date();
+
+      const items = await new sql.Request(tx)
+        .input("Id", UniqueIdentifier, orderId)
+        .query(`
+          SELECT VariantId, Qty, SellingPrice
+          FROM OrderItems
+          WHERE OrderId=@Id
+        `);
+
+      const mapped = items.recordset as Array<{ VariantId: string; Qty: number; SellingPrice: number }>;
+      await insertSalesRows(tx, orderId, newStatus, orderDate, mapped);
+    }
+
+    await tx.commit();
+    return true;
+  } catch (err) {
+    try { await tx.rollback(); } catch {}
+    throw err;
+  }
 }
 
 /* ---------- EDIT Order ---------- */
@@ -413,13 +455,14 @@ export async function updateOrder(orderId: string, payload: OrderPayload) {
   try {
     await tx.begin();
 
+    // restore stock from old items
     await restoreStockFromOrder(tx, orderId);
 
+    // remove old items and sales
     await new sql.Request(tx).input("OrderId", UniqueIdentifier, orderId)
       .query(`DELETE FROM OrderItems WHERE OrderId=@OrderId`);
 
-    await new sql.Request(tx).input("OrderId", UniqueIdentifier, orderId)
-      .query(`DELETE FROM Sales WHERE OrderId=@OrderId`);
+    await deleteSalesForOrder(tx, orderId);
 
     const orderDate = new Date(payload.OrderDate);
 
@@ -430,6 +473,7 @@ export async function updateOrder(orderId: string, payload: OrderPayload) {
       payload.Address ?? null
     );
 
+    // update order header
     await new sql.Request(tx)
       .input("Id", UniqueIdentifier, orderId)
       .input("Customer", NVarChar(200), payload.Customer ?? null)
@@ -457,8 +501,10 @@ export async function updateOrder(orderId: string, payload: OrderPayload) {
         WHERE Id=@Id
       `);
 
+    // reduce stock for new items
     await validateAndReduceStock(tx, payload.Items);
 
+    // insert new items
     for (const it of payload.Items) {
       await new sql.Request(tx)
         .input("Id", UniqueIdentifier, crypto.randomUUID())
@@ -472,7 +518,10 @@ export async function updateOrder(orderId: string, payload: OrderPayload) {
         `);
     }
 
-    await insertSalesRows(tx, orderId, payload.PaymentStatus, orderDate, payload.Items);
+    // ✅ only create sales when Paid/Completed
+    if (shouldCreateSales(payload.PaymentStatus)) {
+      await insertSalesRows(tx, orderId, payload.PaymentStatus, orderDate, payload.Items);
+    }
 
     await tx.commit();
     return true;
@@ -496,8 +545,7 @@ export async function deleteOrder(orderId: string) {
     await new sql.Request(tx).input("OrderId", UniqueIdentifier, orderId)
       .query(`DELETE FROM OrderItems WHERE OrderId=@OrderId`);
 
-    await new sql.Request(tx).input("OrderId", UniqueIdentifier, orderId)
-      .query(`DELETE FROM Sales WHERE OrderId=@OrderId`);
+    await deleteSalesForOrder(tx, orderId);
 
     await new sql.Request(tx).input("Id", UniqueIdentifier, orderId)
       .query(`DELETE FROM Orders WHERE Id=@Id`);

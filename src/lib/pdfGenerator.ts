@@ -1,4 +1,4 @@
-import html2pdf from "html2pdf.js";
+"use client";
 
 export function generatePrintableHTML(data: any): string {
   const itemsRows = data.items
@@ -7,11 +7,7 @@ export function generatePrintableHTML(data: any): string {
       <tr>
         <td>
           <div class="item-name">${item.name}</div>
-          ${
-            item.variant
-              ? `<div class="item-variant">${item.variant}</div>`
-              : ""
-          }
+          ${item.variant ? `<div class="item-variant">${item.variant}</div>` : ""}
         </td>
         <td style="text-align: center;">${item.qty}</td>
         <td style="text-align: right;">Rs ${item.price}</td>
@@ -115,9 +111,7 @@ export function generatePrintableHTML(data: any): string {
               <strong>Date</strong>
               ${data.date}<br>
               <strong style="margin-top: 12px;">Status</strong>
-              <span class="status-badge status-${String(
-                data.status
-              ).toLowerCase()}">${data.status}</span>
+              <span class="status-badge status-${String(data.status).toLowerCase()}">${data.status}</span>
             </p>
           </div>
         </div>
@@ -160,12 +154,10 @@ export function generatePrintableHTML(data: any): string {
   `;
 }
 
-export async function generatePDFBlob(data: any): Promise<Blob> {
-  const htmlContent = generatePrintableHTML(data);
-  
+function createHiddenContainer(html: string) {
   const container = document.createElement("div");
-  container.innerHTML = htmlContent;
-  
+  container.innerHTML = html;
+
   container.style.position = "fixed";
   container.style.left = "0";
   container.style.top = "0";
@@ -174,29 +166,49 @@ export async function generatePDFBlob(data: any): Promise<Blob> {
   container.style.pointerEvents = "none";
   container.style.zIndex = "999999";
   container.style.visibility = "hidden";
-  
+
   document.body.appendChild(container);
-  
+
+  const element = container.querySelector("#invoice-root") as HTMLElement | null;
+  if (!element) {
+    container.remove();
+    throw new Error("Invoice element not found");
+  }
+
+  return { container, element };
+}
+
+function sanitizeCustomerName(name: string) {
+  return String(name || "customer")
+    .replace(/[^a-zA-Z0-9\s]/g, "")
+    .replace(/\s+/g, "_")
+    .substring(0, 50);
+}
+
+async function loadHtml2Pdf() {
+  // dynamic import to avoid SSR issues
+  const mod: any = await import("html2pdf.js");
+  return mod?.default ?? mod;
+}
+
+export async function generatePDFBlob(data: any): Promise<Blob> {
+  const htmlContent = generatePrintableHTML(data);
+  const { container, element } = createHiddenContainer(htmlContent);
+
   try {
-    const element = container.querySelector("#invoice-root") as HTMLElement;
-    if (!element) throw new Error("Invoice element not found");
-    
     await new Promise<void>((r) =>
       requestAnimationFrame(() => requestAnimationFrame(() => r()))
     );
-    
+
     // @ts-ignore
     if (document.fonts?.ready) await document.fonts.ready;
-    
+
     container.style.visibility = "visible";
     await new Promise<void>((r) => requestAnimationFrame(() => r()));
-    
-    // Create sanitized filename from customer name
-    const sanitizedCustomer = data.customer
-      .replace(/[^a-zA-Z0-9\s]/g, '') // Remove special chars
-      .replace(/\s+/g, '_') // Replace spaces with underscore
-      .substring(0, 50); // Limit length
-    
+
+    const sanitizedCustomer = sanitizeCustomerName(data.customer);
+    const html2pdf = await loadHtml2Pdf();
+
     const opt = {
       margin: [10, 10, 10, 10] as [number, number, number, number],
       filename: `invoice_${sanitizedCustomer}_${data.orderId}.pdf`,
@@ -208,62 +220,37 @@ export async function generatePDFBlob(data: any): Promise<Blob> {
         letterRendering: true,
         backgroundColor: "#ffffff",
       },
-      jsPDF: {
-        unit: "mm",
-        format: "a4",
-        orientation: "portrait",
-      },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
     } as const;
-    
-    // @ts-ignore
-    const pdf = html2pdf().set(opt).from(element);
-    const blob = await pdf.outputPdf('blob');
-    
+
+    // html2pdf returns a worker; output('blob') is the common way
+    const worker = html2pdf().set(opt).from(element);
+    const blob: Blob = await worker.output("blob");
+
     return blob;
   } finally {
-    if (container.parentNode) {
-      container.parentNode.removeChild(container);
-    }
+    container.remove();
   }
 }
 
 export async function downloadPDF(data: any): Promise<void> {
   const htmlContent = generatePrintableHTML(data);
-  
-  const container = document.createElement("div");
-  container.innerHTML = htmlContent;
-  
-  container.style.position = "fixed";
-  container.style.left = "0";
-  container.style.top = "0";
-  container.style.width = "210mm";
-  container.style.background = "white";
-  container.style.pointerEvents = "none";
-  container.style.zIndex = "999999";
-  container.style.visibility = "hidden";
-  
-  document.body.appendChild(container);
-  
+  const { container, element } = createHiddenContainer(htmlContent);
+
   try {
-    const element = container.querySelector("#invoice-root") as HTMLElement;
-    if (!element) throw new Error("Invoice element not found");
-    
     await new Promise<void>((r) =>
       requestAnimationFrame(() => requestAnimationFrame(() => r()))
     );
-    
+
     // @ts-ignore
     if (document.fonts?.ready) await document.fonts.ready;
-    
+
     container.style.visibility = "visible";
     await new Promise<void>((r) => requestAnimationFrame(() => r()));
-    
-    // Create sanitized filename from customer name
-    const sanitizedCustomer = data.customer
-      .replace(/[^a-zA-Z0-9\s]/g, '') // Remove special chars
-      .replace(/\s+/g, '_') // Replace spaces with underscore
-      .substring(0, 50); // Limit length
-    
+
+    const sanitizedCustomer = sanitizeCustomerName(data.customer);
+    const html2pdf = await loadHtml2Pdf();
+
     const opt = {
       margin: [10, 10, 10, 10] as [number, number, number, number],
       filename: `invoice_${sanitizedCustomer}_${data.orderId}.pdf`,
@@ -275,18 +262,11 @@ export async function downloadPDF(data: any): Promise<void> {
         letterRendering: true,
         backgroundColor: "#ffffff",
       },
-      jsPDF: {
-        unit: "mm",
-        format: "a4",
-        orientation: "portrait",
-      },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
     } as const;
-    
-    // @ts-ignore
+
     await html2pdf().set(opt).from(element).save();
   } finally {
-    if (container.parentNode) {
-      container.parentNode.removeChild(container);
-    }
+    container.remove();
   }
 }
