@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { generateInvoicePDF, getWhatsAppMessage } from "./invoiceActions";
 import { downloadPDF } from "@/lib/pdfGenerator";
 import { getProductInfo } from "./actions";
+import { Search, X } from "lucide-react";
 import {
   getCategories,
   getProductsByCategory,
@@ -50,7 +51,13 @@ type LineDraft = {
   price: number;
 };
 
-const ORDER_STATUSES = ["Pending", "Paid", "Partial", "Completed", "Canceled"] as const;
+const ORDER_STATUSES = [
+  "Pending",
+  "Paid",
+  "Partial",
+  "Completed",
+  "Canceled",
+] as const;
 type OrderStatus = (typeof ORDER_STATUSES)[number];
 
 const RANGE_OPTIONS: Array<{ key: OrderRange; label: string }> = [
@@ -100,6 +107,7 @@ function ToggleSwitch({
 }
 
 export default function OrdersPage() {
+  const [searchQuery, setSearchQuery] = useState("");
   const [categories, setCategories] = useState<Opt[]>([]);
   const [products, setProducts] = useState<Opt[]>([]);
   const [sizes, setSizes] = useState<Opt[]>([]);
@@ -134,6 +142,7 @@ export default function OrdersPage() {
   // recent
   const [range, setRange] = useState<OrderRange>("today");
   const [recent, setRecent] = useState<any[]>([]);
+  const [allOrders, setAllOrders] = useState<any[]>([]); // NEW: Store all orders
   const [statusDrafts, setStatusDrafts] = useState<Record<string, OrderStatus>>(
     {}
   );
@@ -178,6 +187,28 @@ export default function OrdersPage() {
   const [editSelectedKey, setEditSelectedKey] = useState<string | null>(null);
   const [editMode, setEditMode] = useState<"add" | "replace">("add");
 
+  // Filter orders based on search query - searches from ALL orders
+  const filteredOrders = useMemo(() => {
+    // If no search query, show orders based on selected range
+    if (!searchQuery.trim()) return recent;
+
+    // When searching, search from ALL orders regardless of range
+    const query = searchQuery.toLowerCase();
+    return allOrders.filter((order) => {
+      const customer = (order.Customer || "").toLowerCase();
+      const phone = (order.CustomerPhone || "").toLowerCase();
+      const address = (order.Address || "").toLowerCase();
+      const orderId = (order.Id || "").toLowerCase();
+
+      return (
+        customer.includes(query) ||
+        phone.includes(query) ||
+        address.includes(query) ||
+        orderId.includes(query)
+      );
+    });
+  }, [allOrders, recent, searchQuery]);
+
   useEffect(() => {
     (async () => {
       setCategories(await getCategories());
@@ -188,6 +219,11 @@ export default function OrdersPage() {
   async function loadRecent() {
     const r = await getRecentOrders(100, range);
     setRecent(r);
+
+    // NEW: Also load all orders for search
+    const all = await getRecentOrders(1000, "all"); // Load more orders for search
+    setAllOrders(all);
+
     const draftMap: Record<string, OrderStatus> = {};
     r.forEach((o) => (draftMap[o.Id] = o.PaymentStatus as OrderStatus));
     setStatusDrafts(draftMap);
@@ -753,17 +789,59 @@ export default function OrdersPage() {
     <div className="text-gray-900 dark:text-white">
       <Toaster position="top-right" />
 
-      <div className="flex items-center gap-3 mb-6">
-        <div className="bg-primary/20 p-3 rounded-lg">
-          <ShoppingBag className="w-6 h-6 text-primary" />
+      <div className="flex items-start gap-4 mb-6">
+        {/* Left: Title */}
+        <div className="flex items-center gap-3">
+          <div className="bg-primary/20 p-3 rounded-lg">
+            <ShoppingBag className="w-6 h-6 text-primary" />
+          </div>
+          <h1 className="text-xl font-bold whitespace-nowrap">Orders</h1>
         </div>
-        <h1 className="text-xl font-bold">Orders</h1>
 
-        <div className="ml-auto flex items-center gap-2">
+        {/* Center: Search */}
+        <div className="flex-1 flex justify-center">
+          <div className="w-full max-w-xl">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by customer, phone, address, or order ID..."
+                className="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700 rounded-lg pl-10 pr-10 py-2.5 text-sm focus:ring-2 focus:ring-primary"
+              />
+
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* 👇 TEXT UNDER SEARCH BAR */}
+            {searchQuery && (
+              <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
+                Found{" "}
+                <span className="font-medium text-primary">
+                  {filteredOrders.length}
+                </span>{" "}
+                order{filteredOrders.length !== 1 ? "s" : ""}
+                <span className="ml-1">(searching from all orders)</span>
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Right: Filter */}
+        <div>
           <select
             value={range}
             onChange={(e) => setRange(e.target.value as OrderRange)}
-            className="bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
+            className="bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg px-5 py-3 text-sm"
           >
             {RANGE_OPTIONS.map((r) => (
               <option key={r.key} value={r.key}>
@@ -1070,7 +1148,6 @@ export default function OrdersPage() {
           )}
         </div>
       </section>
-
       {/* Recent Orders */}
       <section>
         <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
@@ -1078,13 +1155,13 @@ export default function OrdersPage() {
           Recent Orders
         </h2>
 
-        {recent.length === 0 ? (
+        {filteredOrders.length === 0 ? (
           <div className="text-center py-10 text-gray-500 bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl">
-            No orders.
+            {searchQuery ? "No orders match your search." : "No orders."}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {recent.map((o) => (
+            {filteredOrders.map((o) => (
               <motion.div
                 key={o.Id}
                 layout
@@ -1211,7 +1288,7 @@ export default function OrdersPage() {
                       <Trash2 className="w-4 h-4" /> Delete
                     </button>
 
-                    {/* ✅ PDF Download */}
+                    {/* PDF Download */}
                     <button
                       onClick={() => handlePDFDownload(o.Id)}
                       className="bg-purple-500 hover:bg-purple-600 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-2"
@@ -1220,7 +1297,7 @@ export default function OrdersPage() {
                       PDF
                     </button>
 
-                    {/* ✅ WhatsApp with PDF */}
+                    {/* WhatsApp with PDF */}
                     <button
                       onClick={() => handleWhatsAppShare(o.Id, o.CustomerPhone)}
                       disabled={!o.CustomerPhone}
