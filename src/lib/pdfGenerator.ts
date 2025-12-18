@@ -1,6 +1,9 @@
 "use client";
 
 export function generatePrintableHTML(data: any): string {
+  const totalQty = data.items.reduce((sum: number, item: any) => sum + Number(item.qty), 0);
+  const showFreeDelivery = totalQty >= 3;
+
   const itemsRows = data.items
     .map(
       (item: any) => `
@@ -16,36 +19,6 @@ export function generatePrintableHTML(data: any): string {
     `
     )
     .join("");
-
-  const discountRow =
-    parseFloat(data.discount) > 0
-      ? `
-    <div class="total-row discount">
-      <span>Discount:</span>
-      <span>- Rs ${data.discount}</span>
-    </div>
-  `
-      : "";
-
-  const deliveryRow = data.freeDeliveryApplied
-    ? `
-    <div class="total-row delivery final-section">
-      <span>Delivery Fee:</span>
-      <span><span class="free-delivery-badge">✓ FREE</span></span>
-    </div>
-  `
-    : parseFloat(data.deliveryFee) > 0
-    ? `
-    <div class="total-row delivery charged final-section">
-      <span>Delivery Fee:</span>
-      <span>Rs ${data.deliveryFee}</span>
-    </div>
-  `
-    : `
-    <div class="total-row final-section">
-      <span></span><span></span>
-    </div>
-  `;
 
   return `
   <div id="invoice-root">
@@ -63,22 +36,16 @@ export function generatePrintableHTML(data: any): string {
       .info-box p strong { display: block; font-size: 16px; margin-bottom: 4px; color: #667eea; }
       .items-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
       .items-table thead { background: #f8f9fa; }
-      .items-table th { padding: 15px; text-align: left; font-size: 12px; text-transform: uppercase; color: #666; font-weight: 600; letter-spacing: 0.5px; border-bottom: 2px solid #e0e0e0; }
+      .items-table th { padding: 15px; text-align: left; font-size: 12px; text-transform: uppercase; color: #222; font-weight: 600; letter-spacing: 0.5px; border-bottom: 2px solid #e0e0e0; }
       .items-table th:last-child, .items-table td:last-child { text-align: right; }
       .items-table tbody tr { border-bottom: 1px solid #f0f0f0; }
-      .items-table td { padding: 15px; font-size: 14px; }
-      .item-name { font-weight: 600; color: #333; }
-      .item-variant { font-size: 12px; color: #888; margin-top: 4px; }
+      .items-table td { padding: 15px; font-size: 14px; color: #222; }
+      .item-name { font-weight: 600; color: #222; }
+      .item-variant { font-size: 12px; color: #555; margin-top: 4px; }
       .totals-section { display: flex; justify-content: flex-end; margin-top: 30px; }
       .totals-box { width: 350px; }
-      .total-row { display: flex; justify-content: space-between; padding: 12px 0; font-size: 15px; }
-      .total-row.subtotal { border-bottom: 1px solid #e0e0e0; }
-      .total-row.discount { color: #e74c3c; }
-      .total-row.delivery { color: #27ae60; }
-      .total-row.delivery.charged { color: #333; }
-      .total-row.final-section { border-bottom: 2px solid #e0e0e0; padding-bottom: 15px; margin-bottom: 15px; }
-      .total-row.grand-total { font-size: 20px; font-weight: 700; color: #667eea; padding-top: 15px; border-top: 3px solid #667eea; }
-      .free-delivery-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; background: #d4edda; color: #155724; border-radius: 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+      .total-row { display: flex; justify-content: space-between; padding: 12px 0; font-size: 20px; font-weight: 700; color: #667eea; }
+      .free-delivery-tag { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: #d4edda; color: #155724; border-radius: 20px; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 10px; }
       .status-badge { display: inline-block; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
       .status-pending { background: #fff3cd; color: #856404; }
       .status-paid { background: #d4edda; color: #155724; }
@@ -130,16 +97,15 @@ export function generatePrintableHTML(data: any): string {
 
         <div class="totals-section">
           <div class="totals-box">
-            <div class="total-row subtotal">
+            <div class="total-row">
               <span>Subtotal:</span>
               <span>Rs ${data.subtotal}</span>
             </div>
-            ${discountRow}
-            ${deliveryRow}
-            <div class="total-row grand-total">
-              <span>Total:</span>
-              <span>Rs ${data.total}</span>
+            ${showFreeDelivery ? `
+            <div style="display: flex; justify-content: flex-end;">
+              <span class="free-delivery-tag">✓ FREE DELIVERY</span>
             </div>
+            ` : ''}
           </div>
         </div>
       </div>
