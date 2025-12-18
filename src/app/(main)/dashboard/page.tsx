@@ -42,7 +42,6 @@ type DashboardStats = {
   Variants: number;
   LowStock: number;
 
-  // ✅ new
   OrdersToday: number;
   OrdersMonth: number;
   NewOrdersCount: number;
@@ -85,7 +84,6 @@ export default function DashboardPage() {
         <p className="text-gray-500 text-center py-12">Loading…</p>
       ) : (
         <>
-          {/* === Congratulations Section === */}
           {stats.NewOrdersCount > 0 && (
             <div className="relative overflow-hidden text-sm font-medium text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-2xl px-6 py-10 mb-10 flex items-center justify-between">
               <div>
@@ -109,7 +107,6 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* === Stats Cards === */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
             <Card
               title="Total Stock (pcs)"
@@ -118,13 +115,13 @@ export default function DashboardPage() {
               color="bg-blue-500/20 text-blue-600 dark:text-blue-400"
             />
             <Card
-              title="Today's Sales"
+              title="Today's Sales (Net)"
               value={`Rs ${Number(stats.TodaysSales).toFixed(2)}`}
               icon={<DollarSign className="w-5 h-5" />}
               color="bg-green-500/20 text-green-600 dark:text-green-400"
             />
             <Card
-              title="This Month Sales"
+              title="This Month Sales (Net)"
               value={`Rs ${Number(stats.ThisMonthSales).toFixed(2)}`}
               icon={<TrendingUp className="w-5 h-5" />}
               color="bg-green-500/20 text-green-600 dark:text-green-400"
@@ -174,7 +171,7 @@ export default function DashboardPage() {
               color="bg-teal-500/20 text-teal-600 dark:text-teal-400"
             />
             <Card
-              title="All-time Sales"
+              title="All-time Sales (Net)"
               value={`Rs ${Number(stats.AllTimeSales).toFixed(2)}`}
               icon={<DollarSign className="w-5 h-5" />}
               color="bg-indigo-500/20 text-indigo-600 dark:text-indigo-400"
@@ -205,11 +202,10 @@ export default function DashboardPage() {
             />
           </div>
 
-          {/* === Charts Section === */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
             <div className="bg-white dark:bg-gray-800/50 p-6 rounded-xl border border-gray-200 dark:border-gray-700">
               <h2 className="text-lg font-semibold mb-4">
-                Monthly Sales vs Profit
+                Monthly Sales (Net) vs Profit
               </h2>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={chartData}>
@@ -218,7 +214,7 @@ export default function DashboardPage() {
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Bar dataKey="sales" fill="#22c55e" name="Sales" />
+                  <Bar dataKey="sales" fill="#22c55e" name="Sales (Net)" />
                   <Bar dataKey="profit" fill="#8b5cf6" name="Profit" />
                 </BarChart>
               </ResponsiveContainer>
@@ -226,7 +222,7 @@ export default function DashboardPage() {
 
             <div className="bg-white dark:bg-gray-800/50 p-6 rounded-xl border border-gray-200 dark:border-gray-700">
               <h2 className="text-lg font-semibold mb-4">
-                Daily Sales (Last 14 Days)
+                Daily Sales (Net) (Last 14 Days)
               </h2>
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={dailySales}>
@@ -235,13 +231,17 @@ export default function DashboardPage() {
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Line type="monotone" dataKey="sales" stroke="#3b82f6" name="Sales" />
+                  <Line
+                    type="monotone"
+                    dataKey="sales"
+                    stroke="#3b82f6"
+                    name="Sales (Net)"
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          {/* === Low Stock Table === */}
           <div className="bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
             <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
               <AlertTriangle className="w-5 h-5 text-red-500" />

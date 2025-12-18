@@ -110,10 +110,12 @@ export type OrderPayload = {
   Address?: string | null;
   PaymentStatus: OrderStatus;
   OrderDate: string;
+
   Subtotal: number;
-  Discount: number;
-  DeliveryFee: number;
+  Discount: number;     // ✅ we will store delivery-saving inside Discount
+  DeliveryFee: number;  // ✅ actual delivery fee after free-delivery applied
   Total: number;
+
   Items: OrderItemInput[];
 };
 
@@ -345,7 +347,7 @@ export async function createOrder(payload: OrderPayload) {
       .input("Customer", NVarChar(200), payload.Customer ?? null)
       .input("CustomerPhone", NVarChar(20), payload.CustomerPhone ?? null)
       .input("Address", NVarChar(300), payload.Address ?? null)
-      .input("CustomerId", UniqueIdentifier, customerId) // ✅ IMPORTANT
+      .input("CustomerId", UniqueIdentifier, customerId)
       .input("PaymentStatus", NVarChar(20), payload.PaymentStatus)
       .input("OrderDate", sql.DateTime2(7), orderDate)
       .input("Subtotal", Decimal(18, 2), payload.Subtotal)
