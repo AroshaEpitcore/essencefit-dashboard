@@ -191,9 +191,15 @@ export async function generatePDFBlob(data: any): Promise<Blob> {
     container.style.visibility = "visible";
     await new Promise<void>((r) => requestAnimationFrame(() => r()));
     
+    // Create sanitized filename from customer name
+    const sanitizedCustomer = data.customer
+      .replace(/[^a-zA-Z0-9\s]/g, '') // Remove special chars
+      .replace(/\s+/g, '_') // Replace spaces with underscore
+      .substring(0, 50); // Limit length
+    
     const opt = {
       margin: [10, 10, 10, 10] as [number, number, number, number],
-      filename: `invoice-${data.orderId}.pdf`,
+      filename: `invoice_${sanitizedCustomer}_${data.orderId}.pdf`,
       image: { type: "jpeg", quality: 0.98 },
       html2canvas: {
         scale: 2,
@@ -252,9 +258,15 @@ export async function downloadPDF(data: any): Promise<void> {
     container.style.visibility = "visible";
     await new Promise<void>((r) => requestAnimationFrame(() => r()));
     
+    // Create sanitized filename from customer name
+    const sanitizedCustomer = data.customer
+      .replace(/[^a-zA-Z0-9\s]/g, '') // Remove special chars
+      .replace(/\s+/g, '_') // Replace spaces with underscore
+      .substring(0, 50); // Limit length
+    
     const opt = {
       margin: [10, 10, 10, 10] as [number, number, number, number],
-      filename: `invoice-${data.orderId}.pdf`,
+      filename: `invoice_${sanitizedCustomer}_${data.orderId}.pdf`,
       image: { type: "jpeg", quality: 0.98 },
       html2canvas: {
         scale: 2,
