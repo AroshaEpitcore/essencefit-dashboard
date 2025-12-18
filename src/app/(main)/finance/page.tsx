@@ -89,7 +89,7 @@ export default function FinancePage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <Card 
             title="All-Time Sales" 
-            value={`Rs ${summary.TotalSales}`}
+           value={`Rs ${Number(summary.TotalSales).toFixed(2)}`}
             icon={<TrendingUp className="w-5 h-5" />}
             iconBg="bg-green-500/20"
             iconColor="text-green-600 dark:text-green-400"

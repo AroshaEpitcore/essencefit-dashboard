@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import { motion } from "framer-motion";
-import { generateInvoice, sendInvoiceWhatsApp } from "./invoiceActions";
+import { generateInvoicePDF, getWhatsAppMessage } from "./invoiceActions";
+import { downloadPDF } from "@/lib/pdfGenerator";
 import { getProductInfo } from "./actions";
 import {
   getCategories,
@@ -62,7 +63,6 @@ const RANGE_OPTIONS: Array<{ key: OrderRange; label: string }> = [
 
 const DELIVERY_OPTIONS = [300, 350, 400] as const;
 
-// ✅ Toggle Switch Component
 function ToggleSwitch({
   checked,
   onChange,
@@ -183,13 +183,11 @@ export default function OrdersPage() {
       setCategories(await getCategories());
       await loadRecent();
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadRecent() {
     const r = await getRecentOrders(100, range);
     setRecent(r);
-
     const draftMap: Record<string, OrderStatus> = {};
     r.forEach((o) => (draftMap[o.Id] = o.PaymentStatus as OrderStatus));
     setStatusDrafts(draftMap);
@@ -197,7 +195,6 @@ export default function OrdersPage() {
 
   useEffect(() => {
     loadRecent();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range]);
 
   async function focusEditLine(line: LineDraft) {
@@ -434,30 +431,24 @@ export default function OrdersPage() {
   );
 
   const totalQty = useMemo(() => lines.reduce((s, l) => s + l.qty, 0), [lines]);
-
   const eligibleFreeDelivery = totalQty >= 3;
 
   useEffect(() => {
     if (!eligibleFreeDelivery) setIsFreeDelivery(false);
   }, [eligibleFreeDelivery]);
 
-  // ✅ delivery saving only when toggle ON
   const deliverySaving = useMemo(() => {
     if (!eligibleFreeDelivery) return 0;
     return isFreeDelivery ? Number(selectedDeliveryCharge || 0) : 0;
   }, [eligibleFreeDelivery, isFreeDelivery, selectedDeliveryCharge]);
 
-  // ✅ IMPORTANT: You said "before toggle NO delivery added"
-  // So delivery fee is ALWAYS 0 (we only use selectedDeliveryCharge as saving/discount)
   const effectiveDeliveryFee = 0;
 
   const computedDiscount = useMemo(() => {
-    // base discount + extra saving (when toggle ON)
     return Number(discount || 0) + Number(deliverySaving || 0);
   }, [discount, deliverySaving]);
 
   const total = useMemo(() => {
-    // ✅ NO delivery added before toggle
     return Math.max(0, subtotal - computedDiscount + effectiveDeliveryFee);
   }, [subtotal, computedDiscount]);
 
@@ -480,7 +471,11 @@ export default function OrdersPage() {
   const editDeliverySaving = useMemo(() => {
     if (!editEligibleFreeDelivery) return 0;
     return editIsFreeDelivery ? Number(editSelectedDeliveryCharge || 0) : 0;
-  }, [editEligibleFreeDelivery, editIsFreeDelivery, editSelectedDeliveryCharge]);
+  }, [
+    editEligibleFreeDelivery,
+    editIsFreeDelivery,
+    editSelectedDeliveryCharge,
+  ]);
 
   // ✅ ALSO ALWAYS 0 in edit
   const editEffectiveDeliveryFee = 0;
@@ -490,8 +485,69 @@ export default function OrdersPage() {
   }, [editDiscount, editDeliverySaving]);
 
   const editTotal = useMemo(() => {
-    return Math.max(0, editSubtotal - editComputedDiscount + editEffectiveDeliveryFee);
+    return Math.max(
+      0,
+      editSubtotal - editComputedDiscount + editEffectiveDeliveryFee
+    );
   }, [editSubtotal, editComputedDiscount]);
+
+  async function handleWhatsAppShare(orderId: string, customerPhone: string) {
+    if (!customerPhone) {
+      toast.error("No customer phone number");
+      return;
+    }
+
+    const toastId = toast.loading("Preparing invoice...");
+
+    try {
+      // Get invoice data and WhatsApp message
+      const [data, { message, phone }] = await Promise.all([
+        generateInvoicePDF(orderId),
+        getWhatsAppMessage(orderId),
+      ]);
+
+      // Clean phone number
+      let cleanPhone = phone.replace(/[\s\-\(\)]/g, "");
+      if (cleanPhone.startsWith("0")) {
+        cleanPhone = "94" + cleanPhone.substring(1);
+      } else if (!cleanPhone.startsWith("94")) {
+        cleanPhone = "94" + cleanPhone;
+      }
+
+      const encodedMessage = encodeURIComponent(message);
+      const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
+
+      // Note: PDF attachment not directly supported via web WhatsApp URL
+      // User will need to manually attach the downloaded PDF
+      toast.success(
+        "Opening WhatsApp... PDF will download separately. Please attach it manually.",
+        { id: toastId, duration: 5000 }
+      );
+
+      // Download PDF for user to attach
+      await downloadPDF(data);
+
+      // Open WhatsApp
+      window.open(whatsappUrl, "_blank");
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to prepare WhatsApp message", {
+        id: toastId,
+      });
+    }
+  }
+
+  // ✅ UPDATED: PDF Download Button
+  async function handlePDFDownload(orderId: string) {
+    const toastId = toast.loading("Generating PDF...");
+
+    try {
+      const data = await generateInvoicePDF(orderId);
+      await downloadPDF(data);
+      toast.success("PDF downloaded successfully!", { id: toastId });
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to generate PDF", { id: toastId });
+    }
+  }
 
   async function saveOrder() {
     if (!lines.length) return toast.error("No items in order");
@@ -900,7 +956,8 @@ export default function OrdersPage() {
                         updateLineQty(
                           "create",
                           l.key,
-                          Math.max(1, parseInt(e.target.value || "1")))
+                          Math.max(1, parseInt(e.target.value || "1"))
+                        )
                       }
                     />
                     <input
@@ -982,7 +1039,8 @@ export default function OrdersPage() {
                         </div>
 
                         <div className="text-xs">
-                          Final Discount: <b>Rs {computedDiscount.toFixed(2)}</b>
+                          Final Discount:{" "}
+                          <b>Rs {computedDiscount.toFixed(2)}</b>
                         </div>
                       </>
                     )}
@@ -1011,7 +1069,7 @@ export default function OrdersPage() {
             </div>
           )}
         </div>
-      </section>  
+      </section>
 
       {/* Recent Orders */}
       <section>
@@ -1102,6 +1160,7 @@ export default function OrdersPage() {
                 )}
 
                 <div className="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4 space-y-3">
+                  {/* Status Selector */}
                   <div>
                     <label className="text-xs text-gray-500">
                       Update Status
@@ -1124,7 +1183,9 @@ export default function OrdersPage() {
                     </select>
                   </div>
 
+                  {/* Action Buttons */}
                   <div className="flex flex-wrap justify-end gap-2">
+                    {/* Save Status */}
                     <button
                       onClick={() => saveOrderStatus(o.Id)}
                       disabled={savingStatus === o.Id}
@@ -1134,6 +1195,7 @@ export default function OrdersPage() {
                       {savingStatus === o.Id ? "Saving..." : "Save Status"}
                     </button>
 
+                    {/* Edit */}
                     <button
                       onClick={() => openEdit(o.Id)}
                       className="bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2 rounded-lg text-sm flex items-center gap-2"
@@ -1141,6 +1203,7 @@ export default function OrdersPage() {
                       <Pencil className="w-4 h-4" /> Edit
                     </button>
 
+                    {/* Delete */}
                     <button
                       onClick={() => doDelete(o.Id)}
                       className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-2"
@@ -1148,37 +1211,27 @@ export default function OrdersPage() {
                       <Trash2 className="w-4 h-4" /> Delete
                     </button>
 
+                    {/* ✅ PDF Download */}
                     <button
-                      onClick={async () => {
-                        try {
-                          const res = await generateInvoice(o.Id);
-                          toast.success("Invoice generated");
-                          window.open(res, "_blank");
-                        } catch (e: any) {
-                          toast.error(e.message);
-                        }
-                      }}
-                      className="bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2 rounded-lg text-sm"
+                      onClick={() => handlePDFDownload(o.Id)}
+                      className="bg-purple-500 hover:bg-purple-600 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-2"
                     >
-                      <FileText className="w-4 h-4 inline-block mr-1" />
-                      Invoice
+                      <FileText className="w-4 h-4" />
+                      PDF
                     </button>
 
+                    {/* ✅ WhatsApp with PDF */}
                     <button
-                      onClick={async () => {
-                        try {
-                          await sendInvoiceWhatsApp(
-                            o.Id,
-                            o.CustomerPhone || ""
-                          );
-                          toast.success("Sent via WhatsApp");
-                        } catch (e: any) {
-                          toast.error(e.message);
-                        }
-                      }}
-                      className="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg text-sm"
+                      onClick={() => handleWhatsAppShare(o.Id, o.CustomerPhone)}
+                      disabled={!o.CustomerPhone}
+                      className="bg-green-500 hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-3 py-2 rounded-lg text-sm flex items-center gap-2"
+                      title={
+                        !o.CustomerPhone
+                          ? "No phone number"
+                          : "Send invoice via WhatsApp"
+                      }
                     >
-                      Send WhatsApp
+                      WhatsApp
                     </button>
                   </div>
                 </div>
