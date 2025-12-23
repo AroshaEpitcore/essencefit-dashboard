@@ -18,6 +18,8 @@ import {
   updateProduct,
   deleteProduct,
   quickStock,
+  getStockItems,
+  updateVariantPrices,
 } from "./actions";
 import {
   Tag,
@@ -58,6 +60,92 @@ export default function StocksPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [pendingRemove, setPendingRemove] = useState(false);
 
+  // Add these states after existing states
+  const [stockItems, setStockItems] = useState<any[]>([]);
+  const [showStockTable, setShowStockTable] = useState(false);
+  const [editVariant, setEditVariant] = useState<any | null>(null);
+
+  // Replace the editVariant state with these:
+  const [selectedVariants, setSelectedVariants] = useState<Set<string>>(
+    new Set()
+  );
+  const [showBulkEdit, setShowBulkEdit] = useState(false);
+  const [bulkCostPrice, setBulkCostPrice] = useState("");
+  const [bulkSellingPrice, setBulkSellingPrice] = useState("");
+
+  // Add these functions after existing functions
+  async function loadStockItems() {
+    const items = await getStockItems();
+    setStockItems(items);
+    setShowStockTable(true);
+  }
+
+  async function handleBulkUpdatePrices() {
+    if (selectedVariants.size === 0) {
+      toast.error("Please select at least one item!");
+      return;
+    }
+
+    if (!bulkCostPrice && !bulkSellingPrice) {
+      toast.error("Please enter at least one price to update!");
+      return;
+    }
+
+    try {
+      const updatePromises = Array.from(selectedVariants).map((variantId) =>
+        updateVariantPrices(
+          variantId,
+          bulkCostPrice ? Number(bulkCostPrice) : 0,
+          bulkSellingPrice ? Number(bulkSellingPrice) : 0
+        )
+      );
+
+      await Promise.all(updatePromises);
+      toast.success(`Updated ${selectedVariants.size} items successfully!`);
+      setShowBulkEdit(false);
+      setBulkCostPrice("");
+      setBulkSellingPrice("");
+      setSelectedVariants(new Set());
+      loadStockItems();
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  }
+
+  function toggleVariantSelection(variantId: string) {
+    const newSelection = new Set(selectedVariants);
+    if (newSelection.has(variantId)) {
+      newSelection.delete(variantId);
+    } else {
+      newSelection.add(variantId);
+    }
+    setSelectedVariants(newSelection);
+  }
+
+  function toggleSelectAll() {
+    if (selectedVariants.size === stockItems.length) {
+      setSelectedVariants(new Set());
+    } else {
+      setSelectedVariants(new Set(stockItems.map((item) => item.Id)));
+    }
+  }
+
+  async function handleUpdateVariantPrices() {
+    if (!editVariant) return;
+    try {
+      await updateVariantPrices(
+        editVariant.Id,
+        Number(editVariant.CostPrice),
+        Number(editVariant.SellingPrice)
+      );
+      toast.success("Prices updated successfully!");
+      setEditVariant(null);
+      loadStockItems(); // Refresh the table
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  }
+
   useEffect(() => {
     refreshLookups();
   }, []);
@@ -86,8 +174,11 @@ export default function StocksPage() {
     const qty = parseInt(
       (document.getElementById("qQty") as HTMLInputElement).value
     );
-    const price = Number(
+    const costPrice = Number(
       (document.getElementById("qCost") as HTMLInputElement).value
+    );
+    const sellingPrice = Number(
+      (document.getElementById("qSell") as HTMLInputElement).value
     );
 
     if (!productId || !sizeId || !colorId || !qty) {
@@ -100,7 +191,15 @@ export default function StocksPage() {
       return;
     }
 
-    await performStockAction("add", productId, sizeId, colorId, qty, price);
+    await performStockAction(
+      "add",
+      productId,
+      sizeId,
+      colorId,
+      qty,
+      costPrice,
+      sellingPrice
+    );
   }
 
   async function performStockAction(
@@ -109,23 +208,34 @@ export default function StocksPage() {
     sizeId: string,
     colorId: string,
     qty: number,
-    price: number
+    costPrice: number,
+    sellingPrice: number
   ) {
     try {
       setPendingRemove(true);
-      await quickStock(productId, sizeId, colorId, qty, price, action);
+      await quickStock(
+        productId,
+        sizeId,
+        colorId,
+        qty,
+        costPrice,
+        sellingPrice,
+        action
+      );
       toast.success(
         `Stock ${action === "add" ? "added" : "removed"} successfully!`
       );
       setShowConfirm(false);
 
       // clear fields
-      ["qProduct", "qSize", "qColor", "qQty", "qCost"].forEach((id) => {
-        const el = document.getElementById(id) as
-          | HTMLInputElement
-          | HTMLSelectElement;
-        if (el) el.value = "";
-      });
+      ["qProduct", "qSize", "qColor", "qQty", "qCost", "qSell"].forEach(
+        (id) => {
+          const el = document.getElementById(id) as
+            | HTMLInputElement
+            | HTMLSelectElement;
+          if (el) el.value = "";
+        }
+      );
     } catch (e: any) {
       toast.error(e.message);
     } finally {
@@ -504,6 +614,7 @@ export default function StocksPage() {
           )}
         </div>
       </section>
+
       {/* Quick Stock Section */}
       <section className="mt-8">
         <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
@@ -511,7 +622,7 @@ export default function StocksPage() {
           Quick Add / Remove Stock
         </h2>
         <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 p-5 rounded-xl">
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-7 gap-3 mb-4">
             <div className="relative">
               <select
                 value={selectedCat}
@@ -625,7 +736,14 @@ export default function StocksPage() {
             <input
               id="qCost"
               type="number"
-              placeholder="Price"
+              placeholder="Cost Price"
+              className="bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+            />
+
+            <input
+              id="qSell"
+              type="number"
+              placeholder="Selling Price"
               className="bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
             />
           </div>
@@ -646,6 +764,127 @@ export default function StocksPage() {
             </button>
           </div>
         </div>
+      </section>
+
+      {/* Stock Items Table Section */}
+      <section className="mt-8">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold flex items-center gap-2">
+            <Package className="w-5 h-5 text-primary" />
+            Current Stock Items
+            {selectedVariants.size > 0 && (
+              <span className="text-sm bg-primary/20 text-primary px-3 py-1 rounded-full">
+                {selectedVariants.size} selected
+              </span>
+            )}
+          </h2>
+          <div className="flex gap-3">
+            {selectedVariants.size > 0 && (
+              <button
+                onClick={() => setShowBulkEdit(true)}
+                className="bg-blue-600 hover:bg-blue-700 transition-colors px-6 py-2.5 rounded-lg font-semibold text-white flex items-center gap-2"
+              >
+                <Edit className="w-4 h-4" />
+                Bulk Edit Prices
+              </button>
+            )}
+            <button
+              onClick={loadStockItems}
+              className="bg-primary hover:bg-primary/90 transition-colors px-6 py-2.5 rounded-lg font-semibold text-white"
+            >
+              {showStockTable ? "Refresh" : "Load Stock Items"}
+            </button>
+          </div>
+        </div>
+
+        {showStockTable && (
+          <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-100 dark:bg-gray-700/50">
+                  <tr>
+                    <th className="p-4 text-left">
+                      <input
+                        type="checkbox"
+                        checked={
+                          stockItems.length > 0 &&
+                          selectedVariants.size === stockItems.length
+                        }
+                        onChange={toggleSelectAll}
+                        className="w-4 h-4 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary focus:ring-2"
+                      />
+                    </th>
+                    <th className="p-4 text-left font-semibold text-gray-700 dark:text-gray-300">
+                      Category
+                    </th>
+                    <th className="p-4 text-left font-semibold text-gray-700 dark:text-gray-300">
+                      Product
+                    </th>
+                    <th className="p-4 text-left font-semibold text-gray-700 dark:text-gray-300">
+                      Size
+                    </th>
+                    <th className="p-4 text-left font-semibold text-gray-700 dark:text-gray-300">
+                      Color
+                    </th>
+                    <th className="p-4 text-right font-semibold text-gray-700 dark:text-gray-300">
+                      Qty
+                    </th>
+                    <th className="p-4 text-right font-semibold text-gray-700 dark:text-gray-300">
+                      Cost
+                    </th>
+                    <th className="p-4 text-right font-semibold text-gray-700 dark:text-gray-300">
+                      Selling
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stockItems.map((item) => (
+                    <tr
+                      key={item.Id}
+                      className={`border-t border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors ${
+                        selectedVariants.has(item.Id)
+                          ? "bg-blue-50 dark:bg-blue-900/20"
+                          : ""
+                      }`}
+                    >
+                      <td className="p-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedVariants.has(item.Id)}
+                          onChange={() => toggleVariantSelection(item.Id)}
+                          className="w-4 h-4 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary focus:ring-2"
+                        />
+                      </td>
+                      <td className="p-4 text-sm">{item.CategoryName}</td>
+                      <td className="p-4 font-medium">{item.ProductName}</td>
+                      <td className="p-4 text-sm">{item.SizeName}</td>
+                      <td className="p-4 text-sm">{item.ColorName}</td>
+                      <td className="p-4 text-right font-semibold text-blue-600 dark:text-blue-400">
+                        {item.Qty}
+                      </td>
+                      <td className="p-4 text-right">
+                        Rs.{item.CostPrice || 0}
+                      </td>
+                      <td className="p-4 text-right font-semibold text-green-600 dark:text-green-400">
+                        Rs.{item.SellingPrice || 0}
+                      </td>
+                    </tr>
+                  ))}
+                  {stockItems.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan={8}
+                        className="p-8 text-center text-gray-500 dark:text-gray-400"
+                      >
+                        No stock items found
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* EDIT MODAL */}
@@ -770,8 +1009,11 @@ export default function StocksPage() {
                   const qty = parseInt(
                     (document.getElementById("qQty") as HTMLInputElement).value
                   );
-                  const price = Number(
+                  const costPrice = Number(
                     (document.getElementById("qCost") as HTMLInputElement).value
+                  );
+                  const sellingPrice = Number(
+                    (document.getElementById("qSell") as HTMLInputElement).value
                   );
                   await performStockAction(
                     "remove",
@@ -779,7 +1021,8 @@ export default function StocksPage() {
                     sizeId,
                     colorId,
                     qty,
-                    price
+                    costPrice,
+                    sellingPrice
                   );
                 }}
                 disabled={pendingRemove}
@@ -790,6 +1033,77 @@ export default function StocksPage() {
                 } transition-colors`}
               >
                 {pendingRemove ? "Removing..." : "Confirm Remove"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Edit Prices Modal */}
+      {showBulkEdit && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                Bulk Edit Prices
+              </h3>
+              <button
+                onClick={() => setShowBulkEdit(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-4 rounded-lg">
+                <p className="text-sm text-blue-800 dark:text-blue-200 font-semibold mb-1">
+                  {selectedVariants.size} items selected
+                </p>
+                <p className="text-xs text-blue-600 dark:text-blue-300">
+                  Leave a field empty to keep existing prices unchanged
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  New Cost Price (Optional)
+                </label>
+                <input
+                  type="number"
+                  value={bulkCostPrice}
+                  onChange={(e) => setBulkCostPrice(e.target.value)}
+                  placeholder="Leave empty to keep current"
+                  className="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  New Selling Price (Optional)
+                </label>
+                <input
+                  type="number"
+                  value={bulkSellingPrice}
+                  onChange={(e) => setBulkSellingPrice(e.target.value)}
+                  placeholder="Leave empty to keep current"
+                  className="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => setShowBulkEdit(false)}
+                className="px-6 py-2.5 rounded-lg font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBulkUpdatePrices}
+                className="bg-primary hover:bg-primary/90 transition-colors px-6 py-2.5 rounded-lg font-semibold text-white"
+              >
+                Update {selectedVariants.size} Items
               </button>
             </div>
           </div>

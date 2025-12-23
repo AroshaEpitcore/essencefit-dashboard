@@ -96,13 +96,13 @@ export async function deleteProduct(id: string) {
 }
 
 // ---------- QUICK STOCK ----------
-// ---------- QUICK STOCK ----------
 export async function quickStock(
   productId: string,
   sizeId: string,
   colorId: string,
   qty: number,
-  price: number,
+  costPrice: number,
+  sellingPrice: number,
   action: "add" | "remove"
 ) {
   const pool = await getDb();
@@ -114,7 +114,7 @@ export async function quickStock(
     .input("SizeId", sizeId)
     .input("ColorId", colorId)
     .query(
-      "SELECT TOP 1 Id, Qty, SellingPrice FROM ProductVariants WHERE ProductId=@ProductId AND SizeId=@SizeId AND ColorId=@ColorId"
+      "SELECT TOP 1 Id, Qty, CostPrice, SellingPrice FROM ProductVariants WHERE ProductId=@ProductId AND SizeId=@SizeId AND ColorId=@ColorId"
     );
 
   let variant = check.recordset[0];
@@ -128,8 +128,10 @@ export async function quickStock(
       .input("ProductId", productId)
       .input("SizeId", sizeId)
       .input("ColorId", colorId)
+      .input("CostPrice", costPrice)
+      .input("SellingPrice", sellingPrice)
       .query(
-        "INSERT INTO ProductVariants (ProductId, SizeId, ColorId, Qty) OUTPUT Inserted.Id VALUES (@ProductId,@SizeId,@ColorId,0)"
+        "INSERT INTO ProductVariants (ProductId, SizeId, ColorId, Qty, CostPrice, SellingPrice) OUTPUT Inserted.Id VALUES (@ProductId, @SizeId, @ColorId, 0, @CostPrice, @SellingPrice)"
       );
     variantId = ins.recordset[0].Id;
     prevQty = 0;
@@ -144,16 +146,18 @@ export async function quickStock(
     throw new Error(`Cannot remove ${qty} units — only ${prevQty} in stock.`);
   }
 
-  // Update ProductVariants table
+  // Update ProductVariants table with both Cost and Selling prices
   await pool
     .request()
     .input("Id", variantId)
     .input("ChangeQty", changeQty)
-    .input("Price", price)
+    .input("CostPrice", costPrice)
+    .input("SellingPrice", sellingPrice)
     .query(`
       UPDATE ProductVariants 
       SET Qty = Qty + @ChangeQty,
-          SellingPrice = CASE WHEN @Price > 0 THEN @Price ELSE SellingPrice END
+          CostPrice = CASE WHEN @CostPrice > 0 THEN @CostPrice ELSE CostPrice END,
+          SellingPrice = CASE WHEN @SellingPrice > 0 THEN @SellingPrice ELSE SellingPrice END
       WHERE Id = @Id
     `);
 
@@ -165,13 +169,69 @@ export async function quickStock(
     .input("Reason", action)
     .input("PreviousQty", prevQty)
     .input("NewQty", newQty)
-    .input("PriceAtChange", price)
+    .input("CostPrice", costPrice)
+    .input("SellingPrice", sellingPrice)
     .query(`
       INSERT INTO StockHistory 
       (VariantId, ChangeQty, Reason, PreviousQty, NewQty, PriceAtChange, CreatedAt)
-      VALUES (@VariantId, @ChangeQty, @Reason, @PreviousQty, @NewQty, @PriceAtChange, GETDATE())
+      VALUES (@VariantId, @ChangeQty, @Reason, @PreviousQty, @NewQty, @SellingPrice, GETDATE())
     `);
 }
 
+// ---------- GET STOCK ITEMS ----------
+export async function getStockItems() {
+  const pool = await getDb();
+  const res = await pool.request().query(`
+    SELECT 
+      pv.Id,
+      pv.ProductId,
+      pv.SizeId,
+      pv.ColorId,
+      pv.Qty,
+      pv.CostPrice,
+      pv.SellingPrice,
+      p.Name AS ProductName,
+      s.Name AS SizeName,
+      c.Name AS ColorName,
+      cat.Name AS CategoryName
+    FROM ProductVariants pv
+    INNER JOIN Products p ON pv.ProductId = p.Id
+    INNER JOIN Sizes s ON pv.SizeId = s.Id
+    INNER JOIN Colors c ON pv.ColorId = c.Id
+    INNER JOIN Categories cat ON p.CategoryId = cat.Id
+    WHERE pv.Qty > 0
+    ORDER BY cat.Name, p.Name, s.Name, c.Name
+  `);
+  return res.recordset;
+}
 
+export async function updateVariantPrices(
+  variantId: string,
+  costPrice: number,
+  sellingPrice: number
+) {
+  const pool = await getDb();
+  
+  // Build dynamic query based on which prices are provided
+  let updates = [];
+  const request = pool.request().input("Id", variantId);
+  
+  if (costPrice > 0) {
+    updates.push("CostPrice = @CostPrice");
+    request.input("CostPrice", costPrice);
+  }
+  
+  if (sellingPrice > 0) {
+    updates.push("SellingPrice = @SellingPrice");
+    request.input("SellingPrice", sellingPrice);
+  }
+  
+  if (updates.length === 0) return;
+  
+  await request.query(`
+    UPDATE ProductVariants 
+    SET ${updates.join(", ")}
+    WHERE Id = @Id
+  `);
+}
 
