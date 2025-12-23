@@ -29,6 +29,8 @@ import {
   Edit,
   AlertTriangle,
   X,
+  Lock,
+  LockOpen,
 } from "lucide-react";
 
 export default function StocksPage() {
@@ -37,6 +39,9 @@ export default function StocksPage() {
     sizes: [],
     colors: [],
   });
+  const [lockCategory, setLockCategory] = useState(false);
+  const [lockProduct, setLockProduct] = useState(false);
+  const [lockSize, setLockSize] = useState(false);
   const [products, setProducts] = useState<any[]>([]);
   const [selectedCat, setSelectedCat] = useState("");
 
@@ -353,7 +358,7 @@ export default function StocksPage() {
                 Add
               </button>
             </div>
-            <ul className="space-y-2">
+            <ul className="space-y-2 max-h-64 overflow-y-auto pr-2">
               {lookups.colors.map((c: any) => (
                 <li
                   key={c.Id}
@@ -507,45 +512,96 @@ export default function StocksPage() {
         </h2>
         <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 p-5 rounded-xl">
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
-            <select
-              value={selectedCat}
-              onChange={(e) => {
-                setSelectedCat(e.target.value);
-                refreshProducts(e.target.value);
-              }}
-              className="bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-            >
-              <option value="">Category</option>
-              {lookups.categories.map((c: any) => (
-                <option key={c.Id} value={c.Id}>
-                  {c.Name}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={selectedCat}
+                onChange={(e) => {
+                  setSelectedCat(e.target.value);
+                  refreshProducts(e.target.value);
+                }}
+                disabled={lockCategory}
+                className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <option value="">Category</option>
+                {lookups.categories.map((c: any) => (
+                  <option key={c.Id} value={c.Id}>
+                    {c.Name}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={() => setLockCategory(!lockCategory)}
+                className={`absolute -right-2 -top-4 p-1 rounded transition-colors ${
+                  lockCategory
+                    ? "text-primary bg-primary/10"
+                    : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                }`}
+              >
+                {lockCategory ? (
+                  <Lock className="w-5 h-5" />
+                ) : (
+                  <LockOpen className="w-5 h-5" />
+                )}
+              </button>
+            </div>
 
-            <select
-              id="qProduct"
-              className="bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-            >
-              <option value="">Product</option>
-              {products.map((p) => (
-                <option key={p.Id} value={p.Id}>
-                  {p.Name}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                id="qProduct"
+                disabled={lockProduct}
+                className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <option value="">Product</option>
+                {products.map((p) => (
+                  <option key={p.Id} value={p.Id}>
+                    {p.Name}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={() => setLockProduct(!lockProduct)}
+                className={`absolute -right-2 -top-4 p-1 rounded transition-colors ${
+                  lockProduct
+                    ? "text-primary bg-primary/10"
+                    : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                }`}
+              >
+                {lockProduct ? (
+                  <Lock className="w-5 h-5" />
+                ) : (
+                  <LockOpen className="w-5 h-5" />
+                )}
+              </button>
+            </div>
 
-            <select
-              id="qSize"
-              className="bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-            >
-              <option value="">Size</option>
-              {lookups.sizes.map((s: any) => (
-                <option key={s.Id} value={s.Id}>
-                  {s.Name}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                id="qSize"
+                disabled={lockSize}
+                className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <option value="">Size</option>
+                {lookups.sizes.map((s: any) => (
+                  <option key={s.Id} value={s.Id}>
+                    {s.Name}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={() => setLockSize(!lockSize)}
+                className={`absolute -right-2 -top-4 p-1 rounded transition-colors ${
+                  lockSize
+                    ? "text-primary bg-primary/10"
+                    : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                }`}
+              >
+                {lockSize ? (
+                  <Lock className="w-5 h-5" />
+                ) : (
+                  <LockOpen className="w-5 h-5" />
+                )}
+              </button>
+            </div>
 
             <select
               id="qColor"
@@ -589,8 +645,6 @@ export default function StocksPage() {
               + Add Stock
             </button>
           </div>
-
-          
         </div>
       </section>
 
@@ -678,71 +732,69 @@ export default function StocksPage() {
       )}
 
       {/* 🧾 Confirmation Modal */}
-          {showConfirm && (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 w-full max-w-md p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="bg-red-100 dark:bg-red-900/30 p-3 rounded-full">
-                    <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
-                  </div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                    Confirm Stock Removal
-                  </h3>
-                </div>
-
-                <p className="text-gray-700 dark:text-gray-300 mb-6">
-                  Are you sure you want to remove this stock quantity? This
-                  action will reduce available stock and cannot be undone.
-                </p>
-
-                <div className="flex justify-end gap-3">
-                  <button
-                    onClick={() => setShowConfirm(false)}
-                    className="px-5 py-2.5 rounded-lg font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={async () => {
-                      const productId = (
-                        document.getElementById("qProduct") as HTMLSelectElement
-                      ).value;
-                      const sizeId = (
-                        document.getElementById("qSize") as HTMLSelectElement
-                      ).value;
-                      const colorId = (
-                        document.getElementById("qColor") as HTMLSelectElement
-                      ).value;
-                      const qty = parseInt(
-                        (document.getElementById("qQty") as HTMLInputElement)
-                          .value
-                      );
-                      const price = Number(
-                        (document.getElementById("qCost") as HTMLInputElement)
-                          .value
-                      );
-                      await performStockAction(
-                        "remove",
-                        productId,
-                        sizeId,
-                        colorId,
-                        qty,
-                        price
-                      );
-                    }}
-                    disabled={pendingRemove}
-                    className={`px-6 py-2.5 rounded-lg font-semibold text-white ${
-                      pendingRemove
-                        ? "bg-red-400 cursor-not-allowed"
-                        : "bg-red-600 hover:bg-red-700"
-                    } transition-colors`}
-                  >
-                    {pendingRemove ? "Removing..." : "Confirm Remove"}
-                  </button>
-                </div>
+      {showConfirm && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 w-full max-w-md p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="bg-red-100 dark:bg-red-900/30 p-3 rounded-full">
+                <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
               </div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                Confirm Stock Removal
+              </h3>
             </div>
-          )}
+
+            <p className="text-gray-700 dark:text-gray-300 mb-6">
+              Are you sure you want to remove this stock quantity? This action
+              will reduce available stock and cannot be undone.
+            </p>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowConfirm(false)}
+                className="px-5 py-2.5 rounded-lg font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  const productId = (
+                    document.getElementById("qProduct") as HTMLSelectElement
+                  ).value;
+                  const sizeId = (
+                    document.getElementById("qSize") as HTMLSelectElement
+                  ).value;
+                  const colorId = (
+                    document.getElementById("qColor") as HTMLSelectElement
+                  ).value;
+                  const qty = parseInt(
+                    (document.getElementById("qQty") as HTMLInputElement).value
+                  );
+                  const price = Number(
+                    (document.getElementById("qCost") as HTMLInputElement).value
+                  );
+                  await performStockAction(
+                    "remove",
+                    productId,
+                    sizeId,
+                    colorId,
+                    qty,
+                    price
+                  );
+                }}
+                disabled={pendingRemove}
+                className={`px-6 py-2.5 rounded-lg font-semibold text-white ${
+                  pendingRemove
+                    ? "bg-red-400 cursor-not-allowed"
+                    : "bg-red-600 hover:bg-red-700"
+                } transition-colors`}
+              >
+                {pendingRemove ? "Removing..." : "Confirm Remove"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
