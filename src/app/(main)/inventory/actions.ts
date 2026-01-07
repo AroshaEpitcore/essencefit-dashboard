@@ -147,3 +147,39 @@ export async function getAvailability(
   if (!res.recordset?.length) return 0;
   return Number(res.recordset[0].Qty ?? 0);
 }
+
+/**
+ * Search for a color across all products and return size-wise quantities with product info
+ */
+export async function searchColorQuantities(colorName: string) {
+  if (!colorName) return [];
+  const pool = await getDb();
+
+  const res = await pool
+    .request()
+    .input("colorName", `%${colorName}%`)
+    .query(`
+      SELECT 
+        c.Name AS Color,
+        s.Name AS Size,
+        p.Name AS Product,
+        cat.Name AS Category,
+        SUM(v.Qty) AS Qty
+      FROM ProductVariants v
+      INNER JOIN Colors c ON c.Id = v.ColorId
+      INNER JOIN Sizes s ON s.Id = v.SizeId
+      INNER JOIN Products p ON p.Id = v.ProductId
+      INNER JOIN Categories cat ON cat.Id = p.CategoryId
+      WHERE c.Name LIKE @colorName
+      GROUP BY c.Name, s.Name, p.Name, cat.Name
+      ORDER BY c.Name, cat.Name, p.Name, s.Name
+    `);
+
+  return (res.recordset ?? []).map((r: any) => ({
+    Color: r.Color,
+    Size: r.Size,
+    Product: r.Product,
+    Category: r.Category,
+    Qty: Number(r.Qty ?? 0),
+  }));
+}
