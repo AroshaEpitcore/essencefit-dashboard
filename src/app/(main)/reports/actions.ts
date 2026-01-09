@@ -273,3 +273,86 @@ export async function runDeadStockReport(filters: any) {
     `);
   return result.recordset;
 }
+
+/**
+ * ✅ Top 10 Colors Report (NET Revenue with day-level adjustments)
+ * Shows best-selling colors ranked by quantity sold
+ */
+export async function runTopColorsReport(filters: any) {
+  const pool = await getDb();
+  const result = await pool
+    .request()
+    .input("CategoryId", filters.category || null)
+    .input("ProductId", filters.product || null)
+    .input("From", filters.from || null)
+    .input("To", filters.to || null)
+    .query(`
+      DECLARE @FromDate DATE = TRY_CAST(@From AS DATE);
+      DECLARE @ToDate   DATE = TRY_CAST(@To AS DATE);
+
+      ;WITH SalesByColorDay AS (
+        SELECT
+          CAST(S.SaleDate AS DATE) AS D,
+          ISNULL(Cl.Name, 'No Color') AS Color,
+          SUM(S.Qty) AS Qty,
+          SUM(S.Qty * S.SellingPrice) AS GrossRevenue
+        FROM Sales S
+        JOIN ProductVariants V ON S.VariantId = V.Id
+        JOIN Products P ON V.ProductId = P.Id
+        LEFT JOIN Colors Cl ON V.ColorId = Cl.Id
+        WHERE (@CategoryId IS NULL OR P.CategoryId = @CategoryId)
+          AND (@ProductId IS NULL OR P.Id = @ProductId)
+          AND (@FromDate IS NULL OR CAST(S.SaleDate AS DATE) >= @FromDate)
+          AND (@ToDate IS NULL OR CAST(S.SaleDate AS DATE) <= @ToDate)
+        GROUP BY CAST(S.SaleDate AS DATE), ISNULL(Cl.Name, 'No Color')
+      ),
+      DayGross AS (
+        SELECT D, SUM(GrossRevenue) AS DayGrossRevenue
+        FROM SalesByColorDay
+        GROUP BY D
+      ),
+      OrdersByDay AS (
+        SELECT
+          CAST(O.OrderDate AS DATE) AS D,
+          SUM(ISNULL(O.Discount,0)) AS DayDiscount,
+          SUM(ISNULL(O.DeliveryFee,0)) AS DayDeliveryFee
+        FROM Orders O
+        WHERE (@FromDate IS NULL OR CAST(O.OrderDate AS DATE) >= @FromDate)
+          AND (@ToDate IS NULL OR CAST(O.OrderDate AS DATE) <= @ToDate)
+        GROUP BY CAST(O.OrderDate AS DATE)
+      ),
+      DayAdjust AS (
+        SELECT
+          COALESCE(G.D, O.D) AS D,
+          ISNULL(G.DayGrossRevenue,0) AS DayGrossRevenue,
+          ISNULL(O.DayDiscount,0) AS DayDiscount,
+          ISNULL(O.DayDeliveryFee,0) AS DayDeliveryFee,
+          (0 - ISNULL(O.DayDiscount,0) + ISNULL(O.DayDeliveryFee,0)) AS DayAdjustment
+        FROM DayGross G
+        FULL OUTER JOIN OrdersByDay O ON G.D = O.D
+      ),
+      SalesNetAllocated AS (
+        SELECT
+          S.Color,
+          S.Qty,
+          CAST(
+            S.GrossRevenue
+            + CASE 
+                WHEN ISNULL(D.DayGrossRevenue,0) = 0 THEN 0
+                ELSE (S.GrossRevenue / D.DayGrossRevenue) * ISNULL(D.DayAdjustment,0)
+              END
+          AS DECIMAL(18,2)) AS NetRevenue
+        FROM SalesByColorDay S
+        LEFT JOIN DayAdjust D ON D.D = S.D
+      )
+      SELECT TOP 10
+        Color,
+        SUM(Qty) AS Qty,
+        CAST(SUM(NetRevenue) AS DECIMAL(18,2)) AS Revenue
+      FROM SalesNetAllocated
+      GROUP BY Color
+      ORDER BY SUM(Qty) DESC
+    `);
+
+  return result.recordset;
+}

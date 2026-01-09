@@ -12,6 +12,7 @@ import {
   runExpensesReport,
   runPnLReport,
   runDeadStockReport,
+  runTopColorsReport,
 } from "./actions";
 import {
   BarChart2,
@@ -22,6 +23,7 @@ import {
   Trash2,
   PieChart,
   RefreshCcw,
+  Palette,
 } from "lucide-react";
 
 type Option = { Id: string; Name: string };
@@ -47,8 +49,9 @@ type SalesRow = { Product: string; Qty: number; Revenue: number };
 type ExpenseRow = { Category: string; Description: string; Amount: number; ExpenseDate: string | Date };
 type PnlRow = { Revenue: number; COGS: number; GrossProfit: number };
 type DeadRow = { Product: string; Qty: number };
+type TopColorRow = { Color: string; Qty: number; Revenue: number };
 
-type Tab = "inventory" | "sales" | "expenses" | "pnl" | "deadStock";
+type Tab = "inventory" | "sales" | "expenses" | "pnl" | "deadStock" | "topColors";
 
 const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
   { key: "inventory", label: "Inventory", icon: <Package className="w-4 h-4" /> },
@@ -56,6 +59,7 @@ const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
   { key: "expenses", label: "Expenses", icon: <Receipt className="w-4 h-4" /> },
   { key: "pnl", label: "P & L", icon: <PieChart className="w-4 h-4" /> },
   { key: "deadStock", label: "Dead Stock", icon: <Trash2 className="w-4 h-4" /> },
+  { key: "topColors", label: "Top Colors", icon: <Palette className="w-4 h-4" /> },
 ];
 
 function money(n: any) {
@@ -94,6 +98,7 @@ export default function ReportPage() {
   const [expensesData, setExpensesData] = useState<ExpenseRow[] | null>(null);
   const [pnlData, setPnlData] = useState<PnlRow | null>(null);
   const [deadStockData, setDeadStockData] = useState<DeadRow[] | null>(null);
+  const [topColorsData, setTopColorsData] = useState<TopColorRow[] | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [generatedAt, setGeneratedAt] = useState<string | null>(null);
@@ -139,6 +144,7 @@ export default function ReportPage() {
     setExpensesData(null);
     setPnlData(null);
     setDeadStockData(null);
+    setTopColorsData(null);
     setGeneratedAt(null);
   }, [activeTab]);
 
@@ -150,6 +156,7 @@ export default function ReportPage() {
       if (activeTab === "expenses") setExpensesData(await runExpensesReport(filters));
       if (activeTab === "pnl") setPnlData(await runPnLReport(filters.from, filters.to));
       if (activeTab === "deadStock") setDeadStockData(await runDeadStockReport(filters));
+      if (activeTab === "topColors") setTopColorsData(await runTopColorsReport(filters));
 
       setGeneratedAt(new Date().toLocaleString());
       toast.success("Report generated");
@@ -187,6 +194,15 @@ export default function ReportPage() {
     if (!deadStockData) return { rows: 0 };
     return { rows: deadStockData.length };
   }, [deadStockData]);
+
+  const topColorsSummary = useMemo(() => {
+    if (!topColorsData) return { rows: 0, qty: 0, revenue: 0 };
+    return {
+      rows: topColorsData.length,
+      qty: topColorsData.reduce((a, r) => a + Number(r.Qty || 0), 0),
+      revenue: topColorsData.reduce((a, r) => a + Number(r.Revenue || 0), 0),
+    };
+  }, [topColorsData]);
 
   return (
     <div className="text-gray-900 dark:text-white">
@@ -384,6 +400,14 @@ export default function ReportPage() {
             <Kpi title="Tip" value={"Re-order / discount"} />
           </>
         )}
+
+        {activeTab === "topColors" && (
+          <>
+            <Kpi title="Colors Listed" value={topColorsData ? num(topColorsSummary.rows) : "-"} />
+            <Kpi title="Total Qty" value={topColorsData ? num(topColorsSummary.qty) : "-"} />
+            <Kpi title="Total Revenue" value={topColorsData ? money(topColorsSummary.revenue) : "-"} />
+          </>
+        )}
       </div>
 
       {/* Results */}
@@ -401,6 +425,7 @@ export default function ReportPage() {
         {activeTab === "expenses" && expensesData === null && <Empty label="Expenses" />}
         {activeTab === "pnl" && pnlData === null && <Empty label="P&L" />}
         {activeTab === "deadStock" && deadStockData === null && <Empty label="Dead Stock" />}
+        {activeTab === "topColors" && topColorsData === null && <Empty label="Top Colors" />}
 
         {/* TABLES */}
         {activeTab === "inventory" && inventoryData && (
@@ -516,6 +541,33 @@ export default function ReportPage() {
             </TableWrap>
           )
         )}
+
+        {activeTab === "topColors" && topColorsData && (
+          topColorsData.length === 0 ? <NoData /> : (
+            <TableWrap>
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-gray-100 dark:bg-gray-700/50">
+                  <tr>
+                    <Th>Rank</Th>
+                    <Th>Color</Th>
+                    <Th className="text-right">Qty Sold</Th>
+                    <Th className="text-right">Revenue</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topColorsData.map((r, i) => (
+                    <tr key={i} className="border-t border-gray-200 dark:border-gray-700 odd:bg-gray-50/60 dark:odd:bg-gray-900/20">
+                      <Td className="font-bold text-primary">#{i + 1}</Td>
+                      <Td className="font-medium">{r.Color}</Td>
+                      <Td className="text-right">{num(r.Qty)}</Td>
+                      <Td className="text-right font-semibold text-green-600 dark:text-green-400">{money(r.Revenue)}</Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </TableWrap>
+          )
+        )}
       </div>
 
       {/* Small utility styles */}
@@ -575,7 +627,7 @@ function Empty({ label }: { label: string }) {
   return (
     <div className="text-center py-16 text-gray-500 dark:text-gray-400">
       <p className="text-lg font-medium">No {label} data yet</p>
-      <p className="text-sm mt-1">Click “Generate Report” to load results.</p>
+      <p className="text-sm mt-1">Click "Generate Report" to load results.</p>
     </div>
   );
 }
