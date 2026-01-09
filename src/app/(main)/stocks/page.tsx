@@ -201,7 +201,6 @@ export default function StocksPage() {
       sellingPrice
     );
   }
-
   async function performStockAction(
     action: "add" | "remove",
     productId: string,
@@ -227,15 +226,33 @@ export default function StocksPage() {
       );
       setShowConfirm(false);
 
-      // clear fields
-      ["qProduct", "qSize", "qColor", "qQty", "qCost", "qSell"].forEach(
-        (id) => {
-          const el = document.getElementById(id) as
-            | HTMLInputElement
-            | HTMLSelectElement;
-          if (el) el.value = "";
-        }
-      );
+      // Only clear unlocked fields - don't touch the state or DOM for locked fields
+      if (!lockCategory) {
+        setSelectedCat("");
+        setProducts([]);
+      }
+
+      if (!lockProduct) {
+        const prodSelect = document.getElementById(
+          "qProduct"
+        ) as HTMLSelectElement;
+        if (prodSelect) prodSelect.value = "";
+      }
+
+      if (!lockSize) {
+        const sizeSelect = document.getElementById(
+          "qSize"
+        ) as HTMLSelectElement;
+        if (sizeSelect) sizeSelect.value = "";
+      }
+
+      // Always clear color, qty, cost, and sell
+      ["qColor", "qQty", "qCost", "qSell"].forEach((id) => {
+        const el = document.getElementById(id) as
+          | HTMLInputElement
+          | HTMLSelectElement;
+        if (el) el.value = "";
+      });
     } catch (e: any) {
       toast.error(e.message);
     } finally {
