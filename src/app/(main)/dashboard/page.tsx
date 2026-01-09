@@ -34,6 +34,7 @@ type DashboardStats = {
   ThisMonthProfit: number;
   UnitsSoldToday: number;
   UnitsSoldMonth: number;
+  AllTimeUnitsSold: number;
   ExpensesMonth: number;
   ThisMonthNet: number;
   AllTimeSales: number;
@@ -157,6 +158,12 @@ export default function DashboardPage() {
               value={stats.UnitsSoldMonth}
               icon={<ShoppingCart className="w-5 h-5" />}
               color="bg-orange-500/20 text-orange-600 dark:text-orange-400"
+            />
+            <Card
+              title="All-time Units Sold"
+              value={stats.AllTimeUnitsSold}
+              icon={<ShoppingCart className="w-5 h-5" />}
+              color="bg-cyan-500/20 text-cyan-600 dark:text-cyan-400"
             />
             <Card
               title="Expenses (Month)"

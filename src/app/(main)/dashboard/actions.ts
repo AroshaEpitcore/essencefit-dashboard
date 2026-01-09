@@ -71,6 +71,10 @@ export async function getDashboardStats() {
        FROM DayJoin
        WHERE D >= @MonthStart) AS UnitsSoldMonth,
 
+      /* ---------------- All-time Units Sold ---------------- */
+      (SELECT ISNULL(SUM(UnitsSold),0)
+       FROM DayJoin) AS AllTimeUnitsSold,
+
       /* ---------------- Expenses ---------------- */
       (SELECT ISNULL(SUM(E.Amount),0)
        FROM Expenses E
