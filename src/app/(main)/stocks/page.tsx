@@ -358,65 +358,68 @@ export default function StocksPage() {
         <h1 className="text-xl font-bold">Stock Management</h1>
       </div>
 
-      {/* Categories Section */}
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-          <Tag className="w-5 h-5 text-primary" />
-          Categories
-        </h2>
-        <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 p-5 rounded-xl">
-          <div className="flex gap-3 mb-4">
-            <input
-              value={newCategory}
-              onChange={(e) => setNewCategory(e.target.value)}
-              placeholder="New category"
-              className="flex-1 bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-            />
-            <button
-              onClick={handleAddCategory}
-              className="bg-primary hover:bg-primary/90 transition-colors px-6 py-3 rounded-lg font-semibold text-white"
-            >
-              Add
-            </button>
-          </div>
-          <ul className="space-y-2">
-            {lookups.categories.map((c: any) => (
-              <li
-                key={c.Id}
-                className="flex justify-between items-center bg-gray-100 dark:bg-gray-700/30 px-4 py-3 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700/50 transition-colors"
-              >
-                <span className="font-medium">{c.Name}</span>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() =>
-                      setEditItem({ type: "category", id: c.Id, name: c.Name })
-                    }
-                    className="text-blue-500 hover:text-blue-400 transition-colors flex items-center gap-1 px-2 py-1"
-                  >
-                    <Edit className="w-4 h-4" />
-                    <span className="text-sm">Edit</span>
-                  </button>
-                  <button
-                    onClick={() => handleDelete("category", c.Id)}
-                    className="text-red-500 hover:text-red-400 transition-colors flex items-center gap-1 px-2 py-1"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    <span className="text-sm">Delete</span>
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
-
       {/* Sizes & Colors */}
       <section className="mb-8">
         <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
           <Plus className="w-5 h-5 text-primary" />
-          Sizes & Colors
+          Categories,Sizes & Colors
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Categories Section */}
+          <section className="mb-8">
+            <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 p-5 rounded-xl">
+              <div className="flex items-center gap-2 mb-4">
+                <Tag className="w-5 h-5 text-primary" />
+                <h3 className="font-semibold">Categories</h3>
+              </div>
+              <div className="flex gap-3 mb-4">
+                <input
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                  placeholder="New category"
+                  className="flex-1 bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                />
+                <button
+                  onClick={handleAddCategory}
+                  className="bg-primary hover:bg-primary/90 transition-colors px-6 py-3 rounded-lg font-semibold text-white"
+                >
+                  Add
+                </button>
+              </div>
+              <ul className="space-y-2">
+                {lookups.categories.map((c: any) => (
+                  <li
+                    key={c.Id}
+                    className="flex justify-between items-center bg-gray-100 dark:bg-gray-700/30 px-4 py-3 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700/50 transition-colors"
+                  >
+                    <span className="font-medium">{c.Name}</span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() =>
+                          setEditItem({
+                            type: "category",
+                            id: c.Id,
+                            name: c.Name,
+                          })
+                        }
+                        className="text-blue-500 hover:text-blue-400 transition-colors flex items-center gap-1 px-2 py-1"
+                      >
+                        <Edit className="w-4 h-4" />
+                        <span className="text-sm">Edit</span>
+                      </button>
+                      <button
+                        onClick={() => handleDelete("category", c.Id)}
+                        className="text-red-500 hover:text-red-400 transition-colors flex items-center gap-1 px-2 py-1"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        <span className="text-sm">Delete</span>
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
           {/* Sizes */}
           <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 p-5 rounded-xl">
             <div className="flex items-center gap-2 mb-4">
