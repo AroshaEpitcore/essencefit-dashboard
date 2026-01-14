@@ -55,11 +55,6 @@ export default function WhatsAppMessagesPage() {
 
   async function loadMessages() {
     try {
-      // ALWAYS load EssenceFit messages (remove this check to force update)
-      // const stored = localStorage.getItem("whatsapp_messages");
-      // if (stored) {
-      //   setMessages(JSON.parse(stored));
-      // } else {
       // Load default messages for EssenceFit
       const defaultMessages: Message[] = [
         {
@@ -76,7 +71,22 @@ Dry Fit Calvin Klein Active wear T Shirts 1500/-
 ➡️ඇඩ්‍රස් එක 
 ➡️ෆෝන් නම්බර් එක  
 ➡️ඔයාලට ඕන ෂෝට්වල  සයිස් එක මට එවන්න.
- ඔයාලට දවස් දෙක තුනක් ඇතුළත අපි ඔයාලගේ ඕඩර් එක ගෙදරටම එවනවා ✅`,
+ ඔයාලට දවස් දෙක තුනක් ඇතුළත අපි ඔයාලගේ ඕඩර් එක ගෙදරටම එවනවා ✅
+
+---
+
+Thank you so much for choosing EssenceFit 🙌 
+Dry-fit unisex shorts Rs. 900/-
+Dry Fit Calvin Klein Active wear T-Shirts Rs. 1500/-
+⭕ Buy 3 items and get FREE home delivery!
+🤸 Perfect for the gym, home, 🧳 travel, or anywhere you want to wear them
+Features elastic waist that stretches, drawstring for adjustment, and pockets - super comfortable!
+To place your order with us, please send me:
+➡️ Your Name
+➡️ Your Address
+➡️ Phone Number
+➡️ Sizes you want for the shorts
+We'll deliver your order to your doorstep within 2-3 days ✅`,
           category: "Product Info",
           imageUrl:
             "https://i.postimg.cc/Fz9zYvcd/Whats-App-Image-2025-08-19-at-08-42-10-087e633a.jpg",
@@ -122,8 +132,56 @@ Quality, comfort & fast delivery 🚚✨`,
 ⭕ඔර්ඩර් එකක් දාගන්න ඕන ?
 මට තව විස්තර ලබාගන්න ඕන ♻
 ඔව්ව් දානවා ❇
-නෑ එපා 🚫`,
+නෑ එපා 🚫
+
+---
+
+Are you interested in placing this order, sir?
+⭕ We have an ongoing offer: Buy 3 shorts and get Free Delivery!
+⭕ Would you like to place an order?
+I need more information ♻
+Yes, I'll place an order ❇
+No, thank you 🚫
+
+---
+
+நீங்கள் இந்த ஆர்டரை செய்ய விரும்புகிறீர்களா சார்?
+⭕ 3 ஷார்ட்ஸ் வாங்கினால் இலவச டெலிவரி கிடைக்கும்!
+⭕ ஆர்டர் செய்ய விரும்புகிறீர்களா?
+எனக்கு மேலும் விவரங்கள் தேவை ♻
+ஆம், ஆர்டர் செய்கிறேன் ❇
+வேண்டாம், நன்றி 🚫`,
           category: "Follow Up",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        {
+          id: "5",
+          title: "Review Request",
+          content: `We hope you're enjoying your EssenceFit purchase! 🌟
+When you have a moment, we'd be truly grateful if you could leave us a quick review on Facebook. Your feedback helps us grow and serve you better.
+👉 Leave a Review Here - https://www.facebook.com/share/18hqCpoGiZ/
+Thank you so much for your support! 🙏`,
+          category: "Follow Up",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        {
+          id: "6",
+          title: "Size & Color Inquiry",
+          content: `Size Kohomada sir / miss ?
+Then I can send you the colors for your size
+
+---
+
+How about the size, sir/miss?
+Then I can send you the colors for your size
+
+---
+
+சைஸ் எப்படி சார் / மிஸ்?
+பின்னர் உங்கள் சைஸுக்கான வண்ணங்களை அனுப்புகிறேன்`,
+          category: "Product Info",
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         },
@@ -133,7 +191,6 @@ Quality, comfort & fast delivery 🚚✨`,
         "whatsapp_messages",
         JSON.stringify(defaultMessages)
       );
-      // }
     } catch (error) {
       toast.error("Failed to load messages");
     }
