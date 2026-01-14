@@ -82,6 +82,29 @@ export async function getVariant(productId: string, sizeId: string, colorId: str
     | undefined;
 }
 
+export async function getVariantStockByProductAndSize(
+  productId: string,
+  sizeId: string
+): Promise<Record<string, number>> {
+  const pool = await getDb();
+  const res = await pool
+    .request()
+    .input("pid", UniqueIdentifier, productId)
+    .input("sid", UniqueIdentifier, sizeId)
+    .query(`
+      SELECT v.ColorId, v.Qty
+      FROM ProductVariants v
+      WHERE v.ProductId=@pid AND v.SizeId=@sid
+    `);
+
+  const stockMap: Record<string, number> = {};
+  res.recordset.forEach((row: any) => {
+    stockMap[row.ColorId] = row.Qty;
+  });
+
+  return stockMap;
+}
+
 export async function getProductInfo(productId: string) {
   const pool = await getDb();
   const res = await pool

@@ -19,6 +19,7 @@ import {
   updateOrder,
   updateOrderStatus,
   deleteOrder,
+  getVariantStockByProductAndSize,
   type OrderItemInput,
   type OrderPayload,
   type OrderRange,
@@ -107,6 +108,12 @@ function ToggleSwitch({
 }
 
 export default function OrdersPage() {
+  const [variantStock, setVariantStock] = useState<Record<string, number>>({});
+  const [editVariantStock, setEditVariantStock] = useState<
+    Record<string, number>
+  >({});
+  const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
+
   const [searchQuery, setSearchQuery] = useState("");
   const [categories, setCategories] = useState<Opt[]>([]);
   const [products, setProducts] = useState<Opt[]>([]);
@@ -189,25 +196,33 @@ export default function OrdersPage() {
 
   // Filter orders based on search query - searches from ALL orders
   const filteredOrders = useMemo(() => {
-    // If no search query, show orders based on selected range
-    if (!searchQuery.trim()) return recent || [];
+    let orders = searchQuery.trim() ? allOrders : recent;
 
-    // When searching, search from ALL orders regardless of range
-    const query = searchQuery.toLowerCase();
-    return allOrders.filter((order) => {
-      const customer = (order.Customer || "").toLowerCase();
-      const phone = (order.CustomerPhone || "").toLowerCase();
-      const address = (order.Address || "").toLowerCase();
-      const orderId = (order.Id || "").toLowerCase();
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      orders = orders.filter((order) => {
+        const customer = (order.Customer || "").toLowerCase();
+        const phone = (order.CustomerPhone || "").toLowerCase();
+        const address = (order.Address || "").toLowerCase();
+        const orderId = (order.Id || "").toLowerCase();
 
-      return (
-        customer.includes(query) ||
-        phone.includes(query) ||
-        address.includes(query) ||
-        orderId.includes(query)
-      );
-    });
-  }, [allOrders, recent, searchQuery]);
+        return (
+          customer.includes(query) ||
+          phone.includes(query) ||
+          address.includes(query) ||
+          orderId.includes(query)
+        );
+      });
+    }
+
+    // Apply status filter
+    if (statusFilter !== "all") {
+      orders = orders.filter((order) => order.PaymentStatus === statusFilter);
+    }
+
+    return orders;
+  }, [allOrders, recent, searchQuery, statusFilter]);
 
   useEffect(() => {
     (async () => {
@@ -295,8 +310,16 @@ export default function OrdersPage() {
     setColors([]);
     setLineQty(1);
     setLinePrice(0);
-    if (!selProd || !sizeId) return;
-    setColors(await getColorsByProductAndSize(selProd, sizeId));
+    if (!selProd || !sizeId) {
+      setVariantStock({});
+      return;
+    }
+    const colorsList = await getColorsByProductAndSize(selProd, sizeId);
+    setColors(colorsList);
+
+    // Load stock for all color variants
+    const stockMap = await getVariantStockByProductAndSize(selProd, sizeId);
+    setVariantStock(stockMap);
   }
 
   async function onPickColor(colorId: string) {
@@ -348,8 +371,16 @@ export default function OrdersPage() {
     setEditLinePrice(0);
     setEditMode("add");
     setEditSelectedKey(null);
-    if (!editSelProd || !sizeId) return;
-    setEditColors(await getColorsByProductAndSize(editSelProd, sizeId));
+    if (!editSelProd || !sizeId) {
+      setEditVariantStock({});
+      return;
+    }
+    const colorsList = await getColorsByProductAndSize(editSelProd, sizeId);
+    setEditColors(colorsList);
+
+    // Load stock for all color variants
+    const stockMap = await getVariantStockByProductAndSize(editSelProd, sizeId);
+    setEditVariantStock(stockMap);
   }
 
   async function onPickColorEdit(colorId: string) {
@@ -595,8 +626,8 @@ export default function OrdersPage() {
       PaymentStatus: status,
       OrderDate: orderDate,
       Subtotal: Number(subtotal.toFixed(2)),
-      ManualDiscount: Number(discount.toFixed(2)),        // ✅ NEW: Manual discount only
-      DeliverySaving: Number(deliverySaving.toFixed(2)), 
+      ManualDiscount: Number(discount.toFixed(2)), // ✅ NEW: Manual discount only
+      DeliverySaving: Number(deliverySaving.toFixed(2)),
       Discount: Number(computedDiscount.toFixed(2)), // ✅ includes deliverySaving if toggle ON
       DeliveryFee: 0, // ✅ ALWAYS 0 as per your rule
       Total: Number(total.toFixed(2)),
@@ -983,11 +1014,22 @@ export default function OrdersPage() {
             className="bg-gray-50 dark:bg-gray-800/50 border rounded-lg px-4 py-3 disabled:opacity-50"
           >
             <option value="">Color</option>
-            {colors.map((c) => (
-              <option key={c.Id} value={c.Id}>
-                {c.Name}
-              </option>
-            ))}
+            {colors.map((c) => {
+              const stock = variantStock[c.Id] ?? 0;
+              const isLowStock = stock > 0 && stock <= 5;
+              const isOutOfStock = stock === 0;
+
+              return (
+                <option key={c.Id} value={c.Id} disabled={isOutOfStock}>
+                  {c.Name}{" "}
+                  {isOutOfStock
+                    ? "❌ OUT"
+                    : isLowStock
+                    ? `⚠️ ${stock}`
+                    : `✓ ${stock}`}
+                </option>
+              );
+            })}
           </select>
 
           <input
@@ -1161,6 +1203,77 @@ export default function OrdersPage() {
           )}
         </div>
       </section>
+
+      <div className="flex my-8 justify-between align-center gap-4 flex-col md:flex-row">
+        {/* Bottom Row: Status Filter Chips */}
+        <div className="flex items-center gap-2 flex-wrap px-2">
+          <span className="text-sm text-gray-500 mr-2">Filter by status:</span>
+
+          <button
+            onClick={() => setStatusFilter("all")}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              statusFilter === "all"
+                ? "bg-primary text-white shadow-md"
+                : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+            }`}
+          >
+            All
+            <span
+              className={`ml-2 text-xs px-2 py-0.5 rounded-full ${
+                statusFilter === "all"
+                  ? "bg-white/20"
+                  : "bg-gray-200 dark:bg-gray-700"
+              }`}
+            >
+              {(searchQuery ? allOrders : recent).length}
+            </span>
+          </button>
+
+          {ORDER_STATUSES.map((status) => {
+            const count = (searchQuery ? allOrders : recent).filter(
+              (o) => o.PaymentStatus === status
+            ).length;
+
+            return (
+              <button
+                key={status}
+                onClick={() => setStatusFilter(status)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  statusFilter === status
+                    ? "bg-primary text-white shadow-md"
+                    : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                }`}
+              >
+                {status}
+                <span
+                  className={`ml-2 text-xs px-2 py-0.5 rounded-full ${
+                    statusFilter === status
+                      ? "bg-white/20"
+                      : "bg-gray-200 dark:bg-gray-700"
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        {/* Right: Filter */}
+        <div>
+          <select
+            value={range}
+            onChange={(e) => setRange(e.target.value as OrderRange)}
+            className="bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg px-5 py-3 text-sm"
+          >
+            {RANGE_OPTIONS.map((r) => (
+              <option key={r.key} value={r.key}>
+                {r.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       {/* Recent Orders */}
       <section>
         <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
@@ -1436,11 +1549,22 @@ export default function OrdersPage() {
                 className="bg-gray-50 dark:bg-gray-800/50 border rounded-lg px-3 py-2 disabled:opacity-50"
               >
                 <option value="">Color</option>
-                {editColors.map((c) => (
-                  <option key={c.Id} value={c.Id}>
-                    {c.Name}
-                  </option>
-                ))}
+                {editColors.map((c) => {
+                  const stock = editVariantStock[c.Id] ?? 0;
+                  const isLowStock = stock > 0 && stock <= 5;
+                  const isOutOfStock = stock === 0;
+
+                  return (
+                    <option key={c.Id} value={c.Id} disabled={isOutOfStock}>
+                      {c.Name}{" "}
+                      {isOutOfStock
+                        ? "❌ OUT"
+                        : isLowStock
+                        ? `⚠️ ${stock}`
+                        : `✓ ${stock}`}
+                    </option>
+                  );
+                })}
               </select>
 
               <input
