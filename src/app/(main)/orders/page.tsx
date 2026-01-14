@@ -190,7 +190,7 @@ export default function OrdersPage() {
   // Filter orders based on search query - searches from ALL orders
   const filteredOrders = useMemo(() => {
     // If no search query, show orders based on selected range
-    if (!searchQuery.trim()) return recent;
+    if (!searchQuery.trim()) return recent || [];
 
     // When searching, search from ALL orders regardless of range
     const query = searchQuery.toLowerCase();
@@ -595,6 +595,8 @@ export default function OrdersPage() {
       PaymentStatus: status,
       OrderDate: orderDate,
       Subtotal: Number(subtotal.toFixed(2)),
+      ManualDiscount: Number(discount.toFixed(2)),        // ✅ NEW: Manual discount only
+      DeliverySaving: Number(deliverySaving.toFixed(2)), 
       Discount: Number(computedDiscount.toFixed(2)), // ✅ includes deliverySaving if toggle ON
       DeliveryFee: 0, // ✅ ALWAYS 0 as per your rule
       Total: Number(total.toFixed(2)),
@@ -678,6 +680,15 @@ export default function OrdersPage() {
       setEditStatus(d.order.PaymentStatus as OrderStatus);
       setEditOrderDate(new Date(d.order.OrderDate).toISOString().slice(0, 10));
 
+      // ✅ NEW: Restore manual discount only
+      setEditDiscount(Number(d.order.ManualDiscount ?? 0));
+
+      if (deliverySaving > 0) {
+        setEditSelectedDeliveryCharge(deliverySaving);
+      } else {
+        setEditSelectedDeliveryCharge(300);
+      }
+
       // We cannot know selected charge from DB (no column)
       setEditSelectedDeliveryCharge(300);
 
@@ -693,7 +704,7 @@ export default function OrdersPage() {
         colorId: it.ColorId,
         variant: {
           VariantId: it.VariantId,
-          InStock: 999999,
+          InStock: it.CurrentStock + Number(it.Qty),
           SellingPrice: Number(it.SellingPrice),
         },
         qty: Number(it.Qty),
@@ -723,6 +734,8 @@ export default function OrdersPage() {
       PaymentStatus: editStatus,
       OrderDate: editOrderDate,
       Subtotal: Number(editSubtotal.toFixed(2)),
+      ManualDiscount: Number(editDiscount.toFixed(2)),
+      DeliverySaving: Number(editDeliverySaving.toFixed(2)),
       Discount: Number(editComputedDiscount.toFixed(2)),
       DeliveryFee: 0, // ✅ ALWAYS 0
       Total: Number(editTotal.toFixed(2)),

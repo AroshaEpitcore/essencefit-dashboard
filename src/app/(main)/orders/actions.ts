@@ -112,6 +112,8 @@ export type OrderPayload = {
   OrderDate: string;
 
   Subtotal: number;
+  ManualDiscount: number;
+  DeliverySaving: number; 
   Discount: number;     // includes delivery-saving
   DeliveryFee: number;  // always 0 by your rule
   Total: number;
@@ -179,7 +181,8 @@ export async function getOrderDetails(orderId: string) {
     .input("Id", UniqueIdentifier, orderId)
     .query(`
       SELECT TOP 1
-        Id, Customer, CustomerPhone, Address, PaymentStatus, OrderDate, Subtotal, Discount, DeliveryFee, Total
+        Id, Customer, CustomerPhone, Address, PaymentStatus, OrderDate, 
+        Subtotal, ManualDiscount, Discount, DeliveryFee, Total 
       FROM Orders
       WHERE Id=@Id
     `);
@@ -195,7 +198,7 @@ export async function getOrderDetails(orderId: string) {
         oi.VariantId,
         oi.Qty,
         oi.SellingPrice,
-
+        v.Qty AS CurrentStock,
         p.Id          AS ProductId,
         p.CategoryId  AS CategoryId,
         v.SizeId      AS SizeId,
@@ -362,6 +365,7 @@ export async function createOrder(payload: OrderPayload) {
       .input("PaymentStatus", NVarChar(20), payload.PaymentStatus)
       .input("OrderDate", sql.DateTime2(7), orderDate)
       .input("Subtotal", Decimal(18, 2), payload.Subtotal)
+      .input("ManualDiscount", Decimal(18, 2), payload.ManualDiscount)
       .input("Discount", Decimal(18, 2), payload.Discount)
       .input("DeliveryFee", Decimal(18, 2), payload.DeliveryFee)
       .input("Total", Decimal(18, 2), payload.Total)
@@ -483,6 +487,7 @@ export async function updateOrder(orderId: string, payload: OrderPayload) {
       .input("PaymentStatus", NVarChar(20), payload.PaymentStatus)
       .input("OrderDate", sql.DateTime2(7), orderDate)
       .input("Subtotal", Decimal(18, 2), payload.Subtotal)
+      .input("ManualDiscount", Decimal(18, 2), payload.ManualDiscount)
       .input("Discount", Decimal(18, 2), payload.Discount)
       .input("DeliveryFee", Decimal(18, 2), payload.DeliveryFee)
       .input("Total", Decimal(18, 2), payload.Total)
