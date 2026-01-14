@@ -273,6 +273,10 @@ export default function OrdersPage() {
     setEditColors(cols);
     setEditSelColor(cid);
 
+    // Load stock for all color variants
+    const stockMap = await getVariantStockByProductAndSize(pid, sid);
+    setEditVariantStock(stockMap);
+
     setEditLineQty(line.qty);
     setEditLinePrice(line.price);
   }
