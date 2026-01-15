@@ -27,6 +27,7 @@ export async function getDashboardStats() {
         SUM(ISNULL(O.Discount,0)) AS OrderDiscount,
         SUM(ISNULL(O.DeliveryFee,0)) AS DeliveryFee
       FROM Orders O
+      WHERE O.PaymentStatus IN ('Paid', 'Completed')
       GROUP BY CAST(O.OrderDate AS DATE)
     ),
     DayJoin AS (
@@ -150,6 +151,7 @@ export async function getChartData() {
         SUM(ISNULL(O.Discount,0)) AS DiscountAmt,
         SUM(ISNULL(O.DeliveryFee,0)) AS DeliveryAmt
       FROM Orders O
+      WHERE O.PaymentStatus IN ('Paid', 'Completed')
       GROUP BY FORMAT(O.OrderDate, 'MMM yyyy')
     )
     SELECT TOP 6
@@ -180,6 +182,7 @@ export async function getChartData() {
         SUM(ISNULL(O.DeliveryFee,0)) AS DeliveryAmt
       FROM Orders O
       WHERE CAST(O.OrderDate AS DATE) >= @From
+        AND O.PaymentStatus IN ('Paid', 'Completed')
       GROUP BY CAST(O.OrderDate AS DATE)
     )
     SELECT TOP 14
