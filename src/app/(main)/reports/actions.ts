@@ -132,7 +132,8 @@ export async function runSalesReport(filters: any) {
           SUM(ISNULL(O.Discount,0)) AS DayDiscount,
           SUM(ISNULL(O.DeliveryFee,0)) AS DayDeliveryFee
         FROM Orders O
-        WHERE (@FromDate IS NULL OR CAST(O.OrderDate AS DATE) >= @FromDate)
+        WHERE O.PaymentStatus IN ('Paid', 'Completed')
+          AND (@FromDate IS NULL OR CAST(O.OrderDate AS DATE) >= @FromDate)
           AND (@ToDate IS NULL OR CAST(O.OrderDate AS DATE) <= @ToDate)
         GROUP BY CAST(O.OrderDate AS DATE)
       ),
@@ -229,7 +230,8 @@ export async function runPnLReport(from?: string, to?: string) {
           SUM(ISNULL(O.Discount,0)) AS OrderDiscount,
           SUM(ISNULL(O.DeliveryFee,0)) AS DeliveryFee
         FROM Orders O
-        WHERE (@FromDate IS NULL OR CAST(O.OrderDate AS DATE) >= @FromDate)
+        WHERE O.PaymentStatus IN ('Paid', 'Completed')
+          AND (@FromDate IS NULL OR CAST(O.OrderDate AS DATE) >= @FromDate)
           AND (@ToDate IS NULL OR CAST(O.OrderDate AS DATE) <= @ToDate)
         GROUP BY CAST(O.OrderDate AS DATE)
       ),
@@ -317,7 +319,8 @@ export async function runTopColorsReport(filters: any) {
           SUM(ISNULL(O.Discount,0)) AS DayDiscount,
           SUM(ISNULL(O.DeliveryFee,0)) AS DayDeliveryFee
         FROM Orders O
-        WHERE (@FromDate IS NULL OR CAST(O.OrderDate AS DATE) >= @FromDate)
+        WHERE O.PaymentStatus IN ('Paid', 'Completed')
+          AND (@FromDate IS NULL OR CAST(O.OrderDate AS DATE) >= @FromDate)
           AND (@ToDate IS NULL OR CAST(O.OrderDate AS DATE) <= @ToDate)
         GROUP BY CAST(O.OrderDate AS DATE)
       ),
