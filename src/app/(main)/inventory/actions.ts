@@ -149,6 +149,34 @@ export async function getAvailability(
 }
 
 /**
+ * Get quantities for all sizes in a category
+ */
+export async function getSizeQuantitiesByCategory(categoryId: string) {
+  if (!categoryId) return [];
+  const pool = await getDb();
+
+  const res = await pool
+    .request()
+    .input("catId", categoryId)
+    .query(`
+      SELECT s.Name AS Size, SUM(v.Qty) AS Qty
+      FROM ProductVariants v
+      INNER JOIN Products p ON p.Id = v.ProductId
+      INNER JOIN Sizes s ON s.Id = v.SizeId
+      WHERE p.CategoryId = @catId
+      GROUP BY s.Name, s.Id
+      ORDER BY s.Name
+    `);
+
+  return (res.recordset ?? [])
+    .map((r: any) => ({
+      Size: r.Size,
+      Qty: Number(r.Qty ?? 0),
+    }))
+    .filter((r: { Size: string; Qty: number }) => r.Qty > 0);
+}
+
+/**
  * Search for a color across all products and return size-wise quantities with product info
  */
 export async function searchColorQuantities(colorName: string) {

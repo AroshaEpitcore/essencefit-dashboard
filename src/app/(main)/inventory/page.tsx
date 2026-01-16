@@ -8,6 +8,7 @@ import {
   getProductQuantities,
   getAvailability,
   searchColorQuantities,
+  getSizeQuantitiesByCategory,
 } from "./actions";
 import toast, { Toaster } from "react-hot-toast";
 import {
@@ -56,6 +57,9 @@ export default function InventoryColorsPage() {
   const [colorsAvail, setColorsAvail] = useState<
     Array<{ Color: string; Qty: number }>
   >([]);
+  const [sizeQtys, setSizeQtys] = useState<Array<{ Size: string; Qty: number }>>(
+    []
+  );
   const [availQty, setAvailQty] = useState<number | null>(null);
 
   // Search states
@@ -168,6 +172,23 @@ export default function InventoryColorsPage() {
     })();
   }, [selCatForAvail]);
 
+  // load size quantities when category changes
+  useEffect(() => {
+    (async () => {
+      if (!selCatForColors) {
+        setSizeQtys([]);
+        return;
+      }
+      try {
+        const rows = await getSizeQuantitiesByCategory(selCatForColors);
+        setSizeQtys(rows);
+      } catch (e: any) {
+        toast.error(e.message ?? "Failed to load size quantities");
+        setSizeQtys([]);
+      }
+    })();
+  }, [selCatForColors]);
+
   // colors by category + size
   async function showColorsByCategorySize() {
     if (!selCatForColors || !selSizeForColors) {
@@ -190,8 +211,12 @@ export default function InventoryColorsPage() {
   }
 
   function copyColors() {
-    if (!colorsAvail.length) return;
-    const txt = colorsAvail.map((r) => `${r.Color}: ${r.Qty}`).join("\n");
+    const available = colorsAvail.filter((r) => r.Qty > 0);
+    if (!available.length) return;
+    const sizeName = sizes.find((s) => s.Id === selSizeForColors)?.Name ?? "";
+    const header = `${sizeName} Available colors list`;
+    const colorsList = available.map((r) => r.Color).join("\n");
+    const txt = `${header}\n${colorsList}`;
     navigator.clipboard
       .writeText(txt)
       .then(() => toast.success("Copied"))
@@ -434,10 +459,25 @@ export default function InventoryColorsPage() {
       {/* ================= Colors by Category & Size ================= */}
       <section className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <Palette className="w-5 h-5 text-primary" />
-            Colors by Category & Size
-          </h2>
+          <div className="flex gap-5 items-center">
+            <h2 className="text-xl font-semibold flex items-center gap-2">
+              <Palette className="w-5 h-5 text-primary" />
+              Colors by Category & Size
+            </h2>
+            {sizeQtys.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {sizeQtys.map((s) => (
+                  <span
+                    key={s.Size}
+                    className="inline-flex items-center gap-1 text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full"
+                  >
+                    <span className="font-medium">{s.Size}:</span>
+                    <span className="text-primary font-semibold">{s.Qty}</span>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
           <div className="flex gap-2">
             <button
               onClick={exportColorsCSV}
@@ -507,27 +547,29 @@ export default function InventoryColorsPage() {
         </div>
 
         <div>
-          {!colorsAvail.length ? (
+          {!colorsAvail.filter((c) => c.Qty > 0).length ? (
             <div className="text-center py-8 text-gray-500 dark:text-gray-400 text-sm">
               <Palette className="w-10 h-10 mx-auto mb-2 opacity-50" />
               Pick a Category and Size, then click <b>Show Colors</b>.
             </div>
           ) : (
             <div className="flex flex-wrap gap-2">
-              {colorsAvail.map((c) => (
-                <span
-                  key={c.Color}
-                  className="inline-flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-900 transition-colors"
-                  title={`${c.Qty} pcs`}
-                >
-                  <span className="font-medium text-gray-900 dark:text-white">
-                    {c.Color}
+              {colorsAvail
+                .filter((c) => c.Qty > 0)
+                .map((c) => (
+                  <span
+                    key={c.Color}
+                    className="inline-flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-900 transition-colors"
+                    title={`${c.Qty} pcs`}
+                  >
+                    <span className="font-medium text-gray-900 dark:text-white">
+                      {c.Color}
+                    </span>
+                    <span className="text-xs font-semibold text-primary">
+                      {c.Qty}
+                    </span>
                   </span>
-                  <span className="text-xs font-semibold text-primary">
-                    {c.Qty}
-                  </span>
-                </span>
-              ))}
+                ))}
             </div>
           )}
         </div>
