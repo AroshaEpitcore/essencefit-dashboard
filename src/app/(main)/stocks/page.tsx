@@ -44,6 +44,8 @@ export default function StocksPage() {
   const [lockCategory, setLockCategory] = useState(false);
   const [lockProduct, setLockProduct] = useState(false);
   const [lockSize, setLockSize] = useState(false);
+  const [lockCost, setLockCost] = useState(false);
+  const [lockSell, setLockSell] = useState(false);
   const [products, setProducts] = useState<any[]>([]);
   const [selectedCat, setSelectedCat] = useState("");
 
@@ -246,13 +248,23 @@ export default function StocksPage() {
         if (sizeSelect) sizeSelect.value = "";
       }
 
-      // Always clear color, qty, cost, and sell
-      ["qColor", "qQty", "qCost", "qSell"].forEach((id) => {
+      // Always clear color and qty
+      ["qColor", "qQty"].forEach((id) => {
         const el = document.getElementById(id) as
           | HTMLInputElement
           | HTMLSelectElement;
         if (el) el.value = "";
       });
+
+      // Clear cost and sell only if not locked
+      if (!lockCost) {
+        const costEl = document.getElementById("qCost") as HTMLInputElement;
+        if (costEl) costEl.value = "";
+      }
+      if (!lockSell) {
+        const sellEl = document.getElementById("qSell") as HTMLInputElement;
+        if (sellEl) sellEl.value = "";
+      }
     } catch (e: any) {
       toast.error(e.message);
     } finally {
@@ -753,19 +765,51 @@ export default function StocksPage() {
               className="bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
             />
 
-            <input
-              id="qCost"
-              type="number"
-              placeholder="Cost Price"
-              className="bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-            />
+            <div className="relative">
+              <input
+                id="qCost"
+                type="number"
+                placeholder="Cost Price"
+                className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+              />
+              <button
+                onClick={() => setLockCost(!lockCost)}
+                className={`absolute -right-2 -top-4 p-1 rounded transition-colors ${
+                  lockCost
+                    ? "text-primary bg-primary/10"
+                    : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                }`}
+              >
+                {lockCost ? (
+                  <Lock className="w-5 h-5" />
+                ) : (
+                  <LockOpen className="w-5 h-5" />
+                )}
+              </button>
+            </div>
 
-            <input
-              id="qSell"
-              type="number"
-              placeholder="Selling Price"
-              className="bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-            />
+            <div className="relative">
+              <input
+                id="qSell"
+                type="number"
+                placeholder="Selling Price"
+                className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+              />
+              <button
+                onClick={() => setLockSell(!lockSell)}
+                className={`absolute -right-2 -top-4 p-1 rounded transition-colors ${
+                  lockSell
+                    ? "text-primary bg-primary/10"
+                    : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                }`}
+              >
+                {lockSell ? (
+                  <Lock className="w-5 h-5" />
+                ) : (
+                  <LockOpen className="w-5 h-5" />
+                )}
+              </button>
+            </div>
           </div>
 
           {/* Quick Stock Buttons */}
