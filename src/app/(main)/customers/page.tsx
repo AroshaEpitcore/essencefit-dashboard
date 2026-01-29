@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import { getCustomers, getCustomerById, getCustomerOrders, deleteCustomer, updateCustomer } from "./actions";
-import { Users, Phone, MapPin, Trash2, Edit, ShoppingBag, X, Search } from "lucide-react";
+import { Users, Phone, MapPin, Trash2, Edit, ShoppingBag, X, Search, ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<any[]>([]);
@@ -13,6 +13,8 @@ export default function CustomersPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [updating, setUpdating] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   async function load() {
     setLoading(true);
@@ -35,6 +37,17 @@ export default function CustomersPage() {
       c.Name.toLowerCase().includes(search.toLowerCase()) ||
       (c.Phone && c.Phone.includes(search))
   );
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const paginatedCustomers = filtered.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
 
   async function openDrawer(id: string) {
     try {
@@ -83,7 +96,13 @@ export default function CustomersPage() {
           <div className="bg-primary/20 p-3 rounded-lg">
             <Users className="w-6 h-6 text-primary" />
           </div>
-          <h1 className="text-xl font-bold">Customers</h1>
+          <div>
+            <h1 className="text-xl font-bold">Customers</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {loading ? "Loading..." : `${customers.length} total customers`}
+              {search && filtered.length !== customers.length && ` (${filtered.length} matching)`}
+            </p>
+          </div>
         </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -92,7 +111,7 @@ export default function CustomersPage() {
             placeholder="Search by name or phone..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 pr-4 py-3 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all w-64"
+            className="pl-10 pr-4 py-3 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all w-96"
           />
         </div>
       </div>
@@ -117,7 +136,7 @@ export default function CustomersPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.length === 0 ? (
+                {paginatedCustomers.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="text-center py-12 text-gray-500 dark:text-gray-400">
                       <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
@@ -125,7 +144,7 @@ export default function CustomersPage() {
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((c) => (
+                  paginatedCustomers.map((c) => (
                     <tr
                       key={c.Id}
                       className="border-t border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30 cursor-pointer transition-colors"
@@ -158,6 +177,72 @@ export default function CustomersPage() {
                 )}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {!loading && filtered.length > 0 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/30">
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filtered.length)} of {filtered.length} customers
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+              >
+                First
+              </button>
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                        currentPage === pageNum
+                          ? "bg-primary text-white"
+                          : "hover:bg-gray-100 dark:hover:bg-gray-700"
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+              >
+                Last
+              </button>
+            </div>
           </div>
         )}
       </div>

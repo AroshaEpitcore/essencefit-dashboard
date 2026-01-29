@@ -393,8 +393,8 @@ export async function createOrder(payload: OrderPayload) {
       .input("DeliveryFee", Decimal(18, 2), payload.DeliveryFee)
       .input("Total", Decimal(18, 2), payload.Total)
       .query(`
-        INSERT INTO Orders (Id, Customer, CustomerPhone, Address, CustomerId, PaymentStatus, OrderDate, Subtotal, Discount, DeliveryFee, Total)
-        VALUES (@Id, @Customer, @CustomerPhone, @Address, @CustomerId, @PaymentStatus, @OrderDate, @Subtotal, @Discount, @DeliveryFee, @Total)
+        INSERT INTO Orders (Id, Customer, CustomerPhone, Address, CustomerId, PaymentStatus, OrderDate, Subtotal, ManualDiscount, Discount, DeliveryFee, Total)
+        VALUES (@Id, @Customer, @CustomerPhone, @Address, @CustomerId, @PaymentStatus, @OrderDate, @Subtotal, @ManualDiscount, @Discount, @DeliveryFee, @Total)
       `);
 
     await validateAndReduceStock(tx, payload.Items);
@@ -523,6 +523,7 @@ export async function updateOrder(orderId: string, payload: OrderPayload) {
             PaymentStatus=@PaymentStatus,
             OrderDate=@OrderDate,
             Subtotal=@Subtotal,
+            ManualDiscount=@ManualDiscount,
             Discount=@Discount,
             DeliveryFee=@DeliveryFee,
             Total=@Total

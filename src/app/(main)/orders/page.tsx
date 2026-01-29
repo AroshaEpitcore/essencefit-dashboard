@@ -715,22 +715,22 @@ export default function OrdersPage() {
       setEditStatus(d.order.PaymentStatus as OrderStatus);
       setEditOrderDate(new Date(d.order.OrderDate).toISOString().slice(0, 10));
 
-      // ✅ NEW: Restore manual discount only
-      setEditDiscount(Number(d.order.ManualDiscount ?? 0));
+      // Restore manual discount (the discount user typed manually, NOT including free delivery)
+      const manualDiscount = Number(d.order.ManualDiscount ?? 0);
+      const totalDiscount = Number(d.order.Discount ?? 0);
 
-      if (deliverySaving > 0) {
-        setEditSelectedDeliveryCharge(deliverySaving);
+      // Calculate if free delivery was used: DeliverySaving = TotalDiscount - ManualDiscount
+      const derivedDeliverySaving = totalDiscount - manualDiscount;
+
+      setEditDiscount(manualDiscount);
+      setEditIsFreeDelivery(derivedDeliverySaving > 0);
+
+      // Try to match the delivery charge if possible, otherwise default to 300
+      if (derivedDeliverySaving > 0 && [300, 350, 400].includes(derivedDeliverySaving)) {
+        setEditSelectedDeliveryCharge(derivedDeliverySaving);
       } else {
         setEditSelectedDeliveryCharge(300);
       }
-
-      // We cannot know selected charge from DB (no column)
-      setEditSelectedDeliveryCharge(300);
-
-      // If you saved a delivery-saving discount, user likely used free delivery toggle
-      setEditIsFreeDelivery(Number(d.order.Discount ?? 0) > 0);
-
-      setEditDiscount(Number(d.order.Discount ?? 0));
 
       const mapped: LineDraft[] = d.items.map((it: any) => ({
         key: `${it.VariantId}-${crypto.randomUUID()}`,

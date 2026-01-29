@@ -60,22 +60,22 @@ export default function WhatsAppMessagesPage() {
         {
           id: "1",
           title: "Welcome Message with Size Chart",
-          content: `Thank you so much for choosing EssenceFit 🙌 
+          content: `Thank you so much for choosing EssenceFit 🙌
 Dry-fit unisex shorts 900/-
 Dry Fit Calvin Klein Active wear T Shirts 1500/-
 ⭕ 3ක් ගත්තොත් ගෙදරටම free delivery ගෙන්නගන්න පුලුවන්
 🤸Gym එකට,ගෙදරට, 🧳Travel  කරන්න වගේ ඕනම  තැනකට  අඳින්න පුලුවන්
-ඉලාස්ටික් වේස්ට් එක තියෙන නිස  ඇදෙනවා, ගැටගහගන්න පුළුවන් නුලකුත් තියෙනවා ඒ නිසා හරිම comfortable 
-ඔයාලට අපෙන් ඕඩර් එක ප්ලේස් කරගන්න ඕන නම් ඔයාගේ 
+ඉලාස්ටික් වේස්ට් එක තියෙන නිස  ඇදෙනවා, ගැටගහගන්න පුළුවන් නුලකුත් තියෙනවා ඒ නිසා හරිම comfortable
+ඔයාලට අපෙන් ඕඩර් එක ප්ලේස් කරගන්න ඕන නම් ඔයාගේ
 ➡️ නම
-➡️ඇඩ්‍රස් එක 
-➡️ෆෝන් නම්බර් එක  
+➡️ඇඩ්‍රස් එක
+➡️ෆෝන් නම්බර් එක
 ➡️ඔයාලට ඕන ෂෝට්වල  සයිස් එක මට එවන්න.
  ඔයාලට දවස් දෙක තුනක් ඇතුළත අපි ඔයාලගේ ඕඩර් එක ගෙදරටම එවනවා ✅
 
 ---
 
-Thank you so much for choosing EssenceFit 🙌 
+Thank you so much for choosing EssenceFit 🙌
 Dry-fit unisex shorts Rs. 900/-
 Dry Fit Calvin Klein Active wear T-Shirts Rs. 1500/-
 ⭕ Buy 3 items and get FREE home delivery!
@@ -95,6 +95,23 @@ We'll deliver your order to your doorstep within 2-3 days ✅`,
         },
         {
           id: "2",
+          title: "Size & Color Inquiry",
+          content: `
+I'm Natasha from EssenceFit 👋
+
+Size Kohomada sir / miss ?
+Mata Puluwan colors list eka danna oyaage size ekaṭa
+---
+
+How about the size, sir/miss?
+Then I can send you the colors for your size
+`,
+          category: "Product Info",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        {
+          id: "3",
           title: "Order Details Request",
           content: `📦✨ To arrange your order, could you please share:
 1️⃣ Full Name
@@ -106,7 +123,61 @@ This will help us process your order smoothly 🙌`,
           updatedAt: new Date().toISOString(),
         },
         {
-          id: "3",
+          id: "4",
+          title: "Terms & Conditions (Eastern/Northern)",
+          content: `📋 Terms & Conditions - Eastern & Northern Province
+
+📦 Delivery Charges:
+• Eastern & Northern Province → Rs. 400
+• Other Areas → Rs. 350
+
+🚚 Free Delivery Offer:
+• Order more than 3 items → FREE delivery!
+• Just add Rs. 50 extra to order price (no additional delivery charges)
+
+⚠️ Important Notice for Eastern & Northern Province:
+❌ COD (Cash on Delivery) is NOT available
+📝 Reason: Most customers return parcels and don't answer phone calls
+
+✅ To confirm your order, please make the payment to:
+🏦 Bank: HNB (Hatton National Bank)
+📍 Branch: Koggala
+👤 Account Name: M.G.Arosha Ravishan
+🔢 Account Number: 237020072483
+
+📸 After payment, please send the receipt to confirm your order.
+We will ensure order responsibility after payment confirmation ✅
+
+---
+
+📋 කොන්දේසි - නැගෙනහිර සහ උතුරු පළාත
+
+📦 බෙදාහැරීම් ගාස්තු:
+• නැගෙනහිර සහ උතුරු පළාත → Rs. 400
+• අනෙකුත් ප්‍රදේශ → Rs. 350
+
+🚚 නොමිලේ බෙදාහැරීම:
+• අයිතම 3කට වඩා ඇණවුම් කරන්න → නොමිලේ බෙදාහැරීම!
+• ඇණවුම් මිලට Rs. 50ක් පමණක් එකතු කරන්න (අමතර බෙදාහැරීම් ගාස්තු නැත)
+
+⚠️ නැගෙනහිර සහ උතුරු පළාතට වැදගත් දැනුම්දීම:
+❌ COD (භාණ්ඩ ලැබුණු පසු මුදල් ගෙවීම) නොමැත
+📝 හේතුව: බොහෝ පාරිභෝගිකයින් පාර්සල් ආපසු එවන අතර දුරකථනවලට පිළිතුරු දෙන්නේ නැත
+
+✅ ඔබේ ඇණවුම තහවුරු කිරීමට, කරුණාකර මෙම ගිණුමට මුදල් ගෙවන්න:
+🏦 බැංකුව: HNB
+📍 ශාඛාව: කොග්ගල
+👤 ගිණුම් නම: M.G.Arosha Ravishan
+🔢 ගිණුම් අංකය: 237020072483
+
+📸 ගෙවීමෙන් පසු, ඔබේ ඇණවුම තහවුරු කිරීමට රිසිට්පත එවන්න.
+ගෙවීම් තහවුරු කිරීමෙන් පසු අපි ඇණවුම් වගකීම සහතික කරමු ✅`,
+          category: "Product Info",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        {
+          id: "5",
           title: "Delivery & Product Info",
           content: `📦 Delivery Charges
 Colombo Area → Rs. 300
@@ -125,7 +196,7 @@ Quality, comfort & fast delivery 🚚✨`,
           updatedAt: new Date().toISOString(),
         },
         {
-          id: "4",
+          id: "6",
           title: "Order Follow Up",
           content: `ඔයා මේ බැලුව order එක දානවද සර් ?
 ⭕ශොර්ට්ස් 3ක් ගත්තම Free Delivery  හම්බෙන Offer එකක් තියෙනවා....
@@ -156,7 +227,7 @@ No, thank you 🚫
           updatedAt: new Date().toISOString(),
         },
         {
-          id: "5",
+          id: "7",
           title: "Review Request",
           content: `We hope you're enjoying your EssenceFit purchase! 🌟
 When you have a moment, we'd be truly grateful if you could leave us a quick review on Facebook. Your feedback helps us grow and serve you better.
@@ -167,21 +238,20 @@ Thank you so much for your support! 🙏`,
           updatedAt: new Date().toISOString(),
         },
         {
-          id: "6",
-          title: "Size & Color Inquiry",
-          content: `Size Kohomada sir / miss ?
-Then I can send you the colors for your size
+          id: "8",
+          title: "Bank Details",
+          content: `🏦 Payment Details - EssenceFit
 
----
+Please make your payment to the following account:
 
-How about the size, sir/miss?
-Then I can send you the colors for your size
+🏦 Bank: HNB (Hatton National Bank)
+📍 Branch: Koggala
+👤 Account Name: M.G.Arosha Ravishan
+🔢 Account Number: 237020072483
 
----
-
-சைஸ் எப்படி சார் / மிஸ்?
-பின்னர் உங்கள் சைஸுக்கான வண்ணங்களை அனுப்புகிறேன்`,
-          category: "Product Info",
+📸 After payment, please send the receipt to confirm your order.
+Thank you! ✅`,
+          category: "Payment Reminder",
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         },
