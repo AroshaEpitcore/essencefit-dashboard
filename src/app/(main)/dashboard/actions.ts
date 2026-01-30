@@ -195,3 +195,94 @@ export async function getChartData() {
 
   return { monthly: monthly.recordset, daily: daily.recordset };
 }
+
+export async function getAnalyticsData() {
+  const pool = await getDb();
+
+  // Weekly sales trend (last 8 weeks)
+  const weekly = await pool.request().query(`
+    DECLARE @From DATE = DATEADD(WEEK, -7, CAST(GETDATE() AS DATE));
+
+    ;WITH SalesWeek AS (
+      SELECT
+        DATEPART(ISO_WEEK, S.SaleDate) AS W,
+        YEAR(DATEADD(DAY, 26 - DATEPART(ISO_WEEK, S.SaleDate), S.SaleDate)) AS Y,
+        MIN(CAST(S.SaleDate AS DATE)) AS MinD,
+        SUM(S.Qty * S.SellingPrice) AS GrossSales
+      FROM Sales S
+      WHERE CAST(S.SaleDate AS DATE) >= @From
+      GROUP BY DATEPART(ISO_WEEK, S.SaleDate),
+               YEAR(DATEADD(DAY, 26 - DATEPART(ISO_WEEK, S.SaleDate), S.SaleDate))
+    ),
+    OrdersWeek AS (
+      SELECT
+        DATEPART(ISO_WEEK, O.OrderDate) AS W,
+        YEAR(DATEADD(DAY, 26 - DATEPART(ISO_WEEK, O.OrderDate), O.OrderDate)) AS Y,
+        SUM(ISNULL(O.Discount,0)) AS DiscountAmt,
+        SUM(ISNULL(O.DeliveryFee,0)) AS DeliveryAmt
+      FROM Orders O
+      WHERE CAST(O.OrderDate AS DATE) >= @From
+        AND O.PaymentStatus IN ('Paid', 'Completed')
+      GROUP BY DATEPART(ISO_WEEK, O.OrderDate),
+               YEAR(DATEADD(DAY, 26 - DATEPART(ISO_WEEK, O.OrderDate), O.OrderDate))
+    )
+    SELECT
+      'W' + CAST(COALESCE(SW.W, OW.W) AS VARCHAR) AS week,
+      ISNULL(SW.GrossSales,0) - ISNULL(OW.DiscountAmt,0) + ISNULL(OW.DeliveryAmt,0) AS sales
+    FROM SalesWeek SW
+    FULL OUTER JOIN OrdersWeek OW ON SW.W = OW.W AND SW.Y = OW.Y
+    ORDER BY ISNULL(SW.MinD, GETDATE())
+  `);
+
+  // Top 10 selling products (this month by qty)
+  const topProducts = await pool.request().query(`
+    DECLARE @MonthStart DATE = DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1);
+
+    SELECT TOP 10
+      P.Name AS name,
+      SUM(S.Qty) AS qty,
+      SUM(S.Qty * S.SellingPrice) AS revenue
+    FROM Sales S
+    JOIN ProductVariants V ON S.VariantId = V.Id
+    JOIN Products P ON V.ProductId = P.Id
+    WHERE CAST(S.SaleDate AS DATE) >= @MonthStart
+    GROUP BY P.Name
+    ORDER BY SUM(S.Qty) DESC
+  `);
+
+  // Revenue by category (this month)
+  const revenueByCategory = await pool.request().query(`
+    DECLARE @MonthStart DATE = DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1);
+
+    SELECT
+      C.Name AS name,
+      SUM(S.Qty * S.SellingPrice) AS revenue
+    FROM Sales S
+    JOIN ProductVariants V ON S.VariantId = V.Id
+    JOIN Products P ON V.ProductId = P.Id
+    JOIN Categories C ON P.CategoryId = C.Id
+    WHERE CAST(S.SaleDate AS DATE) >= @MonthStart
+    GROUP BY C.Name
+    ORDER BY SUM(S.Qty * S.SellingPrice) DESC
+  `);
+
+  // Orders by payment status (this month)
+  const ordersByStatus = await pool.request().query(`
+    DECLARE @MonthStart DATE = DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1);
+
+    SELECT
+      PaymentStatus AS name,
+      COUNT(*) AS count
+    FROM Orders
+    WHERE OrderDate >= @MonthStart
+    GROUP BY PaymentStatus
+    ORDER BY COUNT(*) DESC
+  `);
+
+  return {
+    weekly: weekly.recordset,
+    topProducts: topProducts.recordset,
+    revenueByCategory: revenueByCategory.recordset,
+    ordersByStatus: ordersByStatus.recordset,
+  };
+}

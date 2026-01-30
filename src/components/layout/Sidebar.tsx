@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth, ADMIN_ONLY_ROUTES } from "@/lib/useAuth";
 import {
   LayoutDashboard,
   Boxes,
@@ -43,6 +44,13 @@ const navItems = [
 
 export default function Sidebar({ collapsed }: { collapsed: boolean }) {
   const pathname = usePathname();
+  const { isAdmin } = useAuth();
+
+  const visibleItems = isAdmin
+    ? navItems
+    : navItems.filter(
+        (item) => !ADMIN_ONLY_ROUTES.some((r) => item.href.startsWith(r))
+      );
 
   return (
     <aside
@@ -58,7 +66,7 @@ export default function Sidebar({ collapsed }: { collapsed: boolean }) {
       {/* --- Scrollable Middle Navigation --- */}
       <nav className="flex-1 overflow-y-auto scrollbar-hide">
         <ul className="space-y-1 px-2 py-3">
-          {navItems.map((item) => {
+          {visibleItems.map((item) => {
             const Icon = item.icon;
             const active = pathname.startsWith(item.href);
 

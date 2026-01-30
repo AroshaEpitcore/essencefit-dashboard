@@ -3,13 +3,7 @@
 import { Moon, Sun, LogOut, Menu } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-
-type User = {
-  Id: string;
-  Username: string;
-  Email: string;
-  Role: string;
-};
+import { useAuth } from "@/lib/useAuth";
 
 export default function Topbar({
   onToggleSidebar,
@@ -17,18 +11,10 @@ export default function Topbar({
   onToggleSidebar: () => void;
 }) {
   const [darkMode, setDarkMode] = useState(true);
-  const [user, setUser] = useState<User | null>(null);
-  const [time, setTime] = useState<string>(""); // ⏰ clock
-  const [day, setDay] = useState<string>("");   // 📅 day
+  const [time, setTime] = useState<string>("");
+  const [day, setDay] = useState<string>("");
   const router = useRouter();
-
-  // Load user
-  useEffect(() => {
-    const stored = localStorage.getItem("authUser");
-    if (stored) {
-      setUser(JSON.parse(stored));
-    }
-  }, []);
+  const { user, isAdmin, logout } = useAuth();
 
   // Update time and day every second
   useEffect(() => {
@@ -59,8 +45,8 @@ export default function Topbar({
   }, [darkMode]);
 
   function handleLogout() {
-    localStorage.removeItem("authUser");
-    router.push("/");
+    logout();
+    router.push("/login");
   }
 
   return (
@@ -100,7 +86,15 @@ export default function Topbar({
               <p className="text-sm font-medium text-gray-800 dark:text-gray-100">
                 {user.Username}
               </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">{user.Role}</p>
+              <span
+                className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${
+                  isAdmin
+                    ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300"
+                    : "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+                }`}
+              >
+                {user.Role}
+              </span>
             </div>
           </div>
         )}
