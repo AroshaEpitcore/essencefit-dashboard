@@ -247,6 +247,7 @@ export default function InvoicesPage() {
   const [range, setRange] = useState<OrderRange>("today");
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   // delivery charge selections per order (only for < 3 pcs)
   const [deliveryCharges, setDeliveryCharges] = useState<Record<string, number>>({});
@@ -278,8 +279,12 @@ export default function InvoicesPage() {
       });
     }
 
+    if (statusFilter !== "all") {
+      list = list.filter((o) => o.PaymentStatus === statusFilter);
+    }
+
     return list;
-  }, [orders, allOrders, searchQuery]);
+  }, [orders, allOrders, searchQuery, statusFilter]);
 
   useEffect(() => {
     loadOrders();
@@ -403,6 +408,43 @@ export default function InvoicesPage() {
             ))}
           </select>
         </div>
+      </div>
+
+      {/* Status Filter Chips */}
+      <div className="flex items-center gap-2 flex-wrap mb-6">
+        <span className="text-sm text-gray-500 mr-2">Filter by status:</span>
+        {["all", "Pending", "Paid", "Partial", "Completed", "Canceled"].map(
+          (st) => {
+            const base = searchQuery.trim() ? allOrders : orders;
+            const count =
+              st === "all"
+                ? base.length
+                : base.filter((o) => o.PaymentStatus === st).length;
+
+            return (
+              <button
+                key={st}
+                onClick={() => setStatusFilter(st)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  statusFilter === st
+                    ? "bg-primary text-white shadow-md"
+                    : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                }`}
+              >
+                {st === "all" ? "All" : st}
+                <span
+                  className={`ml-2 text-xs px-2 py-0.5 rounded-full ${
+                    statusFilter === st
+                      ? "bg-white/20"
+                      : "bg-gray-200 dark:bg-gray-700"
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          }
+        )}
       </div>
 
       {/* Orders List */}
