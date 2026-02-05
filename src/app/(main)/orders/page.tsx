@@ -784,6 +784,13 @@ export default function OrdersPage() {
     try {
       await updateOrder(editOrderId, payload);
       toast.success("Order updated");
+      // Clear cached details so accordion re-fetches fresh data
+      setDetails((p) => {
+        const next = { ...p };
+        delete next[editOrderId!];
+        return next;
+      });
+      setExpanded((p) => ({ ...p, [editOrderId!]: false }));
       setEditOpen(false);
       setEditOrderId(null);
       await loadRecent();

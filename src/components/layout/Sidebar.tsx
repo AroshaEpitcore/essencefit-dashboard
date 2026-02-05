@@ -108,7 +108,7 @@ export default function Sidebar({ collapsed }: { collapsed: boolean }) {
 
       {/* --- Fixed Footer --- */}
       <div className="p-3 border-t border-gray-800 text-center text-xs text-gray-500">
-        {collapsed ? "EF" : "EssenceFit © 2025"}
+        {collapsed ? "EF" : "EssenceFit © 2026"}
       </div>
 
       {/* --- Hidden Scrollbar CSS --- */}
