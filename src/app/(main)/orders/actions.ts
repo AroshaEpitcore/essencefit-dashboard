@@ -184,7 +184,12 @@ export async function getRecentOrders(limit: number = 20, range: OrderRange = "a
       o.Discount,
       o.DeliveryFee,
       o.Total,
-      (SELECT COUNT(*) FROM OrderItems oi WHERE oi.OrderId = o.Id) AS LineCount
+      (SELECT COUNT(*) FROM OrderItems oi WHERE oi.OrderId = o.Id) AS LineCount,
+      (SELECT ISNULL(SUM(oi.Qty * ISNULL(pv.CostPrice, ISNULL(p2.CostPrice, 0))), 0)
+       FROM OrderItems oi
+       JOIN ProductVariants pv ON pv.Id = oi.VariantId
+       JOIN Products p2 ON p2.Id = pv.ProductId
+       WHERE oi.OrderId = o.Id) AS TotalCost
     FROM Orders o
     WHERE (@from IS NULL OR o.OrderDate >= @from)
       AND (@to IS NULL OR o.OrderDate < @to)
@@ -221,6 +226,7 @@ export async function getOrderDetails(orderId: string) {
         oi.VariantId,
         oi.Qty,
         oi.SellingPrice,
+        ISNULL(v.CostPrice, ISNULL(p.CostPrice, 0)) AS CostPrice,
         v.Qty AS CurrentStock,
         p.Id          AS ProductId,
         p.CategoryId  AS CategoryId,

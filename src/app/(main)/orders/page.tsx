@@ -1331,6 +1331,16 @@ export default function OrdersPage() {
                     <div className="text-sm font-bold text-primary mt-1">
                       Rs {Number(o.Total).toFixed(2)}
                     </div>
+                    <div
+                      className={`text-xs font-semibold mt-1 ${
+                        Number(o.Total || 0) - Number(o.TotalCost || 0) >= 0
+                          ? "text-green-600 dark:text-green-400"
+                          : "text-red-600 dark:text-red-400"
+                      }`}
+                    >
+                      Profit: Rs{" "}
+                      {(Number(o.Total || 0) - Number(o.TotalCost || 0)).toFixed(2)}
+                    </div>
                   </div>
 
                   <span className="text-xs px-3 py-1 rounded-full font-medium bg-gray-100 dark:bg-gray-900/30">
@@ -1367,6 +1377,22 @@ export default function OrdersPage() {
                         <div className="text-xs">
                           Qty: {it.Qty} × Rs{" "}
                           {Number(it.SellingPrice).toFixed(2)}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          Cost: Rs {Number(it.CostPrice || 0).toFixed(2)} |{" "}
+                          <span
+                            className={
+                              (Number(it.SellingPrice || 0) - Number(it.CostPrice || 0)) * Number(it.Qty || 0) >= 0
+                                ? "text-green-600 dark:text-green-400"
+                                : "text-red-600 dark:text-red-400"
+                            }
+                          >
+                            Profit: Rs{" "}
+                            {(
+                              (Number(it.SellingPrice || 0) - Number(it.CostPrice || 0)) *
+                              Number(it.Qty || 0)
+                            ).toFixed(2)}
+                          </span>
                         </div>
                       </div>
                     ))}
