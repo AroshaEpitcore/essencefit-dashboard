@@ -385,6 +385,8 @@ export async function createOrder(payload: OrderPayload) {
       payload.Address ?? null
     );
 
+    const completedAt = shouldCreateSales(payload.PaymentStatus) ? orderDate : null;
+
     await new sql.Request(tx)
       .input("Id", UniqueIdentifier, orderId)
       .input("Customer", NVarChar(200), payload.Customer ?? null)
@@ -393,14 +395,15 @@ export async function createOrder(payload: OrderPayload) {
       .input("CustomerId", UniqueIdentifier, customerId)
       .input("PaymentStatus", NVarChar(20), payload.PaymentStatus)
       .input("OrderDate", sql.DateTime2(7), orderDate)
+      .input("CompletedAt", sql.DateTime2(7), completedAt)
       .input("Subtotal", Decimal(18, 2), payload.Subtotal)
       .input("ManualDiscount", Decimal(18, 2), payload.ManualDiscount)
       .input("Discount", Decimal(18, 2), payload.Discount)
       .input("DeliveryFee", Decimal(18, 2), payload.DeliveryFee)
       .input("Total", Decimal(18, 2), payload.Total)
       .query(`
-        INSERT INTO Orders (Id, Customer, CustomerPhone, Address, CustomerId, PaymentStatus, OrderDate, Subtotal, ManualDiscount, Discount, DeliveryFee, Total)
-        VALUES (@Id, @Customer, @CustomerPhone, @Address, @CustomerId, @PaymentStatus, @OrderDate, @Subtotal, @ManualDiscount, @Discount, @DeliveryFee, @Total)
+        INSERT INTO Orders (Id, Customer, CustomerPhone, Address, CustomerId, PaymentStatus, OrderDate, CompletedAt, Subtotal, ManualDiscount, Discount, DeliveryFee, Total)
+        VALUES (@Id, @Customer, @CustomerPhone, @Address, @CustomerId, @PaymentStatus, @OrderDate, @CompletedAt, @Subtotal, @ManualDiscount, @Discount, @DeliveryFee, @Total)
       `);
 
     await validateAndReduceStock(tx, payload.Items);
@@ -423,6 +426,18 @@ export async function createOrder(payload: OrderPayload) {
       await insertSalesRows(tx, orderId, payload.PaymentStatus, orderDate, payload.Items);
     }
 
+    // Log the initial status
+    await new sql.Request(tx)
+      .input("Id", UniqueIdentifier, crypto.randomUUID())
+      .input("OrderId", UniqueIdentifier, orderId)
+      .input("OldStatus", NVarChar(50), null)
+      .input("NewStatus", NVarChar(50), payload.PaymentStatus)
+      .input("ChangedAt", sql.DateTime2(7), new Date())
+      .query(`
+        INSERT INTO OrderStatusLogs (Id, OrderId, OldStatus, NewStatus, ChangedAt)
+        VALUES (@Id, @OrderId, @OldStatus, @NewStatus, @ChangedAt)
+      `);
+
     await tx.commit();
     return { OrderId: orderId };
   } catch (err) {
@@ -440,22 +455,48 @@ export async function updateOrderStatus(orderId: string, newStatus: OrderStatus)
   try {
     await tx.begin();
 
-    // update order status
+    // Get old status first for logging
+    const oldStatusResult = await new sql.Request(tx)
+      .input("Id", UniqueIdentifier, orderId)
+      .query(`SELECT TOP 1 PaymentStatus FROM Orders WHERE Id=@Id`);
+    const oldStatus = oldStatusResult.recordset[0]?.PaymentStatus || null;
+
+    // update order status + set CompletedAt if Paid/Completed
+    const shouldSetCompleted = newStatus === "Paid" || newStatus === "Completed";
     await new sql.Request(tx)
       .input("Id", UniqueIdentifier, orderId)
       .input("Status", NVarChar(20), newStatus)
-      .query(`UPDATE Orders SET PaymentStatus=@Status WHERE Id=@Id`);
+      .input("CompletedAt", sql.DateTime2(7), shouldSetCompleted ? new Date() : null)
+      .query(`
+        UPDATE Orders
+        SET PaymentStatus=@Status,
+            CompletedAt = CASE
+              WHEN @CompletedAt IS NOT NULL AND CompletedAt IS NULL THEN @CompletedAt
+              WHEN @CompletedAt IS NULL THEN NULL
+              ELSE CompletedAt
+            END
+        WHERE Id=@Id
+      `);
+
+    // Log the status change
+    await new sql.Request(tx)
+      .input("Id", UniqueIdentifier, crypto.randomUUID())
+      .input("OrderId", UniqueIdentifier, orderId)
+      .input("OldStatus", NVarChar(50), oldStatus)
+      .input("NewStatus", NVarChar(50), newStatus)
+      .input("ChangedAt", sql.DateTime2(7), new Date())
+      .query(`
+        INSERT INTO OrderStatusLogs (Id, OrderId, OldStatus, NewStatus, ChangedAt)
+        VALUES (@Id, @OrderId, @OldStatus, @NewStatus, @ChangedAt)
+      `);
 
     // always remove old sales rows
     await deleteSalesForOrder(tx, orderId);
 
     // if new status is Paid/Completed, recreate sales rows using current order items
+    // Use CURRENT date for SaleDate so it shows in today's dashboard
     if (shouldCreateSales(newStatus)) {
-      const header = await new sql.Request(tx)
-        .input("Id", UniqueIdentifier, orderId)
-        .query(`SELECT TOP 1 OrderDate FROM Orders WHERE Id=@Id`);
-
-      const orderDate: Date = header.recordset?.[0]?.OrderDate ?? new Date();
+      const saleDate = new Date(); // Use NOW, not the original OrderDate
 
       const items = await new sql.Request(tx)
         .input("Id", UniqueIdentifier, orderId)
@@ -466,7 +507,7 @@ export async function updateOrderStatus(orderId: string, newStatus: OrderStatus)
         `);
 
       const mapped = items.recordset as Array<{ VariantId: string; Qty: number; SellingPrice: number }>;
-      await insertSalesRows(tx, orderId, newStatus, orderDate, mapped);
+      await insertSalesRows(tx, orderId, newStatus, saleDate, mapped);
     }
 
     await tx.commit();

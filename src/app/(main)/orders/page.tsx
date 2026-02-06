@@ -204,6 +204,10 @@ export default function OrdersPage() {
   const [bulkStatus, setBulkStatus] = useState<OrderStatus>("Paid");
   const [bulkUpdating, setBulkUpdating] = useState(false);
 
+  // totals date filter
+  const [totalsFromDate, setTotalsFromDate] = useState<string>("");
+  const [totalsToDate, setTotalsToDate] = useState<string>("");
+
   // edit modal
   const [editOpen, setEditOpen] = useState(false);
   const [editOrderId, setEditOrderId] = useState<string | null>(null);
@@ -268,6 +272,45 @@ export default function OrdersPage() {
 
     return orders;
   }, [allOrders, recent, searchQuery, statusFilter]);
+
+  // Calculate totals by status with date filter
+  const totalsByStatus = useMemo(() => {
+    let source = searchQuery.trim() ? allOrders : recent;
+
+    // Apply date filter for totals
+    if (totalsFromDate) {
+      const fromDate = new Date(totalsFromDate);
+      fromDate.setHours(0, 0, 0, 0);
+      source = source.filter((o) => new Date(o.OrderDate) >= fromDate);
+    }
+    if (totalsToDate) {
+      const toDate = new Date(totalsToDate);
+      toDate.setHours(23, 59, 59, 999);
+      source = source.filter((o) => new Date(o.OrderDate) <= toDate);
+    }
+
+    const totals: Record<string, { count: number; total: number; profit: number }> = {};
+
+    let grandTotal = 0;
+    let grandProfit = 0;
+    let grandCount = 0;
+
+    ORDER_STATUSES.forEach((status) => {
+      const statusOrders = source.filter((o) => o.PaymentStatus === status);
+      const total = statusOrders.reduce((sum, o) => sum + Number(o.Total || 0), 0);
+      const profit = statusOrders.reduce(
+        (sum, o) => sum + (Number(o.Total || 0) - Number(o.TotalCost || 0)),
+        0
+      );
+      totals[status] = { count: statusOrders.length, total, profit };
+      grandTotal += total;
+      grandProfit += profit;
+      grandCount += statusOrders.length;
+    });
+
+    totals["all"] = { count: grandCount, total: grandTotal, profit: grandProfit };
+    return totals;
+  }, [allOrders, recent, searchQuery, totalsFromDate, totalsToDate]);
 
   useEffect(() => {
     (async () => {
@@ -1385,6 +1428,167 @@ export default function OrdersPage() {
             ))}
           </select>
         </div>
+      </div>
+
+      {/* Totals by Status */}
+      <div className="bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl p-4 mb-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-3">
+          <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400">
+            Totals {statusFilter !== "all" ? `(${statusFilter})` : "(All Statuses)"}
+            {(totalsFromDate || totalsToDate) && (
+              <span className="ml-2 text-xs font-normal">
+                {totalsFromDate && totalsToDate
+                  ? `${totalsFromDate} to ${totalsToDate}`
+                  : totalsFromDate
+                  ? `From ${totalsFromDate}`
+                  : `To ${totalsToDate}`}
+              </span>
+            )}
+          </h3>
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Quick date buttons */}
+            <div className="flex items-center gap-1 mr-2">
+              <button
+                onClick={() => {
+                  const today = new Date().toISOString().slice(0, 10);
+                  setTotalsFromDate(today);
+                  setTotalsToDate(today);
+                }}
+                className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+              >
+                Today
+              </button>
+              <button
+                onClick={() => {
+                  const today = new Date();
+                  const yesterday = new Date(today);
+                  yesterday.setDate(yesterday.getDate() - 1);
+                  setTotalsFromDate(yesterday.toISOString().slice(0, 10));
+                  setTotalsToDate(yesterday.toISOString().slice(0, 10));
+                }}
+                className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+              >
+                Yesterday
+              </button>
+              <button
+                onClick={() => {
+                  const today = new Date();
+                  const weekStart = new Date(today);
+                  weekStart.setDate(today.getDate() - today.getDay());
+                  setTotalsFromDate(weekStart.toISOString().slice(0, 10));
+                  setTotalsToDate(today.toISOString().slice(0, 10));
+                }}
+                className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+              >
+                This Week
+              </button>
+              <button
+                onClick={() => {
+                  const today = new Date();
+                  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+                  setTotalsFromDate(monthStart.toISOString().slice(0, 10));
+                  setTotalsToDate(today.toISOString().slice(0, 10));
+                }}
+                className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+              >
+                This Month
+              </button>
+              <button
+                onClick={() => {
+                  const today = new Date();
+                  const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                  const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
+                  setTotalsFromDate(lastMonthStart.toISOString().slice(0, 10));
+                  setTotalsToDate(lastMonthEnd.toISOString().slice(0, 10));
+                }}
+                className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+              >
+                Last Month
+              </button>
+            </div>
+
+            <span className="text-gray-300 dark:text-gray-600">|</span>
+
+            <label className="text-xs text-gray-500">From:</label>
+            <input
+              type="date"
+              value={totalsFromDate}
+              onChange={(e) => setTotalsFromDate(e.target.value)}
+              className="bg-gray-50 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1 text-sm"
+            />
+            <label className="text-xs text-gray-500">To:</label>
+            <input
+              type="date"
+              value={totalsToDate}
+              onChange={(e) => setTotalsToDate(e.target.value)}
+              className="bg-gray-50 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1 text-sm"
+            />
+            {(totalsFromDate || totalsToDate) && (
+              <button
+                onClick={() => {
+                  setTotalsFromDate("");
+                  setTotalsToDate("");
+                }}
+                className="text-xs px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="text-center p-3 bg-gray-50 dark:bg-gray-900/30 rounded-lg">
+            <div className="text-xs text-gray-500 mb-1">Orders</div>
+            <div className="text-lg font-bold">
+              {totalsByStatus[statusFilter]?.count || 0}
+            </div>
+          </div>
+          <div className="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+            <div className="text-xs text-gray-500 mb-1">Total Sales</div>
+            <div className="text-lg font-bold text-green-600 dark:text-green-400">
+              Rs {(totalsByStatus[statusFilter]?.total || 0).toFixed(2)}
+            </div>
+          </div>
+          <div className="text-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+            <div className="text-xs text-gray-500 mb-1">Total Profit</div>
+            <div className="text-lg font-bold text-purple-600 dark:text-purple-400">
+              Rs {(totalsByStatus[statusFilter]?.profit || 0).toFixed(2)}
+            </div>
+          </div>
+          <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+            <div className="text-xs text-gray-500 mb-1">Avg per Order</div>
+            <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
+              Rs {totalsByStatus[statusFilter]?.count
+                ? ((totalsByStatus[statusFilter]?.total || 0) / totalsByStatus[statusFilter].count).toFixed(2)
+                : "0.00"}
+            </div>
+          </div>
+        </div>
+
+        {/* Quick status breakdown */}
+        {statusFilter === "all" && (
+          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="text-xs text-gray-500 mb-2">Breakdown by Status:</div>
+            <div className="flex flex-wrap gap-3">
+              {ORDER_STATUSES.map((st) => {
+                const data = totalsByStatus[st];
+                if (!data || data.count === 0) return null;
+                return (
+                  <div
+                    key={st}
+                    className="text-xs px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-900/50"
+                  >
+                    <span className="font-medium">{st}:</span>{" "}
+                    <span className="text-gray-600 dark:text-gray-400">{data.count} orders</span>{" "}
+                    <span className="text-green-600 dark:text-green-400 font-semibold">
+                      Rs {data.total.toFixed(2)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Recent Orders */}

@@ -20,6 +20,7 @@ import {
   RotateCcw,
   Layers2,
   ClipboardList,
+  History,
 } from "lucide-react";
 import { Tooltip } from "react-tooltip";
 
@@ -29,6 +30,7 @@ const navItems = [
   { href: "/stocks", label: "Stocks", icon: Package },
   { href: "/sales", label: "Sales", icon: Receipt },
   { href: "/orders", label: "Orders", icon: ShoppingCart },
+  { href: "/order-logs", label: "Order Logs", icon: History },
   { href: "/invoices", label: "Invoices", icon: ClipboardList },
   { href: "/finance", label: "Finance", icon: DollarSign },
   { href: "/expenses", label: "Expenses", icon: Wallet },

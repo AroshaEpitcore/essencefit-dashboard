@@ -6,7 +6,8 @@
       "Bash(find:*)",
       "Bash(wc:*)",
       "Bash(npx next build --no-lint)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(sqlcmd:*)"
     ]
   }
 }
