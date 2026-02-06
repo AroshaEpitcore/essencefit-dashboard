@@ -31,8 +31,10 @@ export async function getOrdersForReturn() {
       Id,
       Customer,
       OrderDate,
-      Total
+      Total,
+      PaymentStatus
     FROM Orders
+    WHERE PaymentStatus NOT IN ('Completed', 'Canceled')
     ORDER BY OrderDate DESC
   `);
   return res.recordset;
