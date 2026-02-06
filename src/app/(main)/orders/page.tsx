@@ -71,6 +71,46 @@ const RANGE_OPTIONS: Array<{ key: OrderRange; label: string }> = [
 
 const DELIVERY_OPTIONS = [300, 350, 400] as const;
 
+// Delivery ETA based on charge/area
+function getDeliveryETA(charge: number, orderDate: string): { days: string; date: string } {
+  const baseDate = new Date(orderDate);
+  let minDays: number;
+  let maxDays: number;
+  let area: string;
+
+  if (charge === 300) {
+    // Colombo
+    minDays = 1;
+    maxDays = 2;
+    area = "Colombo";
+  } else if (charge === 350) {
+    // Outer Areas
+    minDays = 2;
+    maxDays = 3;
+    area = "Outer Areas";
+  } else {
+    // Eastern & Northern (400)
+    minDays = 3;
+    maxDays = 5;
+    area = "Eastern/Northern";
+  }
+
+  const minDate = new Date(baseDate);
+  minDate.setDate(minDate.getDate() + minDays);
+  const maxDate = new Date(baseDate);
+  maxDate.setDate(maxDate.getDate() + maxDays);
+
+  const formatDate = (d: Date) =>
+    d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+  return {
+    days: `${minDays}-${maxDays} days`,
+    date: minDays === maxDays
+      ? formatDate(minDate)
+      : `${formatDate(minDate)} - ${formatDate(maxDate)}`,
+  };
+}
+
 function ToggleSwitch({
   checked,
   onChange,
@@ -1237,6 +1277,19 @@ export default function OrdersPage() {
                         </div>
                       </>
                     )}
+
+                    {/* Delivery ETA */}
+                    {(() => {
+                      const charge = isFreeDelivery ? selectedDeliveryCharge : 300;
+                      const eta = getDeliveryETA(charge, orderDate);
+                      return (
+                        <div className="text-xs mt-1 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                          <span className="text-blue-600 dark:text-blue-400">
+                            📦 ETA: {eta.days} ({eta.date})
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
 
@@ -1402,18 +1455,10 @@ export default function OrdersPage() {
                 }`}
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-3">
-                    {/* Checkbox */}
-                    <input
-                      type="checkbox"
-                      checked={selectedOrders.has(o.Id)}
-                      onChange={() => toggleOrderSelection(o.Id)}
-                      className="mt-1 w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
-                    />
-                    <div>
-                      <div className="font-semibold text-lg">
-                        {o.Customer || "Walk-in"}
-                      </div>
+                  <div>
+                    <div className="font-semibold text-lg">
+                      {o.Customer || "Walk-in"}
+                    </div>
 
                     {o.CustomerPhone && (
                       <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
@@ -1430,6 +1475,28 @@ export default function OrdersPage() {
                     <div className="text-xs text-gray-500 mt-1">
                       {new Date(o.OrderDate).toLocaleString()}
                     </div>
+                    {/* ETA for pending/paid orders */}
+                    {(o.PaymentStatus === "Pending" || o.PaymentStatus === "Paid") && (() => {
+                      const addr = (o.Address || "").toLowerCase();
+                      let charge = 350; // default outer
+                      if (addr.includes("colombo") || addr.includes("col")) {
+                        charge = 300;
+                      } else if (
+                        addr.includes("east") || addr.includes("north") ||
+                        addr.includes("jaffna") || addr.includes("batticaloa") ||
+                        addr.includes("trinco") || addr.includes("ampara") ||
+                        addr.includes("vavuniya") || addr.includes("kilinochchi") ||
+                        addr.includes("mannar") || addr.includes("mullaitivu")
+                      ) {
+                        charge = 400;
+                      }
+                      const eta = getDeliveryETA(charge, o.OrderDate);
+                      return (
+                        <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                          📦 ETA: {eta.date}
+                        </div>
+                      );
+                    })()}
                     <div className="text-xs text-gray-500 mt-1">
                       Items: {o.LineCount}
                     </div>
@@ -1446,12 +1513,19 @@ export default function OrdersPage() {
                       Profit: Rs{" "}
                       {(Number(o.Total || 0) - Number(o.TotalCost || 0)).toFixed(2)}
                     </div>
-                    </div>
                   </div>
 
-                  <span className="text-xs px-3 py-1 rounded-full font-medium bg-gray-100 dark:bg-gray-900/30">
-                    {o.PaymentStatus}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs px-3 py-1 rounded-full font-medium bg-gray-100 dark:bg-gray-900/30">
+                      {o.PaymentStatus}
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={selectedOrders.has(o.Id)}
+                      onChange={() => toggleOrderSelection(o.Id)}
+                      className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                    />
+                  </div>
                 </div>
 
                 <button
