@@ -159,6 +159,11 @@ export default function OrdersPage() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [details, setDetails] = useState<Record<string, any[]>>({});
 
+  // bulk selection
+  const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
+  const [bulkStatus, setBulkStatus] = useState<OrderStatus>("Paid");
+  const [bulkUpdating, setBulkUpdating] = useState(false);
+
   // edit modal
   const [editOpen, setEditOpen] = useState(false);
   const [editOrderId, setEditOrderId] = useState<string | null>(null);
@@ -247,6 +252,50 @@ export default function OrdersPage() {
   useEffect(() => {
     loadRecent();
   }, [range]);
+
+  // Bulk selection helpers
+  function toggleOrderSelection(orderId: string) {
+    setSelectedOrders((prev) => {
+      const next = new Set(prev);
+      if (next.has(orderId)) {
+        next.delete(orderId);
+      } else {
+        next.add(orderId);
+      }
+      return next;
+    });
+  }
+
+  function selectAllOrders() {
+    const allIds = filteredOrders.map((o) => o.Id);
+    setSelectedOrders(new Set(allIds));
+  }
+
+  function clearSelection() {
+    setSelectedOrders(new Set());
+  }
+
+  async function bulkUpdateStatus() {
+    if (selectedOrders.size === 0) {
+      toast.error("No orders selected");
+      return;
+    }
+
+    setBulkUpdating(true);
+    try {
+      const orderIds = Array.from(selectedOrders);
+      for (const orderId of orderIds) {
+        await updateOrderStatus(orderId, bulkStatus);
+      }
+      toast.success(`Updated ${orderIds.length} orders to ${bulkStatus}`);
+      clearSelection();
+      await loadRecent();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update orders");
+    } finally {
+      setBulkUpdating(false);
+    }
+  }
 
   async function focusEditLine(line: LineDraft) {
     setEditSelectedKey(line.key);
@@ -1287,10 +1336,54 @@ export default function OrdersPage() {
 
       {/* Recent Orders */}
       <section>
-        <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-          <Calendar className="w-5 h-5 text-primary" />
-          Recent Orders ({filteredOrders.length})
-        </h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-primary" />
+            Recent Orders ({filteredOrders.length})
+          </h2>
+
+          {/* Bulk Actions */}
+          <div className="flex items-center gap-2">
+            {selectedOrders.size > 0 ? (
+              <>
+                <span className="text-sm text-gray-500">
+                  {selectedOrders.size} selected
+                </span>
+                <button
+                  onClick={clearSelection}
+                  className="text-xs px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600"
+                >
+                  Clear
+                </button>
+                <select
+                  value={bulkStatus}
+                  onChange={(e) => setBulkStatus(e.target.value as OrderStatus)}
+                  className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1 text-sm"
+                >
+                  {ORDER_STATUSES.map((st) => (
+                    <option key={st} value={st}>
+                      {st}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={bulkUpdateStatus}
+                  disabled={bulkUpdating}
+                  className="bg-primary text-white px-3 py-1 rounded-lg text-sm disabled:opacity-50"
+                >
+                  {bulkUpdating ? "Updating..." : "Update Status"}
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={selectAllOrders}
+                className="text-xs px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600"
+              >
+                Select All
+              </button>
+            )}
+          </div>
+        </div>
 
         {filteredOrders.length === 0 ? (
           <div className="text-center py-10 text-gray-500 bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl">
@@ -1302,13 +1395,25 @@ export default function OrdersPage() {
               <motion.div
                 key={o.Id}
                 layout
-                className="bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl p-5"
+                className={`bg-white dark:bg-gray-800/50 border rounded-xl p-5 ${
+                  selectedOrders.has(o.Id)
+                    ? "border-primary ring-2 ring-primary/20"
+                    : "border-gray-200 dark:border-gray-700"
+                }`}
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="font-semibold text-lg">
-                      {o.Customer || "Walk-in"}
-                    </div>
+                  <div className="flex items-start gap-3">
+                    {/* Checkbox */}
+                    <input
+                      type="checkbox"
+                      checked={selectedOrders.has(o.Id)}
+                      onChange={() => toggleOrderSelection(o.Id)}
+                      className="mt-1 w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                    />
+                    <div>
+                      <div className="font-semibold text-lg">
+                        {o.Customer || "Walk-in"}
+                      </div>
 
                     {o.CustomerPhone && (
                       <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
@@ -1340,6 +1445,7 @@ export default function OrdersPage() {
                     >
                       Profit: Rs{" "}
                       {(Number(o.Total || 0) - Number(o.TotalCost || 0)).toFixed(2)}
+                    </div>
                     </div>
                   </div>
 
