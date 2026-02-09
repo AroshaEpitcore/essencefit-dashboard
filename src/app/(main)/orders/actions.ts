@@ -130,13 +130,15 @@ export type OrderItemInput = {
 export type OrderPayload = {
   Customer?: string | null;
   CustomerPhone?: string | null;
+  SecondaryPhone?: string | null;
   Address?: string | null;
+  WaybillId?: string | null;
   PaymentStatus: OrderStatus;
   OrderDate: string;
 
   Subtotal: number;
   ManualDiscount: number;
-  DeliverySaving: number; 
+  DeliverySaving: number;
   Discount: number;     // includes delivery-saving
   DeliveryFee: number;  // always 0 by your rule
   Total: number;
@@ -177,7 +179,9 @@ export async function getRecentOrders(limit: number = 20, range: OrderRange = "a
       o.Id,
       o.Customer,
       o.CustomerPhone,
+      o.SecondaryPhone,
       o.Address,
+      o.WaybillId,
       o.PaymentStatus,
       o.OrderDate,
       o.CompletedAt,
@@ -210,8 +214,9 @@ export async function getOrderDetails(orderId: string) {
     .input("Id", UniqueIdentifier, orderId)
     .query(`
       SELECT TOP 1
-        Id, Customer, CustomerPhone, Address, PaymentStatus, OrderDate, 
-        Subtotal, ManualDiscount, Discount, DeliveryFee, Total 
+        Id, Customer, CustomerPhone, SecondaryPhone, Address, WaybillId,
+        PaymentStatus, OrderDate,
+        Subtotal, ManualDiscount, Discount, DeliveryFee, Total
       FROM Orders
       WHERE Id=@Id
     `);
@@ -392,7 +397,9 @@ export async function createOrder(payload: OrderPayload) {
       .input("Id", UniqueIdentifier, orderId)
       .input("Customer", NVarChar(200), payload.Customer ?? null)
       .input("CustomerPhone", NVarChar(20), payload.CustomerPhone ?? null)
+      .input("SecondaryPhone", NVarChar(20), payload.SecondaryPhone ?? null)
       .input("Address", NVarChar(300), payload.Address ?? null)
+      .input("WaybillId", NVarChar(100), payload.WaybillId ?? null)
       .input("CustomerId", UniqueIdentifier, customerId)
       .input("PaymentStatus", NVarChar(20), payload.PaymentStatus)
       .input("OrderDate", sql.DateTime2(7), orderDate)
@@ -403,8 +410,8 @@ export async function createOrder(payload: OrderPayload) {
       .input("DeliveryFee", Decimal(18, 2), payload.DeliveryFee)
       .input("Total", Decimal(18, 2), payload.Total)
       .query(`
-        INSERT INTO Orders (Id, Customer, CustomerPhone, Address, CustomerId, PaymentStatus, OrderDate, CompletedAt, Subtotal, ManualDiscount, Discount, DeliveryFee, Total)
-        VALUES (@Id, @Customer, @CustomerPhone, @Address, @CustomerId, @PaymentStatus, @OrderDate, @CompletedAt, @Subtotal, @ManualDiscount, @Discount, @DeliveryFee, @Total)
+        INSERT INTO Orders (Id, Customer, CustomerPhone, SecondaryPhone, Address, WaybillId, CustomerId, PaymentStatus, OrderDate, CompletedAt, Subtotal, ManualDiscount, Discount, DeliveryFee, Total)
+        VALUES (@Id, @Customer, @CustomerPhone, @SecondaryPhone, @Address, @WaybillId, @CustomerId, @PaymentStatus, @OrderDate, @CompletedAt, @Subtotal, @ManualDiscount, @Discount, @DeliveryFee, @Total)
       `);
 
     await validateAndReduceStock(tx, payload.Items);
@@ -553,7 +560,9 @@ export async function updateOrder(orderId: string, payload: OrderPayload) {
       .input("Id", UniqueIdentifier, orderId)
       .input("Customer", NVarChar(200), payload.Customer ?? null)
       .input("CustomerPhone", NVarChar(20), payload.CustomerPhone ?? null)
+      .input("SecondaryPhone", NVarChar(20), payload.SecondaryPhone ?? null)
       .input("Address", NVarChar(300), payload.Address ?? null)
+      .input("WaybillId", NVarChar(100), payload.WaybillId ?? null)
       .input("CustomerId", UniqueIdentifier, customerId)
       .input("PaymentStatus", NVarChar(20), payload.PaymentStatus)
       .input("OrderDate", sql.DateTime2(7), orderDate)
@@ -566,7 +575,9 @@ export async function updateOrder(orderId: string, payload: OrderPayload) {
         UPDATE Orders
         SET Customer=@Customer,
             CustomerPhone=@CustomerPhone,
+            SecondaryPhone=@SecondaryPhone,
             Address=@Address,
+            WaybillId=@WaybillId,
             CustomerId=@CustomerId,
             PaymentStatus=@PaymentStatus,
             OrderDate=@OrderDate,

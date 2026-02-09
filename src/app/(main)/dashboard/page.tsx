@@ -79,27 +79,31 @@ export default function DashboardPage() {
   const [revenueByCategory, setRevenueByCategory] = useState<any[]>([]);
   const [ordersByStatus, setOrdersByStatus] = useState<any[]>([]);
 
+  async function loadDashboard() {
+    try {
+      const [s, l, c, a] = await Promise.all([
+        getDashboardStats(),
+        getLowStockItems(),
+        getChartData(),
+        getAnalyticsData(),
+      ]);
+      setStats(s);
+      setLowStock(l.lowStockItems);
+      setChartData(c.monthly);
+      setDailySales(c.daily);
+      setWeeklySales(a.weekly);
+      setTopProducts(a.topProducts);
+      setRevenueByCategory(a.revenueByCategory);
+      setOrdersByStatus(a.ordersByStatus);
+    } catch (e: any) {
+      toast.error(e.message || "Failed to load dashboard data");
+    }
+  }
+
   useEffect(() => {
-    (async () => {
-      try {
-        const [s, l, c, a] = await Promise.all([
-          getDashboardStats(),
-          getLowStockItems(),
-          getChartData(),
-          getAnalyticsData(),
-        ]);
-        setStats(s);
-        setLowStock(l.lowStockItems);
-        setChartData(c.monthly);
-        setDailySales(c.daily);
-        setWeeklySales(a.weekly);
-        setTopProducts(a.topProducts);
-        setRevenueByCategory(a.revenueByCategory);
-        setOrdersByStatus(a.ordersByStatus);
-      } catch (e: any) {
-        toast.error(e.message || "Failed to load dashboard data");
-      }
-    })();
+    loadDashboard();
+    const interval = setInterval(loadDashboard, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   return (

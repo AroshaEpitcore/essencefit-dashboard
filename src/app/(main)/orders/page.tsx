@@ -179,7 +179,9 @@ export default function OrdersPage() {
   // create form
   const [customer, setCustomer] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [secondaryPhone, setSecondaryPhone] = useState("");
   const [address, setAddress] = useState("");
+  const [waybillId, setWaybillId] = useState("");
   const [status, setStatus] = useState<OrderStatus>("Pending");
   const [orderDate, setOrderDate] = useState<string>(() =>
     new Date().toISOString().slice(0, 10)
@@ -223,7 +225,9 @@ export default function OrdersPage() {
 
   const [editCustomer, setEditCustomer] = useState("");
   const [editCustomerPhone, setEditCustomerPhone] = useState("");
+  const [editSecondaryPhone, setEditSecondaryPhone] = useState("");
   const [editAddress, setEditAddress] = useState("");
+  const [editWaybillId, setEditWaybillId] = useState("");
   const [editStatus, setEditStatus] = useState<OrderStatus>("Pending");
   const [editOrderDate, setEditOrderDate] = useState<string>(
     new Date().toISOString().slice(0, 10)
@@ -262,14 +266,18 @@ export default function OrdersPage() {
       orders = orders.filter((order) => {
         const customer = (order.Customer || "").toLowerCase();
         const phone = (order.CustomerPhone || "").toLowerCase();
+        const secondaryPhone = (order.SecondaryPhone || "").toLowerCase();
         const address = (order.Address || "").toLowerCase();
         const orderId = (order.Id || "").toLowerCase();
+        const waybill = (order.WaybillId || "").toLowerCase();
 
         return (
           customer.includes(query) ||
           phone.includes(query) ||
+          secondaryPhone.includes(query) ||
           address.includes(query) ||
-          orderId.includes(query)
+          orderId.includes(query) ||
+          waybill.includes(query)
         );
       });
     }
@@ -355,6 +363,8 @@ export default function OrdersPage() {
 
   useEffect(() => {
     loadRecent();
+    const interval = setInterval(loadRecent, 30000);
+    return () => clearInterval(interval);
   }, [range]);
 
   // Bulk selection helpers
@@ -779,14 +789,16 @@ export default function OrdersPage() {
     const payload: OrderPayload = {
       Customer: customer || null,
       CustomerPhone: customerPhone || null,
+      SecondaryPhone: secondaryPhone || null,
       Address: address || null,
+      WaybillId: waybillId || null,
       PaymentStatus: status,
       OrderDate: orderDate,
       Subtotal: Number(subtotal.toFixed(2)),
-      ManualDiscount: Number(discount.toFixed(2)), // ✅ NEW: Manual discount only
+      ManualDiscount: Number(discount.toFixed(2)),
       DeliverySaving: Number(deliverySaving.toFixed(2)),
-      Discount: Number(computedDiscount.toFixed(2)), // ✅ includes deliverySaving if toggle ON
-      DeliveryFee: 0, // ✅ ALWAYS 0 as per your rule
+      Discount: Number(computedDiscount.toFixed(2)),
+      DeliveryFee: 0,
       Total: Number(total.toFixed(2)),
       Items: lines.map<OrderItemInput>((l) => ({
         VariantId: l.variant!.VariantId,
@@ -801,7 +813,9 @@ export default function OrdersPage() {
       setLines([]);
       setCustomer("");
       setCustomerPhone("");
+      setSecondaryPhone("");
       setAddress("");
+      setWaybillId("");
       setDiscount(0);
       setIsFreeDelivery(false);
       setSelectedDeliveryCharge(300);
@@ -819,11 +833,12 @@ export default function OrdersPage() {
       setSavingStatus(orderId);
       await updateOrderStatus(orderId, nextStatus);
       toast.success("Status updated");
-      setRecent((prev) =>
+      const updateStatus = (prev: any[]) =>
         prev.map((ord) =>
           ord.Id === orderId ? { ...ord, PaymentStatus: nextStatus } : ord
-        )
-      );
+        );
+      setRecent(updateStatus);
+      setAllOrders(updateStatus);
     } catch (e: any) {
       toast.error(e.message ?? "Failed to update status");
     } finally {
@@ -864,7 +879,9 @@ export default function OrdersPage() {
       setEditOrderId(orderId);
       setEditCustomer(d.order.Customer ?? "");
       setEditCustomerPhone(d.order.CustomerPhone ?? "");
+      setEditSecondaryPhone(d.order.SecondaryPhone ?? "");
       setEditAddress(d.order.Address ?? "");
+      setEditWaybillId(d.order.WaybillId ?? "");
       setEditStatus(d.order.PaymentStatus as OrderStatus);
       setEditOrderDate(new Date(d.order.OrderDate).toISOString().slice(0, 10));
 
@@ -918,7 +935,9 @@ export default function OrdersPage() {
     const payload: OrderPayload = {
       Customer: editCustomer || null,
       CustomerPhone: editCustomerPhone || null,
+      SecondaryPhone: editSecondaryPhone || null,
       Address: editAddress || null,
+      WaybillId: editWaybillId || null,
       PaymentStatus: editStatus,
       OrderDate: editOrderDate,
       Subtotal: Number(editSubtotal.toFixed(2)),
@@ -1067,7 +1086,7 @@ export default function OrdersPage() {
           Create Order
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-4">
           <div>
             <label className="block text-sm mb-2">Customer Name</label>
             <input
@@ -1088,6 +1107,16 @@ export default function OrdersPage() {
             />
           </div>
 
+          <div>
+            <label className="block text-sm mb-2">Secondary Phone</label>
+            <input
+              value={secondaryPhone}
+              onChange={(e) => setSecondaryPhone(e.target.value)}
+              className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3"
+              placeholder="Optional"
+            />
+          </div>
+
           <div className="md:col-span-2">
             <label className="block text-sm mb-2 flex items-center gap-1">
               <MapPin className="w-4 h-4" /> Address
@@ -1097,6 +1126,16 @@ export default function OrdersPage() {
               onChange={(e) => setAddress(e.target.value)}
               className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3"
               placeholder="Delivery Address"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm mb-2">Waybill / Tracking #</label>
+            <input
+              value={waybillId}
+              onChange={(e) => setWaybillId(e.target.value)}
+              className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3"
+              placeholder="Optional"
             />
           </div>
 
@@ -1725,12 +1764,21 @@ export default function OrdersPage() {
                     {o.CustomerPhone && (
                       <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
                         <Phone className="w-3 h-3" /> {o.CustomerPhone}
+                        {o.SecondaryPhone && (
+                          <span className="text-gray-400"> | {o.SecondaryPhone}</span>
+                        )}
                       </div>
                     )}
 
                     {o.Address && (
                       <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
                         <MapPin className="w-3 h-3" /> {o.Address}
+                      </div>
+                    )}
+
+                    {o.WaybillId && (
+                      <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                        <FileText className="w-3 h-3" /> WB: {o.WaybillId}
                       </div>
                     )}
 
@@ -1937,7 +1985,7 @@ export default function OrdersPage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-3">
+            <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-3">
               <input
                 value={editCustomer}
                 onChange={(e) => setEditCustomer(e.target.value)}
@@ -1951,10 +1999,22 @@ export default function OrdersPage() {
                 placeholder="Phone"
               />
               <input
+                value={editSecondaryPhone}
+                onChange={(e) => setEditSecondaryPhone(e.target.value)}
+                className="bg-gray-50 dark:bg-gray-800 border rounded-lg px-3 py-2"
+                placeholder="Secondary Phone"
+              />
+              <input
                 value={editAddress}
                 onChange={(e) => setEditAddress(e.target.value)}
                 className="bg-gray-50 dark:bg-gray-800 border rounded-lg px-3 py-2 md:col-span-2"
                 placeholder="Address"
+              />
+              <input
+                value={editWaybillId}
+                onChange={(e) => setEditWaybillId(e.target.value)}
+                className="bg-gray-50 dark:bg-gray-800 border rounded-lg px-3 py-2"
+                placeholder="Waybill / Tracking #"
               />
               <input
                 type="date"
