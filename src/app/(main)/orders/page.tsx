@@ -61,6 +61,14 @@ const ORDER_STATUSES = [
 ] as const;
 type OrderStatus = (typeof ORDER_STATUSES)[number];
 
+const STATUS_COLORS: Record<string, string> = {
+  Pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800",
+  Paid: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800",
+  Partial: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-800",
+  Completed: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800",
+  Canceled: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800",
+};
+
 const RANGE_OPTIONS: Array<{ key: OrderRange; label: string }> = [
   { key: "today", label: "Today" },
   { key: "yesterday", label: "Yesterday" },
@@ -207,6 +215,7 @@ export default function OrdersPage() {
   // totals date filter
   const [totalsFromDate, setTotalsFromDate] = useState<string>("");
   const [totalsToDate, setTotalsToDate] = useState<string>("");
+  const [activeDateFilter, setActiveDateFilter] = useState<string>("");
 
   // edit modal
   const [editOpen, setEditOpen] = useState(false);
@@ -274,19 +283,31 @@ export default function OrdersPage() {
   }, [allOrders, recent, searchQuery, statusFilter]);
 
   // Calculate totals by status with date filter
+  // For Paid/Completed: use CompletedAt (when sale happened)
+  // For Pending/Partial/Canceled: use OrderDate (when order was placed)
+  // Always uses allOrders - independent of main range filter
   const totalsByStatus = useMemo(() => {
-    let source = searchQuery.trim() ? allOrders : recent;
+    const source = allOrders;
+
+    // Helper to get the relevant date for an order
+    const getRelevantDate = (o: any) => {
+      if ((o.PaymentStatus === "Paid" || o.PaymentStatus === "Completed") && o.CompletedAt) {
+        return new Date(o.CompletedAt);
+      }
+      return new Date(o.OrderDate);
+    };
 
     // Apply date filter for totals
+    let filtered = source;
     if (totalsFromDate) {
       const fromDate = new Date(totalsFromDate);
       fromDate.setHours(0, 0, 0, 0);
-      source = source.filter((o) => new Date(o.OrderDate) >= fromDate);
+      filtered = filtered.filter((o) => getRelevantDate(o) >= fromDate);
     }
     if (totalsToDate) {
       const toDate = new Date(totalsToDate);
       toDate.setHours(23, 59, 59, 999);
-      source = source.filter((o) => new Date(o.OrderDate) <= toDate);
+      filtered = filtered.filter((o) => getRelevantDate(o) <= toDate);
     }
 
     const totals: Record<string, { count: number; total: number; profit: number }> = {};
@@ -296,7 +317,7 @@ export default function OrdersPage() {
     let grandCount = 0;
 
     ORDER_STATUSES.forEach((status) => {
-      const statusOrders = source.filter((o) => o.PaymentStatus === status);
+      const statusOrders = filtered.filter((o) => o.PaymentStatus === status);
       const total = statusOrders.reduce((sum, o) => sum + Number(o.Total || 0), 0);
       const profit = statusOrders.reduce(
         (sum, o) => sum + (Number(o.Total || 0) - Number(o.TotalCost || 0)),
@@ -310,7 +331,7 @@ export default function OrdersPage() {
 
     totals["all"] = { count: grandCount, total: grandTotal, profit: grandProfit };
     return totals;
-  }, [allOrders, recent, searchQuery, totalsFromDate, totalsToDate]);
+  }, [allOrders, totalsFromDate, totalsToDate]);
 
   useEffect(() => {
     (async () => {
@@ -1453,8 +1474,13 @@ export default function OrdersPage() {
                   const today = new Date().toISOString().slice(0, 10);
                   setTotalsFromDate(today);
                   setTotalsToDate(today);
+                  setActiveDateFilter("today");
                 }}
-                className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                className={`text-xs px-2 py-1 rounded transition-colors ${
+                  activeDateFilter === "today"
+                    ? "bg-primary text-white"
+                    : "bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700"
+                }`}
               >
                 Today
               </button>
@@ -1465,8 +1491,13 @@ export default function OrdersPage() {
                   yesterday.setDate(yesterday.getDate() - 1);
                   setTotalsFromDate(yesterday.toISOString().slice(0, 10));
                   setTotalsToDate(yesterday.toISOString().slice(0, 10));
+                  setActiveDateFilter("yesterday");
                 }}
-                className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                className={`text-xs px-2 py-1 rounded transition-colors ${
+                  activeDateFilter === "yesterday"
+                    ? "bg-primary text-white"
+                    : "bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700"
+                }`}
               >
                 Yesterday
               </button>
@@ -1477,8 +1508,13 @@ export default function OrdersPage() {
                   weekStart.setDate(today.getDate() - today.getDay());
                   setTotalsFromDate(weekStart.toISOString().slice(0, 10));
                   setTotalsToDate(today.toISOString().slice(0, 10));
+                  setActiveDateFilter("week");
                 }}
-                className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                className={`text-xs px-2 py-1 rounded transition-colors ${
+                  activeDateFilter === "week"
+                    ? "bg-primary text-white"
+                    : "bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700"
+                }`}
               >
                 This Week
               </button>
@@ -1488,8 +1524,13 @@ export default function OrdersPage() {
                   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
                   setTotalsFromDate(monthStart.toISOString().slice(0, 10));
                   setTotalsToDate(today.toISOString().slice(0, 10));
+                  setActiveDateFilter("month");
                 }}
-                className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                className={`text-xs px-2 py-1 rounded transition-colors ${
+                  activeDateFilter === "month"
+                    ? "bg-primary text-white"
+                    : "bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700"
+                }`}
               >
                 This Month
               </button>
@@ -1500,8 +1541,13 @@ export default function OrdersPage() {
                   const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
                   setTotalsFromDate(lastMonthStart.toISOString().slice(0, 10));
                   setTotalsToDate(lastMonthEnd.toISOString().slice(0, 10));
+                  setActiveDateFilter("lastMonth");
                 }}
-                className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                className={`text-xs px-2 py-1 rounded transition-colors ${
+                  activeDateFilter === "lastMonth"
+                    ? "bg-primary text-white"
+                    : "bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700"
+                }`}
               >
                 Last Month
               </button>
@@ -1513,14 +1559,20 @@ export default function OrdersPage() {
             <input
               type="date"
               value={totalsFromDate}
-              onChange={(e) => setTotalsFromDate(e.target.value)}
+              onChange={(e) => {
+                setTotalsFromDate(e.target.value);
+                setActiveDateFilter("");
+              }}
               className="bg-gray-50 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1 text-sm"
             />
             <label className="text-xs text-gray-500">To:</label>
             <input
               type="date"
               value={totalsToDate}
-              onChange={(e) => setTotalsToDate(e.target.value)}
+              onChange={(e) => {
+                setTotalsToDate(e.target.value);
+                setActiveDateFilter("");
+              }}
               className="bg-gray-50 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1 text-sm"
             />
             {(totalsFromDate || totalsToDate) && (
@@ -1528,6 +1580,7 @@ export default function OrdersPage() {
                 onClick={() => {
                   setTotalsFromDate("");
                   setTotalsToDate("");
+                  setActiveDateFilter("");
                 }}
                 className="text-xs px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50"
               >
@@ -1576,13 +1629,18 @@ export default function OrdersPage() {
                 return (
                   <div
                     key={st}
-                    className="text-xs px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-900/50"
+                    className={`text-xs px-3 py-2 rounded-lg border ${STATUS_COLORS[st] || "bg-gray-100 dark:bg-gray-900/50"}`}
                   >
-                    <span className="font-medium">{st}:</span>{" "}
-                    <span className="text-gray-600 dark:text-gray-400">{data.count} orders</span>{" "}
-                    <span className="text-green-600 dark:text-green-400 font-semibold">
+                    <span className="font-semibold">{st}:</span>{" "}
+                    <span className="opacity-80">{data.count} orders</span>{" "}
+                    <span className="font-bold">
                       Rs {data.total.toFixed(2)}
                     </span>
+                    {(st === "Completed" || st === "Paid") && (
+                      <span className="font-semibold ml-1 opacity-90">
+                        (Profit: Rs {data.profit.toFixed(2)})
+                      </span>
+                    )}
                   </div>
                 );
               })}
@@ -1720,7 +1778,7 @@ export default function OrdersPage() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <span className="text-xs px-3 py-1 rounded-full font-medium bg-gray-100 dark:bg-gray-900/30">
+                    <span className={`text-xs px-3 py-1 rounded-full font-medium ${STATUS_COLORS[o.PaymentStatus] || "bg-gray-100 dark:bg-gray-900/30"}`}>
                       {o.PaymentStatus}
                     </span>
                     <input

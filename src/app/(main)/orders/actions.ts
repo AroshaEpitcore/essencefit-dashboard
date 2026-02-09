@@ -180,6 +180,7 @@ export async function getRecentOrders(limit: number = 20, range: OrderRange = "a
       o.Address,
       o.PaymentStatus,
       o.OrderDate,
+      o.CompletedAt,
       o.Subtotal,
       o.Discount,
       o.DeliveryFee,

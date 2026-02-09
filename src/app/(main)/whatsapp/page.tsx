@@ -55,7 +55,7 @@ const SALES_TEMPLATES: SalesTemplate[] = [
     language: "English",
     content: `Hi! 👋 Welcome to EssenceFit 💪
 
-🩳 Dry-Fit Shorts — Rs. 900
+🩳 Dry-Fit Shorts — Rs. 990
 👕 CK Active Tee — Rs. 1,500
 
 ⭐ 500+ happy customers island-wide!
@@ -164,7 +164,7 @@ Thank you so much for your support! 🙏`,
     language: "සිංහල",
     content: `ආයුබෝවන්! 👋 EssenceFit වෙත සාදරයෙන් පිළිගනිමු 💪
 
-🩳 Dry-Fit Shorts — Rs. 900
+🩳 Dry-Fit Shorts — Rs. 990
 👕 CK Active Tee — Rs. 1,500
 
 ⭐ දිවයින පුරා සතුටු පාරිභෝගිකයින් 500+!
@@ -363,7 +363,7 @@ Dry Fit Calvin Klein Active wear T Shirts 1500/-
 ---
 
 Thank you so much for choosing EssenceFit 🙌
-Dry-fit unisex shorts Rs. 900/-
+Dry-fit unisex shorts Rs. 990/-
 Dry Fit Calvin Klein Active wear T-Shirts Rs. 1500/-
 ⭕ Buy 3 items and get FREE home delivery!
 🤸 Perfect for the gym, home, 🧳 travel, or anywhere you want to wear them
@@ -472,7 +472,7 @@ Outer Areas → Rs. 350
 Eastern & Northern Province → Rs. 400
 
 Our shorts are made with Dry-Fit, Stretchable fabric — perfect for gym, sports, travel, or everyday wear. Breathable, quick-dry & super comfortable ✅
-Each short is Rs. 900 ✅ but we have an ongoing offer: Buy 3 & get FREE delivery 🚚
+Each short is Rs. 990 ✅ but we have an ongoing offer: Buy 3 & get FREE delivery 🚚
 Perfect for gym, sports, travel, or everyday wear. Breathable, quick-dry & super comfortable ✅
 
 Before placing your order, feel free to check our customer reviews and see why people love EssenceFit 💪👖

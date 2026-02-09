@@ -89,6 +89,18 @@ export async function updateProduct(id: string, name: string, cost: number, sell
     .input("Cost", cost)
     .input("Sell", sell)
     .query("UPDATE Products SET Name=@Name, CostPrice=@Cost, SellingPrice=@Sell WHERE Id=@Id");
+
+  // Also update all ProductVariants for this product so orders pick up the new prices
+  await pool
+    .request()
+    .input("ProductId", id)
+    .input("Cost", cost)
+    .input("Sell", sell)
+    .query(`
+      UPDATE ProductVariants
+      SET CostPrice = @Cost, SellingPrice = @Sell
+      WHERE ProductId = @ProductId
+    `);
 }
 export async function deleteProduct(id: string) {
   const pool = await getDb();
