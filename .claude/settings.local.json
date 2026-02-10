@@ -7,7 +7,8 @@
       "Bash(wc:*)",
       "Bash(npx next build --no-lint)",
       "Bash(npx tsc:*)",
-      "Bash(sqlcmd:*)"
+      "Bash(sqlcmd:*)",
+      "Bash(npx next build:*)"
     ]
   }
 }

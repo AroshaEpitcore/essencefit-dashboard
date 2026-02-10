@@ -53,7 +53,8 @@ const SALES_TEMPLATES: SalesTemplate[] = [
     title: "Welcome — Hook Message",
     step: "Step 1",
     language: "English",
-    content: `Hi! 👋 Welcome to EssenceFit 💪
+    content: `Good Morning !
+Hi! 👋 Welcome to EssenceFit 💪
 
 🩳 Dry-Fit Shorts — Rs. 990
 👕 CK Active Tee — Rs. 1,500
@@ -348,32 +349,21 @@ export default function WhatsAppMessagesPage() {
           id: "1",
           title: "Welcome Message with Size Chart",
           content: `Thank you so much for choosing EssenceFit 🙌
-Dry-fit unisex shorts 900/-
+
+Dry-fit unisex shorts 990/-
 Dry Fit Calvin Klein Active wear T Shirts 1500/-
+
 ⭕ 3ක් ගත්තොත් ගෙදරටම free delivery ගෙන්නගන්න පුලුවන්
 🤸Gym එකට,ගෙදරට, 🧳Travel  කරන්න වගේ ඕනම  තැනකට  අඳින්න පුලුවන්
 ඉලාස්ටික් වේස්ට් එක තියෙන නිස  ඇදෙනවා, ගැටගහගන්න පුළුවන් නුලකුත් තියෙනවා ඒ නිසා හරිම comfortable
 ඔයාලට අපෙන් ඕඩර් එක ප්ලේස් කරගන්න ඕන නම් ඔයාගේ
+
 ➡️ නම
 ➡️ඇඩ්‍රස් එක
 ➡️ෆෝන් නම්බර් එක
 ➡️ඔයාලට ඕන ෂෝට්වල  සයිස් එක මට එවන්න.
  ඔයාලට දවස් දෙක තුනක් ඇතුළත අපි ඔයාලගේ ඕඩර් එක ගෙදරටම එවනවා ✅
-
----
-
-Thank you so much for choosing EssenceFit 🙌
-Dry-fit unisex shorts Rs. 990/-
-Dry Fit Calvin Klein Active wear T-Shirts Rs. 1500/-
-⭕ Buy 3 items and get FREE home delivery!
-🤸 Perfect for the gym, home, 🧳 travel, or anywhere you want to wear them
-Features elastic waist that stretches, drawstring for adjustment, and pockets - super comfortable!
-To place your order with us, please send me:
-➡️ Your Name
-➡️ Your Address
-➡️ Phone Number
-➡️ Sizes you want for the shorts
-We'll deliver your order to your doorstep within 2-3 days ✅`,
+`,
           category: "Product Info",
           imageUrl:
             "https://i.postimg.cc/Fz9zYvcd/Whats-App-Image-2025-08-19-at-08-42-10-087e633a.jpg",
@@ -384,7 +374,6 @@ We'll deliver your order to your doorstep within 2-3 days ✅`,
           id: "2",
           title: "Size & Color Inquiry",
           content: `
-I'm Natasha from EssenceFit 👋
 
 Size Kohomada sir / miss ?
 Mata Puluwan colors list eka danna oyaage size ekaṭa

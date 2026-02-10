@@ -21,6 +21,7 @@ import {
   Layers2,
   ClipboardList,
   History,
+  BarChart3,
 } from "lucide-react";
 import { Tooltip } from "react-tooltip";
 
@@ -38,6 +39,7 @@ const navItems = [
   { href: "/customers", label: "Customers", icon: Users },
   { href: "/suppliers", label: "Suppliers", icon: Truck },
   { href: "/reports", label: "Reports", icon: FileText },
+  { href: "/analysis", label: "Analysis", icon: BarChart3 },
   { href: "/users", label: "Users", icon: Users },
   { href: "/stock-history", label: "Stock History", icon: Layers2 },
   { href: "/whatsapp", label: "Whatsapp", icon: MessageCircle },

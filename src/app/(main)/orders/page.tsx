@@ -1762,27 +1762,27 @@ export default function OrdersPage() {
                     </div>
 
                     {o.CustomerPhone && (
-                      <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                      <div className="text-xs text-gray-600 dark:text-gray-300 mt-1 flex items-center gap-1">
                         <Phone className="w-3 h-3" /> {o.CustomerPhone}
                         {o.SecondaryPhone && (
-                          <span className="text-gray-400"> | {o.SecondaryPhone}</span>
+                          <span> | {o.SecondaryPhone}</span>
                         )}
                       </div>
                     )}
 
                     {o.Address && (
-                      <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                      <div className="text-xs text-gray-600 dark:text-gray-300 mt-1 flex items-center gap-1">
                         <MapPin className="w-3 h-3" /> {o.Address}
                       </div>
                     )}
 
                     {o.WaybillId && (
-                      <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                      <div className="text-xs text-gray-600 dark:text-gray-300 mt-1 flex items-center gap-1">
                         <FileText className="w-3 h-3" /> WB: {o.WaybillId}
                       </div>
                     )}
 
-                    <div className="text-xs text-gray-500 mt-1">
+                    <div className="text-xs text-gray-600 dark:text-gray-300 mt-1">
                       {new Date(o.OrderDate).toLocaleString()}
                     </div>
                     {/* ETA for pending/paid orders */}
