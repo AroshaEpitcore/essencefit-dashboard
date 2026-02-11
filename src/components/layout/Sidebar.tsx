@@ -22,6 +22,7 @@ import {
   ClipboardList,
   History,
   BarChart3,
+  Palette,
 } from "lucide-react";
 import { Tooltip } from "react-tooltip";
 
@@ -37,6 +38,7 @@ const navItems = [
   { href: "/expenses", label: "Expenses", icon: Wallet },
   { href: "/returns", label: "Returns", icon: RotateCcw },
   { href: "/customers", label: "Customers", icon: Users },
+  { href: "/color-requests", label: "Color Requests", icon: Palette },
   { href: "/suppliers", label: "Suppliers", icon: Truck },
   { href: "/reports", label: "Reports", icon: FileText },
   { href: "/analysis", label: "Analysis", icon: BarChart3 },
