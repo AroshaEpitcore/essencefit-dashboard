@@ -39,6 +39,7 @@ import {
   Phone,
   MapPin,
 } from "lucide-react";
+import { formatPhone, cleanPhoneInput } from "@/lib/phoneMask";
 
 type Opt = { Id: string; Name: string };
 
@@ -1106,18 +1107,18 @@ export default function OrdersPage() {
           <div>
             <label className="block text-sm mb-2">Customer Phone</label>
             <input
-              value={customerPhone}
-              onChange={(e) => setCustomerPhone(e.target.value)}
+              value={formatPhone(customerPhone)}
+              onChange={(e) => setCustomerPhone(cleanPhoneInput(e.target.value))}
               className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3"
-              placeholder="07XXXXXXXX"
+              placeholder="0XX XXX XXXX"
             />
           </div>
 
           <div>
             <label className="block text-sm mb-2">Secondary Phone</label>
             <input
-              value={secondaryPhone}
-              onChange={(e) => setSecondaryPhone(e.target.value)}
+              value={formatPhone(secondaryPhone)}
+              onChange={(e) => setSecondaryPhone(cleanPhoneInput(e.target.value))}
               className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3"
               placeholder="Optional"
             />
@@ -1780,9 +1781,9 @@ export default function OrdersPage() {
 
                     {o.CustomerPhone && (
                       <div className="text-xs text-gray-600 dark:text-gray-300 mt-1 flex items-center gap-1">
-                        <Phone className="w-3 h-3" /> {o.CustomerPhone}
+                        <Phone className="w-3 h-3" /> {formatPhone(o.CustomerPhone)}
                         {o.SecondaryPhone && (
-                          <span> | {o.SecondaryPhone}</span>
+                          <span> | {formatPhone(o.SecondaryPhone)}</span>
                         )}
                       </div>
                     )}
@@ -2015,16 +2016,16 @@ export default function OrdersPage() {
                 placeholder="Customer"
               />
               <input
-                value={editCustomerPhone}
-                onChange={(e) => setEditCustomerPhone(e.target.value)}
+                value={formatPhone(editCustomerPhone)}
+                onChange={(e) => setEditCustomerPhone(cleanPhoneInput(e.target.value))}
                 className="bg-gray-50 dark:bg-gray-800 border rounded-lg px-3 py-2"
-                placeholder="Phone"
+                placeholder="0XX XXX XXXX"
               />
               <input
-                value={editSecondaryPhone}
-                onChange={(e) => setEditSecondaryPhone(e.target.value)}
+                value={formatPhone(editSecondaryPhone)}
+                onChange={(e) => setEditSecondaryPhone(cleanPhoneInput(e.target.value))}
                 className="bg-gray-50 dark:bg-gray-800 border rounded-lg px-3 py-2"
-                placeholder="Secondary Phone"
+                placeholder="0XX XXX XXXX"
               />
               <input
                 value={editAddress}

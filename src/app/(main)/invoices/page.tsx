@@ -21,6 +21,7 @@ import {
   ChevronUp,
   Truck,
 } from "lucide-react";
+import { formatPhone } from "@/lib/phoneMask";
 
 const DELIVERY_OPTIONS = [300, 350, 400] as const;
 
@@ -488,7 +489,7 @@ export default function InvoicesPage() {
                       </div>
                       {o.CustomerPhone && (
                         <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                          <Phone className="w-3 h-3 flex-shrink-0" /> {o.CustomerPhone}
+                          <Phone className="w-3 h-3 flex-shrink-0" /> {formatPhone(o.CustomerPhone)}
                         </div>
                       )}
                       {o.Address && (

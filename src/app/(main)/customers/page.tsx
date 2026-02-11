@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import { getCustomers, getCustomerById, getCustomerOrders, deleteCustomer, updateCustomer } from "./actions";
 import { Users, Phone, MapPin, Trash2, Edit, ShoppingBag, X, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { formatPhone, cleanPhoneInput } from "@/lib/phoneMask";
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<any[]>([]);
@@ -151,7 +152,7 @@ export default function CustomersPage() {
                       onClick={() => openDrawer(c.Id)}
                     >
                       <td className="p-4 font-medium">{c.Name}</td>
-                      <td className="p-4 text-gray-600 dark:text-gray-400">{c.Phone || "-"}</td>
+                      <td className="p-4 text-gray-600 dark:text-gray-400">{c.Phone ? formatPhone(c.Phone) : "-"}</td>
                       <td className="p-4 text-gray-600 dark:text-gray-400 max-w-xs truncate">{c.Address || "-"}</td>
                       <td className="p-4 text-center">
                         <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 text-xs font-medium">
@@ -279,9 +280,9 @@ export default function CustomersPage() {
                       Phone
                     </label>
                     <input
-                      value={selected.Phone || ""}
-                      onChange={(e) => setSelected({ ...selected, Phone: e.target.value })}
-                      placeholder="Enter phone number"
+                      value={formatPhone(selected.Phone || "")}
+                      onChange={(e) => setSelected({ ...selected, Phone: cleanPhoneInput(e.target.value) })}
+                      placeholder="0XX XXX XXXX"
                       className="w-full bg-white dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
                     />
                   </div>

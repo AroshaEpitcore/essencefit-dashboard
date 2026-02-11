@@ -17,6 +17,7 @@ import {
   Package,
   MessageCircle,
 } from "lucide-react";
+import { formatPhone, cleanPhoneInput } from "@/lib/phoneMask";
 
 type SettingsMap = Record<string, string>;
 
@@ -127,9 +128,9 @@ export default function SettingsPage() {
             <InputField
               label="Phone Number"
               icon={<Phone className="w-4 h-4" />}
-              value={settings.business_phone || ""}
-              onChange={(v) => updateSetting("business_phone", v)}
-              placeholder="07X XXX XXXX"
+              value={formatPhone(settings.business_phone || "")}
+              onChange={(v) => updateSetting("business_phone", cleanPhoneInput(v))}
+              placeholder="0XX XXX XXXX"
             />
             <InputField
               label="Email"
