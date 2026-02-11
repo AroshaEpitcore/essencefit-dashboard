@@ -182,6 +182,7 @@ export default function OrdersPage() {
   const [secondaryPhone, setSecondaryPhone] = useState("");
   const [address, setAddress] = useState("");
   const [waybillId, setWaybillId] = useState("");
+  const [packagePrintPrice, setPackagePrintPrice] = useState<number>(0);
   const [status, setStatus] = useState<OrderStatus>("Pending");
   const [orderDate, setOrderDate] = useState<string>(() =>
     new Date().toISOString().slice(0, 10)
@@ -228,6 +229,7 @@ export default function OrdersPage() {
   const [editSecondaryPhone, setEditSecondaryPhone] = useState("");
   const [editAddress, setEditAddress] = useState("");
   const [editWaybillId, setEditWaybillId] = useState("");
+  const [editPackagePrintPrice, setEditPackagePrintPrice] = useState<number>(0);
   const [editStatus, setEditStatus] = useState<OrderStatus>("Pending");
   const [editOrderDate, setEditOrderDate] = useState<string>(
     new Date().toISOString().slice(0, 10)
@@ -792,6 +794,7 @@ export default function OrdersPage() {
       SecondaryPhone: secondaryPhone || null,
       Address: address || null,
       WaybillId: waybillId || null,
+      PackagePrintPrice: packagePrintPrice || 0,
       PaymentStatus: status,
       OrderDate: orderDate,
       Subtotal: Number(subtotal.toFixed(2)),
@@ -816,6 +819,7 @@ export default function OrdersPage() {
       setSecondaryPhone("");
       setAddress("");
       setWaybillId("");
+      setPackagePrintPrice(0);
       setDiscount(0);
       setIsFreeDelivery(false);
       setSelectedDeliveryCharge(300);
@@ -882,6 +886,7 @@ export default function OrdersPage() {
       setEditSecondaryPhone(d.order.SecondaryPhone ?? "");
       setEditAddress(d.order.Address ?? "");
       setEditWaybillId(d.order.WaybillId ?? "");
+      setEditPackagePrintPrice(Number(d.order.PackagePrintPrice ?? 0));
       setEditStatus(d.order.PaymentStatus as OrderStatus);
       setEditOrderDate(new Date(d.order.OrderDate).toISOString().slice(0, 10));
 
@@ -938,6 +943,7 @@ export default function OrdersPage() {
       SecondaryPhone: editSecondaryPhone || null,
       Address: editAddress || null,
       WaybillId: editWaybillId || null,
+      PackagePrintPrice: editPackagePrintPrice || 0,
       PaymentStatus: editStatus,
       OrderDate: editOrderDate,
       Subtotal: Number(editSubtotal.toFixed(2)),
@@ -1164,6 +1170,17 @@ export default function OrdersPage() {
                 </option>
               ))}
             </select>
+          </div>
+          <div>
+            <label className="block text-sm mb-2">Package Print Price</label>
+            <input
+              type="number"
+              step="0.01"
+              value={packagePrintPrice || ""}
+              onChange={(e) => setPackagePrintPrice(parseFloat(e.target.value || "0"))}
+              className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3"
+              placeholder="Optional"
+            />
           </div>
         </div>
 
@@ -1810,6 +1827,11 @@ export default function OrdersPage() {
                     <div className="text-xs text-gray-500 mt-1">
                       Items: {o.LineCount}
                     </div>
+                    {Number(o.PackagePrintPrice) > 0 && (
+                      <div className="text-xs text-orange-600 dark:text-orange-400 mt-1 font-medium">
+                        Print Price: Rs {Number(o.PackagePrintPrice).toFixed(2)}
+                      </div>
+                    )}
                     <div className="text-sm font-bold text-primary mt-1">
                       Rs {Number(o.Total).toFixed(2)}
                     </div>
@@ -2015,6 +2037,14 @@ export default function OrdersPage() {
                 onChange={(e) => setEditWaybillId(e.target.value)}
                 className="bg-gray-50 dark:bg-gray-800 border rounded-lg px-3 py-2"
                 placeholder="Waybill / Tracking #"
+              />
+              <input
+                type="number"
+                step="0.01"
+                value={editPackagePrintPrice || ""}
+                onChange={(e) => setEditPackagePrintPrice(parseFloat(e.target.value || "0"))}
+                className="bg-gray-50 dark:bg-gray-800 border rounded-lg px-3 py-2"
+                placeholder="Print Price"
               />
               <input
                 type="date"
