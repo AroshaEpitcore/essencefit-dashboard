@@ -20,6 +20,7 @@ import {
   quickStock,
   getStockItems,
   updateVariantPrices,
+  transferStock,
 } from "./actions";
 import {
   Tag,
@@ -33,6 +34,7 @@ import {
   X,
   Lock,
   LockOpen,
+  ArrowRightLeft,
 } from "lucide-react";
 
 export default function StocksPage() {
@@ -61,6 +63,28 @@ export default function StocksPage() {
   const [editItem, setEditItem] = useState<any | null>(null); // {type, id, name, cost, sell}
   const [showConfirm, setShowConfirm] = useState(false);
   const [pendingRemove, setPendingRemove] = useState(false);
+
+  // Transfer stock
+  const [tFromCat, setTFromCat] = useState("");
+  const [tFromProducts, setTFromProducts] = useState<any[]>([]);
+  const [tFromProduct, setTFromProduct] = useState("");
+  const [tToCat, setTToCat] = useState("");
+  const [tToProducts, setTToProducts] = useState<any[]>([]);
+  const [tToProduct, setTToProduct] = useState("");
+  const [tSize, setTSize] = useState("");
+  const [tColor, setTColor] = useState("");
+  const [tQty, setTQty] = useState("");
+  const [tFromCost, setTFromCost] = useState("");
+  const [tFromSell, setTFromSell] = useState("");
+  const [tToCost, setTToCost] = useState("");
+  const [tToSell, setTToSell] = useState("");
+  const [lockTFromCat, setLockTFromCat] = useState(false);
+  const [lockTFromProduct, setLockTFromProduct] = useState(false);
+  const [lockTToCat, setLockTToCat] = useState(false);
+  const [lockTToProduct, setLockTToProduct] = useState(false);
+  const [lockTSize, setLockTSize] = useState(false);
+  const [showTransferConfirm, setShowTransferConfirm] = useState(false);
+  const [pendingTransfer, setPendingTransfer] = useState(false);
 
   // Add these states after existing states
   const [stockItems, setStockItems] = useState<any[]>([]);
@@ -355,6 +379,50 @@ export default function StocksPage() {
       if (type === "product") refreshProducts(selectedCat);
     } catch (e: any) {
       toast.error(e.message);
+    }
+  }
+
+  async function handleTransfer() {
+    if (!tFromProduct || !tToProduct || !tSize || !tColor || !tQty) {
+      toast.error("Please fill all transfer fields!");
+      return;
+    }
+    if (tFromProduct === tToProduct) {
+      toast.error("Source and destination products must be different!");
+      return;
+    }
+    setShowTransferConfirm(true);
+  }
+
+  async function performTransfer() {
+    setPendingTransfer(true);
+    try {
+      await transferStock(
+        tFromProduct,
+        tToProduct,
+        tSize,
+        tColor,
+        Number(tQty),
+        tFromCost ? Number(tFromCost) : 0,
+        tFromSell ? Number(tFromSell) : 0,
+        tToCost ? Number(tToCost) : 0,
+        tToSell ? Number(tToSell) : 0
+      );
+      toast.success("Stock transferred successfully!");
+      setShowTransferConfirm(false);
+      if (!lockTFromCat) { setTFromCat(""); setTFromProducts([]); }
+      if (!lockTFromProduct) setTFromProduct("");
+      if (!lockTToCat) { setTToCat(""); setTToProducts([]); }
+      if (!lockTToProduct) setTToProduct("");
+      if (!lockTSize) setTSize("");
+      setTColor("");
+      setTQty("");
+      setTFromCost(""); setTFromSell("");
+      setTToCost(""); setTToSell("");
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setPendingTransfer(false);
     }
   }
 
@@ -830,6 +898,212 @@ export default function StocksPage() {
         </div>
       </section>
 
+      {/* Transfer Stock Section */}
+      <section className="mt-8">
+        <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+          <ArrowRightLeft className="w-5 h-5 text-primary" />
+          Transfer Stock Between Products
+        </h2>
+        <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 p-5 rounded-xl">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+            {/* From */}
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">From</p>
+              <div className="relative">
+                <select
+                  value={tFromCat}
+                  onChange={async (e) => {
+                    setTFromCat(e.target.value);
+                    setTFromProduct("");
+                    if (e.target.value) {
+                      const rows = await getProductsByCategory(e.target.value);
+                      setTFromProducts(rows);
+                    } else {
+                      setTFromProducts([]);
+                    }
+                  }}
+                  disabled={lockTFromCat}
+                  className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value="">Select Category</option>
+                  {lookups.categories.map((c: any) => (
+                    <option key={c.Id} value={c.Id}>{c.Name}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => setLockTFromCat(!lockTFromCat)}
+                  className={`absolute -right-2 -top-4 p-1 rounded transition-colors ${
+                    lockTFromCat ? "text-primary bg-primary/10" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  }`}
+                >
+                  {lockTFromCat ? <Lock className="w-5 h-5" /> : <LockOpen className="w-5 h-5" />}
+                </button>
+              </div>
+              <div className="relative">
+                <select
+                  value={tFromProduct}
+                  onChange={(e) => setTFromProduct(e.target.value)}
+                  disabled={lockTFromProduct}
+                  className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value="">Select Product</option>
+                  {tFromProducts.map((p) => (
+                    <option key={p.Id} value={p.Id}>{p.Name}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => setLockTFromProduct(!lockTFromProduct)}
+                  className={`absolute -right-2 -top-4 p-1 rounded transition-colors ${
+                    lockTFromProduct ? "text-primary bg-primary/10" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  }`}
+                >
+                  {lockTFromProduct ? <Lock className="w-5 h-5" /> : <LockOpen className="w-5 h-5" />}
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  type="number"
+                  value={tFromCost}
+                  onChange={(e) => setTFromCost(e.target.value)}
+                  placeholder="Cost Price"
+                  className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <input
+                  type="number"
+                  value={tFromSell}
+                  onChange={(e) => setTFromSell(e.target.value)}
+                  placeholder="Selling Price"
+                  className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+            </div>
+
+            {/* To */}
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">To</p>
+              <div className="relative">
+                <select
+                  value={tToCat}
+                  onChange={async (e) => {
+                    setTToCat(e.target.value);
+                    setTToProduct("");
+                    if (e.target.value) {
+                      const rows = await getProductsByCategory(e.target.value);
+                      setTToProducts(rows);
+                    } else {
+                      setTToProducts([]);
+                    }
+                  }}
+                  disabled={lockTToCat}
+                  className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value="">Select Category</option>
+                  {lookups.categories.map((c: any) => (
+                    <option key={c.Id} value={c.Id}>{c.Name}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => setLockTToCat(!lockTToCat)}
+                  className={`absolute -right-2 -top-4 p-1 rounded transition-colors ${
+                    lockTToCat ? "text-primary bg-primary/10" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  }`}
+                >
+                  {lockTToCat ? <Lock className="w-5 h-5" /> : <LockOpen className="w-5 h-5" />}
+                </button>
+              </div>
+              <div className="relative">
+                <select
+                  value={tToProduct}
+                  onChange={(e) => setTToProduct(e.target.value)}
+                  disabled={lockTToProduct}
+                  className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value="">Select Product</option>
+                  {tToProducts.map((p) => (
+                    <option key={p.Id} value={p.Id}>{p.Name}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => setLockTToProduct(!lockTToProduct)}
+                  className={`absolute -right-2 -top-4 p-1 rounded transition-colors ${
+                    lockTToProduct ? "text-primary bg-primary/10" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  }`}
+                >
+                  {lockTToProduct ? <Lock className="w-5 h-5" /> : <LockOpen className="w-5 h-5" />}
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  type="number"
+                  value={tToCost}
+                  onChange={(e) => setTToCost(e.target.value)}
+                  placeholder="Cost Price"
+                  className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <input
+                  type="number"
+                  value={tToSell}
+                  onChange={(e) => setTToSell(e.target.value)}
+                  placeholder="Selling Price"
+                  className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Size / Color / Qty */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+            <div className="relative">
+              <select
+                value={tSize}
+                onChange={(e) => setTSize(e.target.value)}
+                disabled={lockTSize}
+                className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <option value="">Size</option>
+                {lookups.sizes.map((s: any) => (
+                  <option key={s.Id} value={s.Id}>{s.Name}</option>
+                ))}
+              </select>
+              <button
+                onClick={() => setLockTSize(!lockTSize)}
+                className={`absolute -right-2 -top-4 p-1 rounded transition-colors ${
+                  lockTSize ? "text-primary bg-primary/10" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                }`}
+              >
+                {lockTSize ? <Lock className="w-5 h-5" /> : <LockOpen className="w-5 h-5" />}
+              </button>
+            </div>
+            <select
+              value={tColor}
+              onChange={(e) => setTColor(e.target.value)}
+              className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="">Color</option>
+              {lookups.colors.map((c: any) => (
+                <option key={c.Id} value={c.Id}>{c.Name}</option>
+              ))}
+            </select>
+            <input
+              type="number"
+              value={tQty}
+              onChange={(e) => setTQty(e.target.value)}
+              placeholder="Quantity"
+              min={1}
+              className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
+
+          <button
+            onClick={handleTransfer}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
+          >
+            <ArrowRightLeft className="w-5 h-5" />
+            Transfer Stock
+          </button>
+        </div>
+      </section>
+
       {/* Stock Items Table Section */}
       <section className="mt-8">
         <div className="flex items-center justify-between mb-4">
@@ -1097,6 +1371,46 @@ export default function StocksPage() {
                 } transition-colors`}
               >
                 {pendingRemove ? "Removing..." : "Confirm Remove"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Transfer Confirm Modal */}
+      {showTransferConfirm && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 w-full max-w-md p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="bg-blue-100 dark:bg-blue-900/30 p-3 rounded-full">
+                <ArrowRightLeft className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                Confirm Transfer
+              </h3>
+            </div>
+            <p className="text-gray-700 dark:text-gray-300 mb-6">
+              Transfer <strong>{tQty} pcs</strong> from{" "}
+              <strong>{tFromProducts.find((p) => p.Id === tFromProduct)?.Name}</strong>{" "}
+              to{" "}
+              <strong>{tToProducts.find((p) => p.Id === tToProduct)?.Name}</strong>?
+              Both moves will be logged in Stock History.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowTransferConfirm(false)}
+                className="px-5 py-2.5 rounded-lg font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={performTransfer}
+                disabled={pendingTransfer}
+                className={`px-6 py-2.5 rounded-lg font-semibold text-white ${
+                  pendingTransfer ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+                } transition-colors`}
+              >
+                {pendingTransfer ? "Transferring..." : "Confirm Transfer"}
               </button>
             </div>
           </div>

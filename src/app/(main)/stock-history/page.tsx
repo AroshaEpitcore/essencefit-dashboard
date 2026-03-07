@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import { getLookups } from "../stocks/actions";
 import { getStockHistory } from "./actions";
-import { Download, Filter, Layers, PlusCircle, MinusCircle } from "lucide-react";
+import { Download, Filter, Layers, PlusCircle, MinusCircle, ArrowRightLeft } from "lucide-react";
 
 type History = {
   Id: string;
@@ -194,6 +194,14 @@ export default function StockHistoryPage() {
                     {h.Reason === "add" ? (
                       <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-3 py-1 rounded-full text-xs font-medium flex items-center justify-center gap-1">
                         <PlusCircle className="w-3.5 h-3.5" /> Add
+                      </span>
+                    ) : h.Reason === "transfer-in" ? (
+                      <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-3 py-1 rounded-full text-xs font-medium flex items-center justify-center gap-1">
+                        <ArrowRightLeft className="w-3.5 h-3.5" /> Transfer In
+                      </span>
+                    ) : h.Reason === "transfer-out" ? (
+                      <span className="bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 px-3 py-1 rounded-full text-xs font-medium flex items-center justify-center gap-1">
+                        <ArrowRightLeft className="w-3.5 h-3.5" /> Transfer Out
                       </span>
                     ) : (
                       <span className="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-3 py-1 rounded-full text-xs font-medium flex items-center justify-center gap-1">

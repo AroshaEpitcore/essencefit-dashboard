@@ -640,6 +640,9 @@ export async function deleteOrder(orderId: string) {
 
     await deleteSalesForOrder(tx, orderId);
 
+    await new sql.Request(tx).input("OrderId", UniqueIdentifier, orderId)
+      .query(`DELETE FROM OrderStatusLogs WHERE OrderId=@OrderId`);
+
     await new sql.Request(tx).input("Id", UniqueIdentifier, orderId)
       .query(`DELETE FROM Orders WHERE Id=@Id`);
 

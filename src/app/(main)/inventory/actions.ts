@@ -68,19 +68,19 @@ export async function getColorsByCategorySize(
     .input("catId", categoryId)
     .input("sizeId", sizeId)
     .query(`
-      SELECT c.Name AS Color, SUM(v.Qty) AS Qty
+      SELECT c.Name AS Color, p.Name AS Product, SUM(v.Qty) AS Qty
       FROM ProductVariants v
       INNER JOIN Products p ON p.Id = v.ProductId
       INNER JOIN Colors   c ON c.Id = v.ColorId
       WHERE p.CategoryId = @catId
         AND v.SizeId     = @sizeId
-      GROUP BY c.Name
-      ORDER BY c.Name
+      GROUP BY c.Name, p.Name
+      ORDER BY c.Name, p.Name
     `);
 
-  // Ensure numbers
   return (res.recordset ?? []).map((r: any) => ({
     Color: r.Color,
+    Product: r.Product as string,
     Qty: Number(r.Qty ?? 0),
   }));
 }

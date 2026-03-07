@@ -52,10 +52,9 @@ export default function InventoryColorsPage() {
   const [selColorForAvail, setSelColorForAvail] = useState("");
 
   // data
-  // data
   const [cards, setCards] = useState<ProductCard[]>([]);
   const [colorsAvail, setColorsAvail] = useState<
-    Array<{ Color: string; Qty: number }>
+    Array<{ Color: string; Product: string; Qty: number }>
   >([]);
   const [sizeQtys, setSizeQtys] = useState<Array<{ Size: string; Qty: number }>>(
     []
@@ -210,16 +209,61 @@ export default function InventoryColorsPage() {
     }
   }
 
+  // Abbreviation helper: "CK Sports Shorts" → "CK", "Eddie Bauer" → "EB"
+  function abbrev(name: string): string {
+    const words = name.trim().split(/\s+/);
+    if (words[0].length <= 3) return words[0].toUpperCase();
+    return words.map((w) => w[0]).join("").slice(0, 3).toUpperCase();
+  }
+
+  // Group rows by color: { color → { totalQty, products: [{name, qty}] } }
+  const colorGroups = colorsAvail
+    .filter((r) => r.Qty > 0)
+    .reduce((acc, r) => {
+      if (!acc[r.Color]) acc[r.Color] = { totalQty: 0, products: [] };
+      acc[r.Color].totalQty += r.Qty;
+      acc[r.Color].products.push({ name: r.Product, qty: r.Qty });
+      return acc;
+    }, {} as Record<string, { totalQty: number; products: { name: string; qty: number }[] }>);
+
+  // Group rows by product → colors (for copy functions)
+  const productGroups = colorsAvail
+    .filter((r) => r.Qty > 0)
+    .reduce((acc, r) => {
+      if (!acc[r.Product]) acc[r.Product] = [];
+      acc[r.Product].push({ color: r.Color, qty: r.Qty });
+      return acc;
+    }, {} as Record<string, { color: string; qty: number }[]>);
+
   function copyColors() {
-    const available = colorsAvail.filter((r) => r.Qty > 0);
-    if (!available.length) return;
+    if (!Object.keys(productGroups).length) return;
+    const catName = categories.find((c) => c.Id === selCatForColors)?.Name ?? "";
     const sizeName = sizes.find((s) => s.Id === selSizeForColors)?.Name ?? "";
-    const header = `${sizeName} Available colors list`;
-    const colorsList = available.map((r) => r.Color).join("\n");
-    const txt = `${header}\n${colorsList}`;
+    const lines: string[] = [`*${catName} - ${sizeName} Available colors list*`];
+    Object.entries(productGroups).forEach(([product, items]) => {
+      lines.push("");
+      lines.push(`*${product}*`);
+      items.forEach((i) => lines.push(`• ${i.color}`));
+    });
     navigator.clipboard
-      .writeText(txt)
+      .writeText(lines.join("\n"))
       .then(() => toast.success("Copied"))
+      .catch(() => toast.error("Copy failed"));
+  }
+
+  function copyColorsWithQty() {
+    if (!Object.keys(productGroups).length) return;
+    const catName = categories.find((c) => c.Id === selCatForColors)?.Name ?? "";
+    const sizeName = sizes.find((s) => s.Id === selSizeForColors)?.Name ?? "";
+    const lines: string[] = [`*${catName} - ${sizeName} Stock List*`];
+    Object.entries(productGroups).forEach(([product, items]) => {
+      lines.push("");
+      lines.push(`*${product}*`);
+      items.forEach((i) => lines.push(`• ${i.color} - ${i.qty} pcs`));
+    });
+    navigator.clipboard
+      .writeText(lines.join("\n"))
+      .then(() => toast.success("Copied with quantities"))
       .catch(() => toast.error("Copy failed"));
   }
 
@@ -230,9 +274,9 @@ export default function InventoryColorsPage() {
       return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
     };
     const body = colorsAvail
-      .map((r) => `${esc(r.Color)},${esc(r.Qty)}`)
+      .map((r) => `${esc(r.Color)},${esc(r.Product)},${esc(r.Qty)}`)
       .join("\n");
-    const csv = `color,qty\n${body}`;
+    const csv = `color,product,qty\n${body}`;
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -538,38 +582,55 @@ export default function InventoryColorsPage() {
             </button>
             <button
               onClick={copyColors}
-              className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-3 flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Copy colors (no qty)"
+              className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-3 flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
               disabled={!colorsAvail.length}
             >
               <Clipboard className="w-4 h-4" />
+              Copy
+            </button>
+            <button
+              onClick={copyColorsWithQty}
+              title="Copy colors with quantities"
+              className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-3 flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+              disabled={!colorsAvail.length}
+            >
+              <Clipboard className="w-4 h-4" />
+              Copy with Qty
             </button>
           </div>
         </div>
 
         <div>
-          {!colorsAvail.filter((c) => c.Qty > 0).length ? (
+          {!Object.keys(colorGroups).length ? (
             <div className="text-center py-8 text-gray-500 dark:text-gray-400 text-sm">
               <Palette className="w-10 h-10 mx-auto mb-2 opacity-50" />
               Pick a Category and Size, then click <b>Show Colors</b>.
             </div>
           ) : (
             <div className="flex flex-wrap gap-2">
-              {colorsAvail
-                .filter((c) => c.Qty > 0)
-                .map((c) => (
-                  <span
-                    key={c.Color}
-                    className="inline-flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-900 transition-colors"
-                    title={`${c.Qty} pcs`}
-                  >
-                    <span className="font-medium text-gray-900 dark:text-white">
-                      {c.Color}
-                    </span>
-                    <span className="text-xs font-semibold text-primary">
-                      {c.Qty}
-                    </span>
+              {Object.entries(colorGroups).map(([color, data]) => (
+                <span
+                  key={color}
+                  className="inline-flex items-center gap-2 rounded-full border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-900 transition-colors"
+                  title={data.products.map((p) => `${p.name}: ${p.qty}`).join(" | ")}
+                >
+                  <span className="font-medium text-gray-900 dark:text-white">
+                    {color}
                   </span>
-                ))}
+                  {data.products.map((p) => (
+                    <span
+                      key={p.name}
+                      className="text-xs font-bold bg-primary/15 text-primary px-1.5 py-0.5 rounded-full"
+                    >
+                      {abbrev(p.name)}
+                    </span>
+                  ))}
+                  <span className="text-xs font-semibold text-primary">
+                    {data.totalQty}
+                  </span>
+                </span>
+              ))}
             </div>
           )}
         </div>

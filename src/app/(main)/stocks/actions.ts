@@ -217,6 +217,126 @@ export async function getStockItems() {
   return res.recordset;
 }
 
+// ---------- TRANSFER STOCK ----------
+export async function transferStock(
+  fromProductId: string,
+  toProductId: string,
+  sizeId: string,
+  colorId: string,
+  qty: number,
+  fromCostOverride: number = 0,
+  fromSellOverride: number = 0,
+  toCostOverride: number = 0,
+  toSellOverride: number = 0
+) {
+  const pool = await getDb();
+
+  // Get source variant
+  const fromCheck = await pool
+    .request()
+    .input("ProductId", fromProductId)
+    .input("SizeId", sizeId)
+    .input("ColorId", colorId)
+    .query(
+      "SELECT TOP 1 Id, Qty, CostPrice, SellingPrice FROM ProductVariants WHERE ProductId=@ProductId AND SizeId=@SizeId AND ColorId=@ColorId"
+    );
+
+  const fromVariant = fromCheck.recordset[0];
+  if (!fromVariant) throw new Error("Source variant not found in stock.");
+  if (fromVariant.Qty < qty)
+    throw new Error(`Cannot transfer ${qty} — only ${fromVariant.Qty} available.`);
+
+  const fromCostPrice = fromCostOverride > 0 ? fromCostOverride : fromVariant.CostPrice;
+  const fromSellPrice = fromSellOverride > 0 ? fromSellOverride : fromVariant.SellingPrice;
+  const toCostPrice = toCostOverride > 0 ? toCostOverride : fromVariant.CostPrice;
+  const toSellPrice = toSellOverride > 0 ? toSellOverride : fromVariant.SellingPrice;
+  const newFromQty = fromVariant.Qty - qty;
+
+  // Deduct from source
+  await pool
+    .request()
+    .input("Id", fromVariant.Id)
+    .input("Qty", newFromQty)
+    .query("UPDATE ProductVariants SET Qty = @Qty WHERE Id = @Id");
+
+  // Also update from variant prices if overridden
+  if (fromCostOverride > 0 || fromSellOverride > 0) {
+    await pool
+      .request()
+      .input("Id", fromVariant.Id)
+      .input("CostPrice", fromCostPrice)
+      .input("SellingPrice", fromSellPrice)
+      .query("UPDATE ProductVariants SET CostPrice = @CostPrice, SellingPrice = @SellingPrice WHERE Id = @Id");
+  }
+
+  await pool
+    .request()
+    .input("VariantId", fromVariant.Id)
+    .input("ChangeQty", -qty)
+    .input("PreviousQty", fromVariant.Qty)
+    .input("NewQty", newFromQty)
+    .input("SellingPrice", fromSellPrice)
+    .query(
+      "INSERT INTO StockHistory (VariantId, ChangeQty, Reason, PreviousQty, NewQty, PriceAtChange, CreatedAt) VALUES (@VariantId, @ChangeQty, 'transfer-out', @PreviousQty, @NewQty, @SellingPrice, GETDATE())"
+    );
+
+  // Find or create destination variant
+  const toCheck = await pool
+    .request()
+    .input("ProductId", toProductId)
+    .input("SizeId", sizeId)
+    .input("ColorId", colorId)
+    .query(
+      "SELECT TOP 1 Id, Qty FROM ProductVariants WHERE ProductId=@ProductId AND SizeId=@SizeId AND ColorId=@ColorId"
+    );
+
+  let toVariantId = toCheck.recordset[0]?.Id;
+  let prevToQty = toCheck.recordset[0]?.Qty ?? 0;
+
+  if (!toVariantId) {
+    const ins = await pool
+      .request()
+      .input("ProductId", toProductId)
+      .input("SizeId", sizeId)
+      .input("ColorId", colorId)
+      .input("CostPrice", toCostPrice)
+      .input("SellingPrice", toSellPrice)
+      .query(
+        "INSERT INTO ProductVariants (ProductId, SizeId, ColorId, Qty, CostPrice, SellingPrice) OUTPUT Inserted.Id VALUES (@ProductId, @SizeId, @ColorId, 0, @CostPrice, @SellingPrice)"
+      );
+    toVariantId = ins.recordset[0].Id;
+  }
+
+  const newToQty = prevToQty + qty;
+  // Only update prices on an existing variant if the user explicitly provided overrides
+  if (toCostOverride > 0 || toSellOverride > 0) {
+    await pool
+      .request()
+      .input("Id", toVariantId)
+      .input("Qty", newToQty)
+      .input("CostPrice", toCostOverride > 0 ? toCostOverride : toCostPrice)
+      .input("SellingPrice", toSellOverride > 0 ? toSellOverride : toSellPrice)
+      .query("UPDATE ProductVariants SET Qty = @Qty, CostPrice = @CostPrice, SellingPrice = @SellingPrice WHERE Id = @Id");
+  } else {
+    await pool
+      .request()
+      .input("Id", toVariantId)
+      .input("Qty", newToQty)
+      .query("UPDATE ProductVariants SET Qty = @Qty WHERE Id = @Id");
+  }
+
+  await pool
+    .request()
+    .input("VariantId", toVariantId)
+    .input("ChangeQty", qty)
+    .input("PreviousQty", prevToQty)
+    .input("NewQty", newToQty)
+    .input("SellingPrice", toSellPrice)
+    .query(
+      "INSERT INTO StockHistory (VariantId, ChangeQty, Reason, PreviousQty, NewQty, PriceAtChange, CreatedAt) VALUES (@VariantId, @ChangeQty, 'transfer-in', @PreviousQty, @NewQty, @SellingPrice, GETDATE())"
+    );
+}
+
 export async function updateVariantPrices(
   variantId: string,
   costPrice: number,

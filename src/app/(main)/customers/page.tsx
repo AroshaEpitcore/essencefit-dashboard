@@ -50,6 +50,7 @@ export default function CustomersPage() {
     setCurrentPage(1);
   }, [search]);
 
+
   async function openDrawer(id: string) {
     try {
       const data = await getCustomerById(id);

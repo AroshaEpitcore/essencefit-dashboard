@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import { motion } from "framer-motion";
 import { generateInvoicePDF, getWhatsAppMessage } from "./invoiceActions";
@@ -225,6 +225,9 @@ export default function OrdersPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [editOrderId, setEditOrderId] = useState<string | null>(null);
 
+  // delete confirm modal
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
   const [editCustomer, setEditCustomer] = useState("");
   const [editCustomerPhone, setEditCustomerPhone] = useState("");
   const [editSecondaryPhone, setEditSecondaryPhone] = useState("");
@@ -259,6 +262,10 @@ export default function OrdersPage() {
   const [editSelectedKey, setEditSelectedKey] = useState<string | null>(null);
   const [editMode, setEditMode] = useState<"add" | "replace">("add");
 
+  // Infinite scroll
+  const [visibleCount, setVisibleCount] = useState(10);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
   // Filter orders based on search query - searches from ALL orders
   const filteredOrders = useMemo(() => {
     let orders = searchQuery.trim() ? allOrders : recent;
@@ -292,6 +299,27 @@ export default function OrdersPage() {
 
     return orders;
   }, [allOrders, recent, searchQuery, statusFilter]);
+
+  // Reset visible count when filters change
+  useEffect(() => {
+    setVisibleCount(10);
+  }, [filteredOrders]);
+
+  // IntersectionObserver — load 10 more when sentinel enters view
+  const loadMore = useCallback(() => {
+    setVisibleCount((c) => Math.min(c + 10, filteredOrders.length));
+  }, [filteredOrders.length]);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => { if (entries[0].isIntersecting) loadMore(); },
+      { threshold: 0.1 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loadMore]);
 
   // Calculate totals by status with date filter
   // For Paid/Completed: use CompletedAt (when sale happened)
@@ -979,17 +1007,14 @@ export default function OrdersPage() {
   }
 
   async function doDelete(orderId: string) {
-    const ok = window.confirm(
-      "Delete this order? This will also remove sales & restore stock."
-    );
-    if (!ok) return;
-
     try {
       await deleteOrder(orderId);
       toast.success("Order deleted");
+      setDeleteConfirmId(null);
       await loadRecent();
     } catch (e: any) {
       toast.error(e.message ?? "Failed to delete order");
+      setDeleteConfirmId(null);
     }
   }
 
@@ -1763,7 +1788,7 @@ export default function OrdersPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filteredOrders.map((o) => (
+            {filteredOrders.slice(0, visibleCount).map((o) => (
               <motion.div
                 key={o.Id}
                 layout
@@ -1958,7 +1983,7 @@ export default function OrdersPage() {
 
                     {/* Delete */}
                     <button
-                      onClick={() => doDelete(o.Id)}
+                      onClick={() => setDeleteConfirmId(o.Id)}
                       className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-2"
                     >
                       <Trash2 className="w-4 h-4" /> Delete
@@ -1990,6 +2015,13 @@ export default function OrdersPage() {
                 </div>
               </motion.div>
             ))}
+          </div>
+        )}
+
+        {/* Infinite scroll sentinel */}
+        {visibleCount < filteredOrders.length && (
+          <div ref={sentinelRef} className="flex justify-center py-6">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
           </div>
         )}
       </section>
@@ -2322,6 +2354,37 @@ export default function OrdersPage() {
                 className="bg-primary text-white px-4 py-2 rounded-lg"
               >
                 Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE CONFIRM MODAL */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 w-full max-w-sm shadow-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="bg-red-100 dark:bg-red-900/30 p-2 rounded-lg">
+                <Trash2 className="w-5 h-5 text-red-600 dark:text-red-400" />
+              </div>
+              <h3 className="text-lg font-semibold">Delete Order</h3>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+              This will permanently delete the order, remove related sales records, and restore stock. This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteConfirmId(null)}
+                className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-800 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => doDelete(deleteConfirmId)}
+                className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm"
+              >
+                Delete
               </button>
             </div>
           </div>

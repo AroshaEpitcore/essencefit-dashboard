@@ -9,9 +9,7 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div
-      className={`${inter.className} min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900`}
-    >
+    <div className={`${inter.className} min-h-screen`}>
       {children}
     </div>
   );
