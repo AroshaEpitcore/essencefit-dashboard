@@ -454,7 +454,8 @@ export async function createOrder(payload: OrderPayload) {
     // Auto-create dispatch message if WaybillId is provided
     if (payload.WaybillId?.trim()) {
       try {
-        await pool
+        const dispatchPool = await getDb();
+        await dispatchPool
           .request()
           .input("Id", UniqueIdentifier, crypto.randomUUID())
           .input("OrderId", UniqueIdentifier, orderId)
@@ -465,8 +466,8 @@ export async function createOrder(payload: OrderPayload) {
             INSERT INTO DispatchMessages (Id, OrderId, WaybillId, CustomerName, CustomerPhone)
             VALUES (@Id, @OrderId, @WaybillId, @CustomerName, @CustomerPhone)
           `);
-      } catch {
-        // Non-critical — don't fail the order if dispatch insert fails
+      } catch (dispatchErr) {
+        console.error("[Dispatch] Failed to insert dispatch message:", dispatchErr);
       }
     }
 
