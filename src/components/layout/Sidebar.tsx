@@ -23,6 +23,7 @@ import {
   History,
   BarChart3,
   Palette,
+  SendHorizonal,
 } from "lucide-react";
 import { Tooltip } from "react-tooltip";
 
@@ -44,6 +45,7 @@ const navItems = [
   { href: "/analysis", label: "Analysis", icon: BarChart3 },
   { href: "/users", label: "Users", icon: Users },
   { href: "/stock-history", label: "Stock History", icon: Layers2 },
+  { href: "/dispatch", label: "Dispatch", icon: SendHorizonal },
   { href: "/whatsapp", label: "Whatsapp", icon: MessageCircle },
   { href: "/settings", label: "Settings", icon: Settings },
 ];

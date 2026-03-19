@@ -63,9 +63,9 @@ export default function WhatsAppMessagesPage() {
           title: "Welcome Message with Size Chart",
           content: `Thank you so much for choosing EssenceFit 🙌
 
-CALVIN KLEIN unisex shorts 990/-
-EDDIE BAUER unisex shorts 1090/-
-CEYLON PREMIUM – with Back Zipper Pockets - 1290/-
+Calvin Klein unisex shorts 990/-
+Eddie Bauer unisex shorts 1090/-
+Ceylon Premium – with Back Zipper Pockets - 1290/-
 Dry Fit Calvin Klein Active wear T Shirts 1500/-
 
 ⭕ 3ක් ගත්තොත් ගෙදරටම free delivery ගෙන්නගන්න පුලුවන්
@@ -88,9 +88,9 @@ Get updates, new drops, and exclusive offers first! 👕💪
 
 Sir / Miss, ඔබ බලන්නේ මොන design එකද?
 
-1. CALVIN KLEIN
-2. EDDIE BAUER
-3. CEYLON PREMIUM – Back Zipper Pockets සමඟ
+1. Calvin Klein
+2. Eddie Bauer
+3. Ceylon Premium – Back Zipper Pockets සමඟ
 `,
   category: "Product Info",
   createdAt: new Date().toISOString(),

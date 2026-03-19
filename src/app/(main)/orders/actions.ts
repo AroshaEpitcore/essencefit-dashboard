@@ -450,6 +450,26 @@ export async function createOrder(payload: OrderPayload) {
       `);
 
     await tx.commit();
+
+    // Auto-create dispatch message if WaybillId is provided
+    if (payload.WaybillId?.trim()) {
+      try {
+        await pool
+          .request()
+          .input("Id", UniqueIdentifier, crypto.randomUUID())
+          .input("OrderId", UniqueIdentifier, orderId)
+          .input("WaybillId", NVarChar(100), payload.WaybillId.trim())
+          .input("CustomerName", NVarChar(200), payload.Customer ?? null)
+          .input("CustomerPhone", NVarChar(20), payload.CustomerPhone ?? null)
+          .query(`
+            INSERT INTO DispatchMessages (Id, OrderId, WaybillId, CustomerName, CustomerPhone)
+            VALUES (@Id, @OrderId, @WaybillId, @CustomerName, @CustomerPhone)
+          `);
+      } catch {
+        // Non-critical — don't fail the order if dispatch insert fails
+      }
+    }
+
     return { OrderId: orderId };
   } catch (err) {
     try { await tx.rollback(); } catch {}
