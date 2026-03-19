@@ -63,16 +63,9 @@ export default function WhatsAppMessagesPage() {
           title: "Welcome Message with Size Chart",
           content: `Thank you so much for choosing EssenceFit 🙌
 
-Calvin Klein unisex shorts 990/-
-Eddie Bauer unisex shorts 1090/-
-Ceylon Premium – with Back Zipper Pockets - 1290/-
-Dry Fit Calvin Klein Active wear T Shirts 1500/-
+Size කොහොමද dear (M,L,XL,XXL)?
 
-⭕ 3ක් ගත්තොත් ගෙදරටම free delivery ගෙන්නගන්න පුලුවන්
-
-🚨 Join the EssenceFit WhatsApp Channel
-Get updates, new drops, and exclusive offers first! 👕💪
-👉 https://whatsapp.com/channel/0029Vb7a4Nk35fLqoP0LIT1P
+✅ Any 3 items — Free Delivery !
 `,
           category: "Product Info",
           imageUrl:
@@ -96,6 +89,20 @@ Sir / Miss, ඔබ බලන්නේ මොන design එකද?
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 },
+        {
+          id: "5",
+          title: "Product Price List",
+          content: `Calvin Klein short 990/-
+
+Eddie Bauer short 1090/-
+
+Ceylon Premium – with Back Zipper Pockets - 1290/-
+
+Dry Fit Calvin Klein Active wear T Shirts 1500/-`,
+          category: "Product Info",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
         {
           id: "3",
           title: "Order Details Request",
@@ -198,7 +205,7 @@ We will ensure order responsibility after payment confirmation ✅
           updatedAt: new Date().toISOString(),
         },
         {
-          id: "5",
+          id: "10",
           title: "Delivery & Product Info",
           content: `📦 Delivery Charges
 Colombo Area → Rs. 300
@@ -247,6 +254,21 @@ Thank you so much for your support! 🙏
 Get updates, new drops, and exclusive offers first! 👕💪
 👉 https://whatsapp.com/channel/0029Vb7a4Nk35fLqoP0LIT1P`,
           category: "Follow Up",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        {
+          id: "11",
+          title: "3 Qty Price List (Free Delivery)",
+          content: `🛍️ Buy 3 & Get FREE Delivery 🚚✨
+
+Calvin Klein short × 3 = Rs. 2,970/-
+Eddie Bauer short × 3 = Rs. 3,270/-
+Ceylon Premium × 3 = Rs. 3,870/-
+
+✅ Any 3 items — Free Delivery applies!
+🚚.`,
+          category: "Product Info",
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         },
