@@ -13,11 +13,7 @@ import {
   X,
   Save,
   Image,
-  Sparkles,
-  BookOpen,
-  Ruler,
 } from "lucide-react";
-import { getProductCategories, getSizesWithColors } from "./actions";
 
 type Message = {
   id: string;
@@ -29,14 +25,6 @@ type Message = {
   updatedAt: string;
 };
 
-type SalesTemplate = {
-  id: string;
-  title: string;
-  content: string;
-  step: string;
-  language: "English" | "සිංහල";
-};
-
 const CATEGORIES = [
   "Order Confirmation",
   "Payment Reminder",
@@ -46,227 +34,6 @@ const CATEGORIES = [
   "Custom",
 ];
 
-const SALES_TEMPLATES: SalesTemplate[] = [
-  // English Templates
-  {
-    id: "sales-en-1",
-    title: "Welcome — Hook Message",
-    step: "Step 1",
-    language: "English",
-    content: `Good Morning !
-Hi! 👋 Welcome to EssenceFit 💪
-
-🩳 Dry-Fit Shorts — Rs. 990
-👕 CK Active Tee — Rs. 1,500
-
-⭐ 500+ happy customers island-wide!
-🚚 Buy 3 = FREE delivery
-
-🤸 Perfect for the gym, home, 🧳 travel, or anywhere you want to wear them
-
-Which item are you interested in? 😊`,
-  },
-  {
-    id: "sales-en-2",
-    title: "Size Inquiry",
-    step: "Step 2",
-    language: "English",
-    content: `What size would you like?
-
-M | L | XL | 2XL
-
-Then I can send you the colors for your size`,
-  },
-  {
-    id: "sales-en-3",
-    title: "Color Options & Upsell",
-    step: "Step 3",
-    language: "English",
-    content: `Here are the colors available in your size:
-🔵 Navy | ⚫ Black | 🔴 Red | 🟢 Olive
-
-Which ones do you like?
-💡 Tip: Grab 3 and delivery is on us — FREE! 🚚`,
-  },
-  {
-    id: "sales-en-4",
-    title: "Collect Order Details",
-    step: "Step 4",
-    language: "English",
-    content: `Awesome! To get your order out fast, just send me:
-
-1️⃣ Name
-2️⃣ Address
-3️⃣ Phone number
-
-We'll have it at your door in 2-3 days 🚚✅`,
-  },
-  {
-    id: "sales-en-5",
-    title: "Follow-Up — No Reply",
-    step: "Follow Up",
-    language: "English",
-    content: `Hey! 😊 Still thinking about those shorts?
-
-🔥 They're selling fast — only a few left in your size!
-
-Want me to hold one for you? Just let me know your size and I'll sort it out 👍`,
-  },
-  {
-    id: "sales-en-6",
-    title: "Delivery Rates",
-    step: "Info",
-    language: "English",
-    content: `📦 Delivery Charges
-
-🏙️ Colombo → Rs. 300
-🌍 Outstation → Rs. 350
-🗺️ Eastern & Northern → Rs. 400
-
-🚚 FREE delivery when you order 3+ items!
-
-Want to place an order? 😊`,
-  },
-  {
-    id: "sales-en-7",
-    title: "Eastern/Northern — Payment",
-    step: "Payment",
-    language: "English",
-    content: `📦 Delivery Info — Eastern & Northern Province
-
-Delivery: Rs. 400 (or FREE on 3+ items!)
-
-✅ We use advance payment for your area to guarantee fast dispatch.
-
-🏦 HNB — Koggala Branch
-👤 M.G.Arosha Ravishan
-🔢 237020072483
-
-Just send the receipt and we'll ship same day! 🚀`,
-  },
-  {
-    id: "sales-en-8",
-    title: "Post-Purchase Review",
-    step: "After Sale",
-    language: "English",
-    content: `Hey! 👋 Hope you're loving your EssenceFit gear! 💪
-
-Your feedback means the world to us. Could you take 30 seconds to leave a quick review?
-
-⭐ It helps other customers find us too!
-
-Thank you so much for your support! 🙏`,
-  },
-  // Sinhala Templates
-  {
-    id: "sales-si-1",
-    title: "පිළිගැනීම — ආකර්ශනය",
-    step: "පියවර 1",
-    language: "සිංහල",
-    content: `ආයුබෝවන්! 👋 EssenceFit වෙත සාදරයෙන් පිළිගනිමු 💪
-
-🩳 Dry-Fit Shorts — Rs. 990
-👕 CK Active Tee — Rs. 1,500
-
-⭐ දිවයින පුරා සතුටු පාරිභෝගිකයින් 500+!
-🚚 3ක් ගත්තොත් delivery එක FREE!
-
-ඔයාට කැමති item එක මොකද? 😊`,
-  },
-  {
-    id: "sales-si-2",
-    title: "සයිස් එක අහන එක",
-    step: "පියවර 2",
-    language: "සිංහල",
-    content: `නියමයි! 🔥
-ඔයාට ඕන size එක මොකද?
-
-M | L | XL | 2XL
-
-ඔයාගේ size එකට තියෙන colors බලලා දන්නම් 👍`,
-  },
-  {
-    id: "sales-si-3",
-    title: "වර්ණ තේරීම සහ Upsell",
-    step: "පියවර 3",
-    language: "සිංහල",
-    content: `ඔයාගේ size එකට මේ colors තියෙනවා:
-🔵 Navy | ⚫ Black | 🔴 Red | 🟢 Olive
-
-කැමති ඒව මොනවද?
-💡 3ක් ගත්තොත් delivery එක අපිගෙන් FREE! 🚚`,
-  },
-  {
-    id: "sales-si-4",
-    title: "ඇණවුම් විස්තර ගන්න",
-    step: "පියවර 4",
-    language: "සිංහල",
-    content: `නියමයි! ඔයාගේ order එක ඉක්මනින් එවන්න මට මේවා එවන්න:
-
-1️⃣ නම
-2️⃣ ලිපිනය
-3️⃣ දුරකථන අංකය
-
-දවස් 2-3න් ඔයාගේ ගෙදරටම එවනවා 🚚✅`,
-  },
-  {
-    id: "sales-si-5",
-    title: "Follow-Up — පිළිතුරක් නැත",
-    step: "Follow Up",
-    language: "සිංහල",
-    content: `හායි! 😊 තාමත් shorts ගැන හිතනවද?
-
-🔥 ඉක්මනට ඉවර වෙනවා — ඔයාගේ size එකේ ටිකක් විතරයි ඉතිරි!
-
-ඔයාට එකක් තියාගන්නද? Size එක කියන්න, මම arrange කරන්නම් 👍`,
-  },
-  {
-    id: "sales-si-6",
-    title: "බෙදාහැරීම් ගාස්තු",
-    step: "තොරතුරු",
-    language: "සිංහල",
-    content: `📦 බෙදාහැරීම් ගාස්තු
-
-🏙️ කොළඹ → Rs. 300
-🌍 පිටස්තර → Rs. 350
-🗺️ නැගෙනහිර සහ උතුරු → Rs. 400
-
-🚚 අයිතම 3ක් හෝ ඊට වැඩි නම් delivery FREE!
-
-Order එකක් දානවද? 😊`,
-  },
-  {
-    id: "sales-si-7",
-    title: "නැගෙනහිර/උතුරු — ගෙවීම",
-    step: "ගෙවීම",
-    language: "සිංහල",
-    content: `📦 බෙදාහැරීම — නැගෙනහිර සහ උතුරු පළාත
-
-Delivery: Rs. 400 (අයිතම 3+ නම් FREE!)
-
-✅ ඔයාගේ ප්‍රදේශයට ඉක්මන් dispatch එකක් සහතික කරන්න අපි advance payment භාවිතා කරනවා.
-
-🏦 HNB — කොග්ගල ශාඛාව
-👤 M.G.Arosha Ravishan
-🔢 237020072483
-
-Receipt එක එවන්න, අපි එදිනම dispatch කරනවා! 🚀`,
-  },
-  {
-    id: "sales-si-8",
-    title: "මිලදී ගත් පසු Review",
-    step: "විකිණීමෙන් පසු",
-    language: "සිංහල",
-    content: `හායි! 👋 EssenceFit gear එක enjoy කරනවා කියලා හිතනවා! 💪
-
-ඔයාගේ feedback එක අපිට ගොඩක් වටිනවා. තත්පර 30ක් ගන්න review එකක් දාන්න පුළුවන්ද?
-
-⭐ එයින් අනිත් customers ලටත් අපව හොයාගන්න උදව් වෙනවා!
-
-ඔයාගේ support එකට ගොඩක් ස්තුතියි! 🙏`,
-  },
-];
-
 export default function WhatsAppMessagesPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -274,15 +41,6 @@ export default function WhatsAppMessagesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"my" | "sales">("my");
-  const [salesLanguage, setSalesLanguage] = useState<"All" | "English" | "සිංහල">("All");
-  const [productCategories, setProductCategories] = useState<
-    { Id: string; Name: string }[]
-  >([]);
-  const [selectedProductCategory, setSelectedProductCategory] = useState("");
-  const [sizesWithColors, setSizesWithColors] = useState<
-    { size: string; colors: { name: string; qty: number }[] }[]
-  >([]);
 
   // Form states
   const [formTitle, setFormTitle] = useState("");
@@ -295,51 +53,6 @@ export default function WhatsAppMessagesPage() {
     loadMessages();
   }, []);
 
-  // Load product categories
-  useEffect(() => {
-    getProductCategories()
-      .then((cats) => {
-        setProductCategories(cats);
-        if (cats.length > 0) setSelectedProductCategory(cats[0].Id);
-      })
-      .catch(() => toast.error("Failed to load categories"));
-  }, []);
-
-  // Load sizes with colors when category changes
-  useEffect(() => {
-    if (!selectedProductCategory) return;
-    setSizesWithColors([]);
-    getSizesWithColors(selectedProductCategory)
-      .then(setSizesWithColors)
-      .catch(() => toast.error("Failed to load sizes/colors"));
-  }, [selectedProductCategory]);
-
-  async function handleSizeCopy(
-    sizeName: string,
-    language: "English" | "සිංහල"
-  ) {
-    const sizeData = sizesWithColors.find(
-      (s) => s.size.toLowerCase() === sizeName.toLowerCase()
-    );
-
-    const colorList = sizeData?.colors
-      .map((c) => `• ${c.name}`)
-      .join("\n");
-
-    const message =
-      language === "English"
-        ? `${sizeName}\n\nHere are the colors available:\n${colorList || "No colors available"}\n\nWhich ones do you like?\n💡 Tip: Grab 3 and delivery is on us — FREE! 🚚`
-        : `${sizeName}\n\n මේ colors තියෙනවා:\n${colorList || "Colors නැත"}\n\nකැමති ඒව මොනවද?\n💡 3ක් ගත්තොත් delivery එක අපිගෙන් FREE! 🚚`;
-
-    try {
-      await navigator.clipboard.writeText(message);
-      setCopiedId(`size-${sizeName}-${language}`);
-      toast.success(`${sizeName} colors copied! 💬`);
-      setTimeout(() => setCopiedId(null), 2000);
-    } catch {
-      toast.error("Failed to copy");
-    }
-  }
 
   async function loadMessages() {
     try {
@@ -350,19 +63,16 @@ export default function WhatsAppMessagesPage() {
           title: "Welcome Message with Size Chart",
           content: `Thank you so much for choosing EssenceFit 🙌
 
-Dry-fit unisex shorts 990/-
+CALVIN KLEIN unisex shorts 990/-
+EDDIE BAUER unisex shorts 1090/-
+CEYLON PREMIUM – with Back Zipper Pockets - 1290/-
 Dry Fit Calvin Klein Active wear T Shirts 1500/-
 
 ⭕ 3ක් ගත්තොත් ගෙදරටම free delivery ගෙන්නගන්න පුලුවන්
-🤸Gym එකට,ගෙදරට, 🧳Travel  කරන්න වගේ ඕනම  තැනකට  අඳින්න පුලුවන්
-ඉලාස්ටික් වේස්ට් එක තියෙන නිස  ඇදෙනවා, ගැටගහගන්න පුළුවන් නුලකුත් තියෙනවා ඒ නිසා හරිම comfortable
-ඔයාලට අපෙන් ඕඩර් එක ප්ලේස් කරගන්න ඕන නම් ඔයාගේ
 
-➡️ නම
-➡️ඇඩ්‍රස් එක
-➡️ෆෝන් නම්බර් එක
-➡️ඔයාලට ඕන ෂෝට්වල  සයිස් එක මට එවන්න.
- ඔයාලට දවස් දෙක තුනක් ඇතුළත අපි ඔයාලගේ ඕඩර් එක ගෙදරටම එවනවා ✅
+🚨 Join the EssenceFit WhatsApp Channel
+Get updates, new drops, and exclusive offers first! 👕💪
+👉 https://whatsapp.com/channel/0029Vb7a4Nk35fLqoP0LIT1P
 `,
           category: "Product Info",
           imageUrl:
@@ -371,21 +81,21 @@ Dry Fit Calvin Klein Active wear T Shirts 1500/-
           updatedAt: new Date().toISOString(),
         },
         {
-          id: "2",
-          title: "Size & Color Inquiry",
-          content: `
+  id: "2",
+  title: "Size & Color Inquiry",
+  content: `Size කොහොමද sir / miss?
+ඔයාගේ size එකට available colors list එක මට දාන්න පුළුවන් 👍
 
-Size Kohomada sir / miss ?
-Mata Puluwan colors list eka danna oyaage size ekaṭa
----
+Sir / Miss, ඔබ බලන්නේ මොන design එකද?
 
-How about the size, sir/miss?
-Then I can send you the colors for your size
+1. CALVIN KLEIN
+2. EDDIE BAUER
+3. CEYLON PREMIUM – Back Zipper Pockets සමඟ
 `,
-          category: "Product Info",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
+  category: "Product Info",
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+},
         {
           id: "3",
           title: "Order Details Request",
@@ -395,6 +105,41 @@ Then I can send you the colors for your size
 3️⃣ Contact Number
 This will help us process your order smoothly 🙌`,
           category: "Order Confirmation",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        {
+          id: "student-offer",
+          title: "Student Special Offer",
+          content: `🎓 *University Student Special Offer!*
+
+Are you a university student?
+
+🩳 *Dry-Fit Shorts* — ~~Rs. 990~~ → *Rs. 900* 🔥
+👕 *CK Active Tee* — Rs. 1,500
+
+💰 Save *Rs. 90* on every short
+🚚 *Order 3+ items = FREE delivery*
+
+✅ *To claim the discount:*
+Send a photo of your *Student/University ID* using WhatsApp *View Once*. We'll verify it and apply your discount.
+
+🔒 Your ID is safe — it disappears after we view it once.
+
+Interested? Just reply here 😊`,
+          category: "Custom",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        {
+          id: "9",
+          title: "WhatsApp Channel Invite",
+          content: `🚨 Join the EssenceFit WhatsApp Channel
+
+Get updates, new drops, and exclusive offers first! 👕💪
+
+👉 https://whatsapp.com/channel/0029Vb7a4Nk35fLqoP0LIT1P`,
+          category: "Custom",
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         },
@@ -483,21 +228,9 @@ Quality, comfort & fast delivery 🚚✨`,
 
 ---
 
-Are you interested in placing this order, sir?
-⭕ We have an ongoing offer: Buy 3 shorts and get Free Delivery!
-⭕ Would you like to place an order?
-I need more information ♻
-Yes, I'll place an order ❇
-No, thank you 🚫
-
----
-
-நீங்கள் இந்த ஆர்டரை செய்ய விரும்புகிறீர்களா சார்?
-⭕ 3 ஷார்ட்ஸ் வாங்கினால் இலவச டெலிவரி கிடைக்கும்!
-⭕ ஆர்டர் செய்ய விரும்புகிறீர்களா?
-எனக்கு மேலும் விவரங்கள் தேவை ♻
-ஆம், ஆர்டர் செய்கிறேன் ❇
-வேண்டாம், நன்றி 🚫`,
+🚨 Join the EssenceFit WhatsApp Channel
+Get updates, new drops, and exclusive offers first! 👕💪
+👉 https://whatsapp.com/channel/0029Vb7a4Nk35fLqoP0LIT1P`,
           category: "Follow Up",
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -508,7 +241,11 @@ No, thank you 🚫
           content: `We hope you're enjoying your EssenceFit purchase! 🌟
 When you have a moment, we'd be truly grateful if you could leave us a quick review on Facebook. Your feedback helps us grow and serve you better.
 👉 Leave a Review Here - https://www.facebook.com/share/18hqCpoGiZ/
-Thank you so much for your support! 🙏`,
+Thank you so much for your support! 🙏
+
+🚨 Join the EssenceFit WhatsApp Channel
+Get updates, new drops, and exclusive offers first! 👕💪
+👉 https://whatsapp.com/channel/0029Vb7a4Nk35fLqoP0LIT1P`,
           category: "Follow Up",
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -635,7 +372,7 @@ Thank you! ✅`,
     }
   }
 
-  async function handleCopy(msg: Message | SalesTemplate) {
+  async function handleCopy(msg: Message) {
     try {
       const hasImage = "imageUrl" in msg && msg.imageUrl;
 
@@ -710,11 +447,6 @@ Thank you! ✅`,
     return matchesSearch && matchesCategory;
   });
 
-  // Filter sales templates
-  const filteredSalesTemplates = SALES_TEMPLATES.filter((t) =>
-    salesLanguage === "All" ? true : t.language === salesLanguage
-  );
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
       <Toaster position="top-right" />
@@ -734,46 +466,17 @@ Thank you! ✅`,
             </div>
           </div>
 
-          {activeTab === "my" && (
-            <button
-              onClick={() => openModal()}
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-lg flex items-center gap-2 transition"
-            >
-              <Plus className="w-4 h-4" />
-              New Message
-            </button>
-          )}
-        </div>
-
-        {/* Tabs */}
-        <div className="flex gap-2 mb-4">
           <button
-            onClick={() => setActiveTab("my")}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition ${
-              activeTab === "my"
-                ? "bg-green-600 text-white"
-                : "bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-            }`}
+            onClick={() => openModal()}
+            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-lg flex items-center gap-2 transition"
           >
-            <BookOpen className="w-4 h-4" />
-            My Templates
-          </button>
-          <button
-            onClick={() => setActiveTab("sales")}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition ${
-              activeTab === "sales"
-                ? "bg-green-600 text-white"
-                : "bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-            }`}
-          >
-            <Sparkles className="w-4 h-4" />
-            Sales Templates
+            <Plus className="w-4 h-4" />
+            New Message
           </button>
         </div>
 
-        {/* Search and Filter — My Templates */}
-        {activeTab === "my" && (
-          <div className="flex flex-col md:flex-row gap-3">
+        {/* Search and Filter */}
+        <div className="flex flex-col md:flex-row gap-3">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
@@ -805,37 +508,11 @@ Thank you! ✅`,
                 </option>
               ))}
             </select>
-          </div>
-        )}
-
-        {/* Language Filter — Sales Templates */}
-        {activeTab === "sales" && (
-          <div className="flex flex-col gap-3">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Sales-driven conversation flow templates. Copy and send step by step for better conversions.
-            </p>
-            <div className="flex gap-2">
-              {(["All", "English", "සිංහල"] as const).map((lang) => (
-                <button
-                  key={lang}
-                  onClick={() => setSalesLanguage(lang)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
-                    salesLanguage === lang
-                      ? "bg-green-600 text-white"
-                      : "bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  }`}
-                >
-                  {lang}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+        </div>
       </div>
 
       {/* My Templates Grid */}
-      {activeTab === "my" && (
-        <>
+      <>
           {filteredMessages.length === 0 ? (
             <div className="text-center py-16 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl">
               <MessageCircle className="w-12 h-12 text-gray-400 mx-auto mb-3" />
@@ -930,129 +607,7 @@ Thank you! ✅`,
               ))}
             </div>
           )}
-        </>
-      )}
-
-      {/* Sales Templates Grid */}
-      {activeTab === "sales" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredSalesTemplates.map((template) => (
-            <div
-              key={template.id}
-              className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1">
-                  <h3 className="font-semibold text-lg mb-1">{template.title}</h3>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                      {template.step}
-                    </span>
-                    <span
-                      className={`text-xs px-2 py-1 rounded-full ${
-                        template.language === "English"
-                          ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-                          : "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
-                      }`}
-                    >
-                      {template.language}
-                    </span>
-                  </div>
-                </div>
-                {(template.id === "sales-en-3" ||
-                  template.id === "sales-si-3") && (
-                  <select
-                    value={selectedProductCategory}
-                    onChange={(e) =>
-                      setSelectedProductCategory(e.target.value)
-                    }
-                    className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-amber-500"
-                  >
-                    {productCategories.map((cat) => (
-                      <option key={cat.Id} value={cat.Id}>
-                        {cat.Name}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-
-              <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3 mb-3 max-h-40 overflow-y-auto">
-                <pre className="text-sm whitespace-pre-wrap font-sans text-gray-700 dark:text-gray-300">
-                  {template.content}
-                </pre>
-              </div>
-
-              {/* Size buttons for Color Options & Upsell templates */}
-              {(template.id === "sales-en-3" ||
-                template.id === "sales-si-3") && (
-                <div className="mb-3 border border-amber-200 dark:border-amber-800 rounded-lg p-3 bg-amber-50/50 dark:bg-amber-900/10">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Ruler className="w-4 h-4 text-amber-500" />
-                    <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                      Copy with available colors by size:
-                    </span>
-                  </div>
-
-                  {/* Size Buttons */}
-                  <div className="flex flex-wrap gap-2">
-                    {sizesWithColors.length > 0 ? (
-                      sizesWithColors.map((s) => (
-                        <button
-                          key={`${template.id}-${s.size}`}
-                          onClick={() =>
-                            handleSizeCopy(s.size, template.language)
-                          }
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1.5 ${
-                            copiedId ===
-                            `size-${s.size}-${template.language}`
-                              ? "bg-green-600 text-white"
-                              : "bg-amber-100 text-amber-800 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:hover:bg-amber-900/50"
-                          }`}
-                        >
-                          {copiedId ===
-                          `size-${s.size}-${template.language}` ? (
-                            <Check className="w-3 h-3" />
-                          ) : (
-                            <Ruler className="w-3 h-3" />
-                          )}
-                          {s.size}
-                          <span className="text-[10px] opacity-70">
-                            ({s.colors.length} colors)
-                          </span>
-                        </button>
-                      ))
-                    ) : (
-                      <span className="text-xs text-gray-400">
-                        No stock available
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleCopy(template)}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg flex items-center justify-center gap-2 transition text-sm"
-                >
-                  {copiedId === template.id ? (
-                    <>
-                      <Check className="w-4 h-4" />
-                      Copied!
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-4 h-4" />
-                      Copy
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      </>
 
       {/* Modal */}
       {isModalOpen && (
