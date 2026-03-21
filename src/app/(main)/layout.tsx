@@ -10,6 +10,7 @@ import FullScreenLoader from "@/components/ui/FullScreenLoader";
 import { usePageLoader } from "@/lib/hooks/usePageLoader";
 import { useAuth } from "@/lib/useAuth";
 import { ArrowUp } from "lucide-react";
+import FloatingCalculator from "@/components/ui/FloatingCalculator";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -62,6 +63,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <Topbar onToggleSidebar={() => setCollapsed((c) => !c)} />
         <main ref={mainRef} className="flex-1 overflow-y-auto p-6 transition-opacity duration-300">
           {children}
+          <FloatingCalculator />
           {showBackToTop && (
             <button
               onClick={() => mainRef.current?.scrollTo({ top: 0, behavior: "smooth" })}
