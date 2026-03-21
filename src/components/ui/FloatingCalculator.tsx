@@ -35,6 +35,19 @@ export default function FloatingCalculator() {
     return () => document.removeEventListener("mousedown", onMouseDown);
   }, [open]);
 
+  // Global shortcut: press Q to toggle calculator (ignored in inputs)
+  useEffect(() => {
+    function onToggleKey(e: KeyboardEvent) {
+      if (e.key !== "q" && e.key !== "Q") return;
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      e.preventDefault();
+      setOpen((o) => !o);
+    }
+    document.addEventListener("keydown", onToggleKey);
+    return () => document.removeEventListener("keydown", onToggleKey);
+  }, []);
+
   const set = useCallback((patch: Partial<CalcState>) => {
     setState((prev) => ({ ...prev, ...patch }));
   }, []);
