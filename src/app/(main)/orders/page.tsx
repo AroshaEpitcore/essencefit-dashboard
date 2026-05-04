@@ -78,7 +78,7 @@ const RANGE_OPTIONS: Array<{ key: OrderRange; label: string }> = [
   { key: "all", label: "All" },
 ];
 
-const DELIVERY_OPTIONS = [300, 350, 400] as const;
+const DELIVERY_OPTIONS = [400, 450, 500] as const;
 
 // Delivery ETA based on charge/area
 function getDeliveryETA(charge: number, orderDate: string): { days: string; date: string } {
@@ -87,18 +87,18 @@ function getDeliveryETA(charge: number, orderDate: string): { days: string; date
   let maxDays: number;
   let area: string;
 
-  if (charge === 300) {
+  if (charge === 400) {
     // Colombo
     minDays = 1;
     maxDays = 2;
     area = "Colombo";
-  } else if (charge === 350) {
+  } else if (charge === 450) {
     // Outer Areas
     minDays = 2;
     maxDays = 3;
     area = "Outer Areas";
   } else {
-    // Eastern & Northern (400)
+    // Eastern & Northern (500)
     minDays = 3;
     maxDays = 5;
     area = "Eastern/Northern";
@@ -184,6 +184,7 @@ export default function OrdersPage() {
   const [address, setAddress] = useState("");
   const [waybillId, setWaybillId] = useState("");
   const [packagePrintPrice, setPackagePrintPrice] = useState<number>(0);
+  const [notes, setNotes] = useState("");
   const [status, setStatus] = useState<OrderStatus>("Pending");
   const [orderDate, setOrderDate] = useState<string>(() =>
     new Date().toISOString().slice(0, 10)
@@ -234,6 +235,7 @@ export default function OrdersPage() {
   const [editAddress, setEditAddress] = useState("");
   const [editWaybillId, setEditWaybillId] = useState("");
   const [editPackagePrintPrice, setEditPackagePrintPrice] = useState<number>(0);
+  const [editNotes, setEditNotes] = useState("");
   const [editStatus, setEditStatus] = useState<OrderStatus>("Pending");
   const [editOrderDate, setEditOrderDate] = useState<string>(
     new Date().toISOString().slice(0, 10)
@@ -824,6 +826,7 @@ export default function OrdersPage() {
       Address: address || null,
       WaybillId: waybillId || null,
       PackagePrintPrice: packagePrintPrice || 0,
+      Notes: notes || null,
       PaymentStatus: status,
       OrderDate: orderDate,
       Subtotal: Number(subtotal.toFixed(2)),
@@ -849,6 +852,7 @@ export default function OrdersPage() {
       setAddress("");
       setWaybillId("");
       setPackagePrintPrice(0);
+      setNotes("");
       setDiscount(0);
       setIsFreeDelivery(false);
       setSelectedDeliveryCharge(300);
@@ -916,6 +920,7 @@ export default function OrdersPage() {
       setEditAddress(d.order.Address ?? "");
       setEditWaybillId(d.order.WaybillId ?? "");
       setEditPackagePrintPrice(Number(d.order.PackagePrintPrice ?? 0));
+      setEditNotes(d.order.Notes ?? "");
       setEditStatus(d.order.PaymentStatus as OrderStatus);
       setEditOrderDate(new Date(d.order.OrderDate).toISOString().slice(0, 10));
 
@@ -973,6 +978,7 @@ export default function OrdersPage() {
       Address: editAddress || null,
       WaybillId: editWaybillId || null,
       PackagePrintPrice: editPackagePrintPrice || 0,
+      Notes: editNotes || null,
       PaymentStatus: editStatus,
       OrderDate: editOrderDate,
       Subtotal: Number(editSubtotal.toFixed(2)),
@@ -1208,6 +1214,18 @@ export default function OrdersPage() {
               placeholder="Optional"
             />
           </div>
+        </div>
+
+        {/* Notes */}
+        <div className="mb-4">
+          <label className="block text-sm mb-2">Notes / Remarks</label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={2}
+            className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 resize-none text-sm"
+            placeholder="Optional — internal notes or special instructions"
+          />
         </div>
 
         {/* Add line */}
@@ -1824,6 +1842,12 @@ export default function OrdersPage() {
                         <FileText className="w-3 h-3" /> WB: {o.WaybillId}
                       </div>
                     )}
+                    {o.Notes && (
+                      <div className="text-xs text-amber-700 dark:text-amber-400 mt-1 flex items-start gap-1">
+                        <span>📝</span>
+                        <span className="line-clamp-2">{o.Notes}</span>
+                      </div>
+                    )}
 
                     <div className="text-xs text-gray-600 dark:text-gray-300 mt-1">
                       {new Date(o.OrderDate).toLocaleString()}
@@ -2086,6 +2110,14 @@ export default function OrdersPage() {
                 className="bg-gray-50 dark:bg-gray-800 border rounded-lg px-3 py-2"
               />
             </div>
+
+            <textarea
+              value={editNotes}
+              onChange={(e) => setEditNotes(e.target.value)}
+              rows={2}
+              className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 resize-none text-sm mb-3"
+              placeholder="Notes / Remarks (optional)"
+            />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
               <select

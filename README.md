@@ -166,14 +166,17 @@ essencefit-dashboard/
 │   ├── components/
 │   │   ├── layout/
 │   │   │   ├── Sidebar.tsx           # Navigation sidebar (collapsible)
-│   │   │   └── Topbar.tsx            # Top bar with sidebar toggle
+│   │   │   └── Topbar.tsx            # Top bar with clock, notifications, dark mode
 │   │   └── ui/
-│   │       └── FullScreenLoader.tsx
+│   │       ├── FullScreenLoader.tsx
+│   │       ├── FloatingCalculator.tsx  # Floating calculator widget (press Q)
+│   │       └── NotificationCenter.tsx  # Bell icon dropdown with live alerts
 │   │
 │   └── lib/
 │       ├── db.ts                     # MSSQL connection pool
 │       ├── auth.ts                   # Auth helpers
 │       ├── useAuth.ts                # Auth hook (reads localStorage)
+│       ├── getNotifications.ts       # Server action — fetches all alert types
 │       ├── pdfGenerator.ts           # PDF download utility
 │       ├── phoneMask.ts              # Phone number formatting
 │       └── hooks/
@@ -301,6 +304,7 @@ CREATE TABLE Orders (
     Address           NVARCHAR(300)    NULL,
     WaybillId         NVARCHAR(100)    NULL,
     PackagePrintPrice DECIMAL(18,2)    NULL DEFAULT 0,
+    Notes             NVARCHAR(500)    NULL,       -- optional internal notes / special instructions
     PaymentStatus     NVARCHAR(20)     NOT NULL,  -- Pending | Partial | Paid | Completed | Canceled
     OrderDate         DATETIME2        NOT NULL,
     CompletedAt       DATETIME2        NULL,       -- set when status = Paid or Completed
@@ -605,9 +609,9 @@ Standalone (no foreign keys):
 | Route | Purpose |
 |---|---|
 | `/dashboard` | KPI overview — stock value, today's sales, profit, units sold, low stock alerts |
-| `/orders` | Full order lifecycle — create, edit, update status, delete, PDF invoice |
+| `/orders` | Full order lifecycle — create, edit, update status, delete, PDF invoice, notes/remarks |
 | `/order-logs` | Audit log of every order status change |
-| `/dispatch` | Courier handover messages — auto-created when order has WaybillId |
+| `/dispatch` | Courier handover messages — auto-syncs all pending orders on load, card grid with search + date filters |
 | `/invoices` | Invoice viewer |
 | `/customers` | Customer list with order history |
 | `/sales` | Quick counter sales for walk-in customers (no order created) |
@@ -714,10 +718,10 @@ Message format:
 | `getColorsByProductAndSize(productId, sizeId)` | Available colors |
 | `getVariant(productId, sizeId, colorId)` | Get variant + stock + price |
 | `getVariantStockByProductAndSize(productId, sizeId)` | Stock map by color |
-| `getRecentOrders(limit, range)` | Orders with date range filter |
-| `getOrderDetails(orderId)` | Header + line items for one order |
-| `createOrder(payload)` | Full order creation with transaction |
-| `updateOrder(orderId, payload)` | Edit order items + header |
+| `getRecentOrders(limit, range)` | Orders with date range filter (includes Notes) |
+| `getOrderDetails(orderId)` | Header + line items for one order (includes Notes) |
+| `createOrder(payload)` | Full order creation with transaction (supports Notes) |
+| `updateOrder(orderId, payload)` | Edit order items + header (supports Notes) |
 | `updateOrderStatus(orderId, status)` | Change status, update sales rows |
 | `deleteOrder(orderId)` | Delete order + restore stock |
 
@@ -731,8 +735,11 @@ Message format:
 | Function | Description |
 |---|---|
 | `createDispatchMessage(orderId, waybillId, name, phone)` | Save dispatch record |
-| `getDispatchMessages()` | Fetch all — auto-deletes records older than 7 days |
+| `getDispatchMessages()` | Fetch all with order status — auto-deletes records older than 7 days |
 | `deleteDispatchMessage(id)` | Manual delete |
+| `syncPendingToDispatch()` | Auto-inserts all pending orders (with or without waybill) into DispatchMessages on page load |
+| `generateDispatchForOrder(orderId, waybillId, name, phone)` | Save waybill to order + upsert dispatch message |
+| `getPendingOrdersForDispatch()` | Fetch all pending orders with item summary for dispatch page |
 
 ### customers/actions.ts
 | Function | Description |
@@ -935,6 +942,7 @@ CREATE TABLE Orders (
     Address           NVARCHAR(300)    NULL,
     WaybillId         NVARCHAR(100)    NULL,
     PackagePrintPrice DECIMAL(18,2)    NULL DEFAULT 0,
+    Notes             NVARCHAR(500)    NULL,
     PaymentStatus     NVARCHAR(20)     NOT NULL,
     OrderDate         DATETIME2        NOT NULL,
     CompletedAt       DATETIME2        NULL,
@@ -1061,6 +1069,38 @@ CREATE INDEX IX_DispatchMessages_CreatedAt ON DispatchMessages (CreatedAt DESC);
 
 ---
 
+## Schema Migrations
+
+For existing installs, run these after pulling the latest code:
+
+```sql
+-- Add order notes field
+ALTER TABLE Orders ADD Notes NVARCHAR(500) NULL;
+```
+
+---
+
+## UI Utilities
+
+### Floating Calculator
+- Accessible on every page via the floating button (bottom-right)
+- Press **Q** anywhere in the app to toggle open/close
+- Supports keyboard input: digits, `+ - * /`, `Enter` (=), `Backspace`, `Delete` (AC), `Escape`
+- Ignores keyboard input when focus is inside an `<input>` or `<textarea>`
+
+### Notification Center
+- Bell icon in the topbar — refreshes every 60 seconds automatically
+- Badge turns **red** for critical alerts, **amber** for warnings
+- Alert types:
+  - 🔴 **Out of Stock** — variants with `Qty = 0`
+  - 🟡 **Low Stock** — variants with `Qty` between 1 and 5
+  - 🟡 **Stale Pending Orders** — orders with `Pending` status older than 24 hours
+  - 🔵 **Recent Returns** — returns created in the last 24 hours
+- Dismissed alerts stored in `localStorage` — persist across page reloads
+- "Clear all" dismisses all current alerts at once
+
+---
+
 ## Notes
 
 - All IDs are `UNIQUEIDENTIFIER` generated with `crypto.randomUUID()` in Node.js
@@ -1069,4 +1109,6 @@ CREATE INDEX IX_DispatchMessages_CreatedAt ON DispatchMessages (CreatedAt DESC);
 - Customer phone number is the unique key for deduplication (upsert by phone)
 - WhatsApp templates live in browser `localStorage` — not in the database
 - Dispatch messages auto-expire after 7 days via lazy deletion on page load
+- Dispatch page auto-syncs all pending orders (with or without waybill) into `DispatchMessages` on load
 - Admin-only pages are enforced client-side via auth guard redirect
+- Order notes/remarks are optional, stored in `Orders.Notes`, shown on order cards with 📝 icon

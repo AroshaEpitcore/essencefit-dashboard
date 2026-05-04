@@ -77,13 +77,7 @@ Size කොහොමද dear (M,L,XL,XXL)?
   id: "2",
   title: "Size & Color Inquiry",
   content: `Size කොහොමද sir / miss?
-ඔයාගේ size එකට available colors list එක මට දාන්න පුළුවන් 👍
-
-Sir / Miss, ඔබ බලන්නේ මොන design එකද?
-
-1. Calvin Klein
-2. Eddie Bauer
-3. Ceylon Premium – Back Zipper Pockets සමඟ
+ඔයාගේ size එකට available colors list එක මට දාන්න පුළුවන්
 `,
   category: "Product Info",
   createdAt: new Date().toISOString(),
@@ -92,7 +86,9 @@ Sir / Miss, ඔබ බලන්නේ මොන design එකද?
         {
           id: "5",
           title: "Product Price List",
-          content: `Calvin Klein short 990/-
+          content: `🛍️ Buy 3 & Get FREE Delivery 🚚✨
+          
+Calvin Klein short 990/-
 
 Eddie Bauer short 1090/-
 
@@ -156,8 +152,8 @@ Get updates, new drops, and exclusive offers first! 👕💪
           content: `📋 Terms & Conditions - Eastern & Northern Province
 
 📦 Delivery Charges:
-• Eastern & Northern Province → Rs. 400
-• Other Areas → Rs. 350
+• Eastern & Northern Province → Rs. 500
+• Other Areas → Rs. 450
 
 🚚 Free Delivery Offer:
 • Order more than 3 items → FREE delivery!
@@ -181,8 +177,8 @@ We will ensure order responsibility after payment confirmation ✅
 📋 කොන්දේසි - නැගෙනහිර සහ උතුරු පළාත
 
 📦 බෙදාහැරීම් ගාස්තු:
-• නැගෙනහිර සහ උතුරු පළාත → Rs. 400
-• අනෙකුත් ප්‍රදේශ → Rs. 350
+• නැගෙනහිර සහ උතුරු පළාත → Rs. 500
+• අනෙකුත් ප්‍රදේශ → Rs. 450
 
 🚚 නොමිලේ බෙදාහැරීම:
 • අයිතම 3කට වඩා ඇණවුම් කරන්න → නොමිලේ බෙදාහැරීම!
@@ -208,9 +204,9 @@ We will ensure order responsibility after payment confirmation ✅
           id: "10",
           title: "Delivery & Product Info",
           content: `📦 Delivery Charges
-Colombo Area → Rs. 300
-Outer Areas → Rs. 350
-Eastern & Northern Province → Rs. 400
+Colombo Area → Rs. 400
+Outer Areas → Rs. 450
+Eastern & Northern Province → Rs. 500
 
 Our shorts are made with Dry-Fit, Stretchable fabric — perfect for gym, sports, travel, or everyday wear. Breathable, quick-dry & super comfortable ✅
 Each short is Rs. 990 ✅ but we have an ongoing offer: Buy 3 & get FREE delivery 🚚

@@ -12,7 +12,10 @@
       "Bash(head:*)",
       "Bash(head -1200 \"C:\\\\essencefit-dashboard\\\\src\\\\app\\\\\\(main\\)\\\\orders\\\\page.tsx\")",
       "Bash(head -1800 \"C:\\\\essencefit-dashboard\\\\src\\\\app\\\\\\(main\\)\\\\orders\\\\page.tsx\")",
-      "Bash(tail:*)"
+      "Bash(tail:*)",
+      "Bash(ls -la \"C:\\\\essencefit-dashboard/src/app/\\(main\\)/\")",
+      "Bash(find \"C:\\\\essencefit-dashboard/src/app/\\(main\\)\" -name \"page.tsx\")",
+      "Bash(git add *)"
     ]
   }
 }

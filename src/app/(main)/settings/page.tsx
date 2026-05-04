@@ -169,23 +169,23 @@ export default function SettingsPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <InputField
               label="Colombo Delivery (Rs)"
-              value={settings.delivery_colombo || "300"}
+              value={settings.delivery_colombo || "400"}
               onChange={(v) => updateSetting("delivery_colombo", v)}
-              placeholder="300"
+              placeholder="400"
               type="number"
             />
             <InputField
               label="Outer Areas Delivery (Rs)"
-              value={settings.delivery_outer || "350"}
+              value={settings.delivery_outer || "450"}
               onChange={(v) => updateSetting("delivery_outer", v)}
-              placeholder="350"
+              placeholder="450"
               type="number"
             />
             <InputField
               label="Eastern/Northern (Rs)"
-              value={settings.delivery_far || "400"}
+              value={settings.delivery_far || "500"}
               onChange={(v) => updateSetting("delivery_far", v)}
-              placeholder="400"
+              placeholder="500"
               type="number"
             />
           </div>

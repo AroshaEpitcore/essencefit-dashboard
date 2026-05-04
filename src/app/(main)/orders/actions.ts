@@ -134,6 +134,7 @@ export type OrderPayload = {
   Address?: string | null;
   WaybillId?: string | null;
   PackagePrintPrice?: number | null;
+  Notes?: string | null;
   PaymentStatus: OrderStatus;
   OrderDate: string;
 
@@ -184,6 +185,7 @@ export async function getRecentOrders(limit: number = 20, range: OrderRange = "a
       o.Address,
       o.WaybillId,
       o.PackagePrintPrice,
+      o.Notes,
       o.PaymentStatus,
       o.OrderDate,
       o.CompletedAt,
@@ -216,7 +218,7 @@ export async function getOrderDetails(orderId: string) {
     .input("Id", UniqueIdentifier, orderId)
     .query(`
       SELECT TOP 1
-        Id, Customer, CustomerPhone, SecondaryPhone, Address, WaybillId, PackagePrintPrice,
+        Id, Customer, CustomerPhone, SecondaryPhone, Address, WaybillId, PackagePrintPrice, Notes,
         PaymentStatus, OrderDate,
         Subtotal, ManualDiscount, Discount, DeliveryFee, Total
       FROM Orders
@@ -403,6 +405,7 @@ export async function createOrder(payload: OrderPayload) {
       .input("Address", NVarChar(300), payload.Address ?? null)
       .input("WaybillId", NVarChar(100), payload.WaybillId ?? null)
       .input("PackagePrintPrice", Decimal(18, 2), payload.PackagePrintPrice ?? 0)
+      .input("Notes", NVarChar(500), payload.Notes ?? null)
       .input("CustomerId", UniqueIdentifier, customerId)
       .input("PaymentStatus", NVarChar(20), payload.PaymentStatus)
       .input("OrderDate", sql.DateTime2(7), orderDate)
@@ -413,8 +416,8 @@ export async function createOrder(payload: OrderPayload) {
       .input("DeliveryFee", Decimal(18, 2), payload.DeliveryFee)
       .input("Total", Decimal(18, 2), payload.Total)
       .query(`
-        INSERT INTO Orders (Id, Customer, CustomerPhone, SecondaryPhone, Address, WaybillId, PackagePrintPrice, CustomerId, PaymentStatus, OrderDate, CompletedAt, Subtotal, ManualDiscount, Discount, DeliveryFee, Total)
-        VALUES (@Id, @Customer, @CustomerPhone, @SecondaryPhone, @Address, @WaybillId, @PackagePrintPrice, @CustomerId, @PaymentStatus, @OrderDate, @CompletedAt, @Subtotal, @ManualDiscount, @Discount, @DeliveryFee, @Total)
+        INSERT INTO Orders (Id, Customer, CustomerPhone, SecondaryPhone, Address, WaybillId, PackagePrintPrice, Notes, CustomerId, PaymentStatus, OrderDate, CompletedAt, Subtotal, ManualDiscount, Discount, DeliveryFee, Total)
+        VALUES (@Id, @Customer, @CustomerPhone, @SecondaryPhone, @Address, @WaybillId, @PackagePrintPrice, @Notes, @CustomerId, @PaymentStatus, @OrderDate, @CompletedAt, @Subtotal, @ManualDiscount, @Discount, @DeliveryFee, @Total)
       `);
 
     await validateAndReduceStock(tx, payload.Items);
@@ -588,6 +591,7 @@ export async function updateOrder(orderId: string, payload: OrderPayload) {
       .input("Address", NVarChar(300), payload.Address ?? null)
       .input("WaybillId", NVarChar(100), payload.WaybillId ?? null)
       .input("PackagePrintPrice", Decimal(18, 2), payload.PackagePrintPrice ?? 0)
+      .input("Notes", NVarChar(500), payload.Notes ?? null)
       .input("CustomerId", UniqueIdentifier, customerId)
       .input("PaymentStatus", NVarChar(20), payload.PaymentStatus)
       .input("OrderDate", sql.DateTime2(7), orderDate)
@@ -604,6 +608,7 @@ export async function updateOrder(orderId: string, payload: OrderPayload) {
             Address=@Address,
             WaybillId=@WaybillId,
             PackagePrintPrice=@PackagePrintPrice,
+            Notes=@Notes,
             CustomerId=@CustomerId,
             PaymentStatus=@PaymentStatus,
             OrderDate=@OrderDate,
@@ -663,6 +668,9 @@ export async function deleteOrder(orderId: string) {
 
     await new sql.Request(tx).input("OrderId", UniqueIdentifier, orderId)
       .query(`DELETE FROM OrderStatusLogs WHERE OrderId=@OrderId`);
+
+    await new sql.Request(tx).input("OrderId", UniqueIdentifier, orderId)
+      .query(`DELETE FROM DispatchMessages WHERE OrderId=@OrderId`);
 
     await new sql.Request(tx).input("Id", UniqueIdentifier, orderId)
       .query(`DELETE FROM Orders WHERE Id=@Id`);

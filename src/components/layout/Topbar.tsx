@@ -4,6 +4,7 @@ import { Moon, Sun, LogOut, Menu } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/useAuth";
+import NotificationCenter from "@/components/ui/NotificationCenter";
 
 export default function Topbar({
   onToggleSidebar,
@@ -98,6 +99,9 @@ export default function Topbar({
             </div>
           </div>
         )}
+
+        {/* Notifications */}
+        <NotificationCenter />
 
         {/* Dark mode toggle */}
         <button

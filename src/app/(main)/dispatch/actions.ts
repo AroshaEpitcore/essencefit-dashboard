@@ -8,8 +8,8 @@ import sql, { NVarChar, UniqueIdentifier } from "mssql";
 export async function syncPendingToDispatch() {
   const pool = await getDb();
 
-  // Fetch ALL pending orders that don't have a dispatch message yet
-  const res = await pool.request().query(`
+  // Insert new pending orders not yet in DispatchMessages
+  const newRes = await pool.request().query(`
     SELECT o.Id, o.Customer, o.CustomerPhone, o.WaybillId
     FROM Orders o
     WHERE o.PaymentStatus = 'Pending'
@@ -18,7 +18,7 @@ export async function syncPendingToDispatch() {
       )
   `);
 
-  for (const row of res.recordset) {
+  for (const row of newRes.recordset) {
     await pool
       .request()
       .input("Id", UniqueIdentifier, crypto.randomUUID())
@@ -31,6 +31,16 @@ export async function syncPendingToDispatch() {
         VALUES (@Id, @OrderId, @WaybillId, @CustomerName, @CustomerPhone)
       `);
   }
+
+  // Update WaybillId in existing DispatchMessages where the order's WaybillId has been set/changed
+  await pool.request().query(`
+    UPDATE dm
+    SET dm.WaybillId = o.WaybillId
+    FROM DispatchMessages dm
+    INNER JOIN Orders o ON o.Id = dm.OrderId
+    WHERE ISNULL(o.WaybillId, '') <> ''
+      AND ISNULL(dm.WaybillId, '') <> ISNULL(o.WaybillId, '')
+  `);
 }
 
 /* ---------- Get Dispatch Messages (with order status) ---------- */
@@ -47,7 +57,7 @@ export async function getDispatchMessages() {
     SELECT
       dm.Id,
       dm.OrderId,
-      dm.WaybillId,
+      ISNULL(NULLIF(o.WaybillId, ''), NULLIF(dm.WaybillId, '')) AS WaybillId,
       dm.CustomerName,
       dm.CustomerPhone,
       dm.CreatedAt,

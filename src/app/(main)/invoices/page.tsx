@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { formatPhone } from "@/lib/phoneMask";
 
-const DELIVERY_OPTIONS = [300, 350, 400] as const;
+const DELIVERY_OPTIONS = [400, 450, 500] as const;
 
 /* ---- Invoice PDF generation (self-contained, no external pdfGenerator dependency) ---- */
 
