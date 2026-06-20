@@ -73,6 +73,8 @@ export async function saveStoreSettings(s: StoreSettings) {
   const pairs: Array<[string, string | null]> = [
     [STORE_KEYS.storeName, s.storeName ?? ""],
     [STORE_KEYS.logo, s.logo ?? ""],
+    [STORE_KEYS.logoDark, s.logoDark ?? ""],
+    [STORE_KEYS.logoLight, s.logoLight ?? ""],
     [STORE_KEYS.announcement, s.announcement ?? ""],
     [STORE_KEYS.heroSlides, JSON.stringify(s.heroSlides ?? [])],
     [STORE_KEYS.bank, JSON.stringify(s.bank ?? {})],

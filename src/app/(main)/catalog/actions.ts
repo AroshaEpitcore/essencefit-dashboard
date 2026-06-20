@@ -23,6 +23,7 @@ export type CatalogProduct = {
   ImageUrl: string | null;
   IsActive: boolean;
   IsFeatured: boolean;
+  IsNewArrival: boolean;
   SortOrder: number;
   Stock: number;
   ImageCount: number;
@@ -35,7 +36,7 @@ export async function getCatalogProducts(): Promise<CatalogProduct[]> {
       p.Id, p.Name, p.Slug, p.SKU, p.CategoryId,
       cat.Name AS CategoryName,
       p.CostPrice, p.SellingPrice, p.CompareAtPrice,
-      p.Description, p.ImageUrl, p.IsActive, p.IsFeatured, p.SortOrder,
+      p.Description, p.ImageUrl, p.IsActive, p.IsFeatured, p.IsNewArrival, p.SortOrder,
       ISNULL((SELECT SUM(v.Qty) FROM ProductVariants v WHERE v.ProductId = p.Id), 0) AS Stock,
       (SELECT COUNT(*) FROM ProductImages pi WHERE pi.ProductId = p.Id) AS ImageCount
     FROM Products p
@@ -52,7 +53,7 @@ export async function getProductForEdit(id: string) {
     .input("Id", sql.UniqueIdentifier, id)
     .query(`
       SELECT Id, Name, Slug, SKU, CategoryId, CostPrice, SellingPrice,
-             CompareAtPrice, Description, ImageUrl, IsActive, IsFeatured, SortOrder
+             CompareAtPrice, Description, ImageUrl, IsActive, IsFeatured, IsNewArrival, SortOrder
       FROM Products WHERE Id=@Id
     `);
   const imgs = await pool
@@ -80,6 +81,7 @@ export type ProductStorefrontInput = {
   compareAtPrice: number | null;
   isActive: boolean;
   isFeatured: boolean;
+  isNewArrival: boolean;
   sortOrder: number;
 };
 
@@ -94,18 +96,19 @@ export async function updateProductStorefront(id: string, data: ProductStorefron
     .input("CompareAtPrice", sql.Decimal(18, 2), data.compareAtPrice ?? null)
     .input("IsActive", sql.Bit, data.isActive)
     .input("IsFeatured", sql.Bit, data.isFeatured)
+    .input("IsNewArrival", sql.Bit, data.isNewArrival)
     .input("SortOrder", sql.Int, data.sortOrder ?? 0)
     .query(`
       UPDATE Products
       SET Slug=@Slug, Description=@Description, CompareAtPrice=@CompareAtPrice,
-          IsActive=@IsActive, IsFeatured=@IsFeatured, SortOrder=@SortOrder
+          IsActive=@IsActive, IsFeatured=@IsFeatured, IsNewArrival=@IsNewArrival, SortOrder=@SortOrder
       WHERE Id=@Id
     `);
   return true;
 }
 
 // Quick toggles from the list view
-export async function toggleProductFlag(id: string, field: "IsActive" | "IsFeatured", value: boolean) {
+export async function toggleProductFlag(id: string, field: "IsActive" | "IsFeatured" | "IsNewArrival", value: boolean) {
   const pool = await getDb();
   await pool
     .request()

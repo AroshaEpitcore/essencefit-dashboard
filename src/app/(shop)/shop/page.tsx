@@ -29,7 +29,7 @@ export default async function ShopPage({
   ]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6">
+    <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-6">
       <h1 className="text-2xl font-bold text-gray-900 mb-1">
         {sp.q ? `Results for "${sp.q}"` : "All products"}
       </h1>

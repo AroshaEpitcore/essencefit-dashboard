@@ -17,7 +17,7 @@ import {
   type AdminColor,
 } from "./actions";
 import {
-  Store, Edit3, X, Star, Eye, EyeOff, ImagePlus, Trash2, Tag, Package, Layers, Palette,
+  Store, Edit3, X, Star, Sparkles, Eye, EyeOff, ImagePlus, Trash2, Tag, Package, Layers, Palette,
 } from "lucide-react";
 import { resolveSwatch } from "@/lib/colorHex";
 
@@ -225,7 +225,7 @@ function ColorsTable({ colors, reload }: { colors: AdminColor[]; reload: () => v
 function ProductsTable({ products, reload }: { products: CatalogProduct[]; reload: () => void }) {
   const [editId, setEditId] = useState<string | null>(null);
 
-  async function quickToggle(p: CatalogProduct, field: "IsActive" | "IsFeatured") {
+  async function quickToggle(p: CatalogProduct, field: "IsActive" | "IsFeatured" | "IsNewArrival") {
     try {
       await toggleProductFlag(p.Id, field, !p[field]);
       reload();
@@ -253,6 +253,7 @@ function ProductsTable({ products, reload }: { products: CatalogProduct[]; reloa
                 <th className="p-3 text-right font-semibold">Stock</th>
                 <th className="p-3 text-center font-semibold">Active</th>
                 <th className="p-3 text-center font-semibold">Featured</th>
+                <th className="p-3 text-center font-semibold">New</th>
                 <th className="p-3 text-center font-semibold">Edit</th>
               </tr>
             </thead>
@@ -292,6 +293,11 @@ function ProductsTable({ products, reload }: { products: CatalogProduct[]; reloa
                       </button>
                     </td>
                     <td className="p-3 text-center">
+                      <button onClick={() => quickToggle(p, "IsNewArrival")} title="Toggle new arrival (shows in the homepage New Collection slider)">
+                        <Sparkles className={`w-5 h-5 mx-auto ${p.IsNewArrival ? "text-primary fill-primary/30" : "text-gray-400"}`} />
+                      </button>
+                    </td>
+                    <td className="p-3 text-center">
                       <button onClick={() => setEditId(p.Id)} className="text-blue-500 hover:text-blue-600 p-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20">
                         <Edit3 className="w-4 h-4" />
                       </button>
@@ -325,6 +331,7 @@ function ProductEditModal({ id, onClose, onSaved }: { id: string; onClose: () =>
   const [compareAt, setCompareAt] = useState<string>("");
   const [isActive, setIsActive] = useState(true);
   const [isFeatured, setIsFeatured] = useState(false);
+  const [isNewArrival, setIsNewArrival] = useState(false);
   const [sortOrder, setSortOrder] = useState(0);
   const [images, setImages] = useState<ImgItem[]>([]);
   const [productColors, setProductColors] = useState<{ Id: string; Name: string; Hex: string | null }[]>([]);
@@ -342,6 +349,7 @@ function ProductEditModal({ id, onClose, onSaved }: { id: string; onClose: () =>
         setCompareAt(product.CompareAtPrice != null ? String(product.CompareAtPrice) : "");
         setIsActive(!!product.IsActive);
         setIsFeatured(!!product.IsFeatured);
+        setIsNewArrival(!!product.IsNewArrival);
         setSortOrder(product.SortOrder || 0);
         const cols = colors || [];
         setProductColors(cols);
@@ -399,7 +407,7 @@ function ProductEditModal({ id, onClose, onSaved }: { id: string; onClose: () =>
       }
       await updateProductStorefront(id, {
         name, slug, description: description || null,
-        compareAtPrice: compareVal, isActive, isFeatured, sortOrder,
+        compareAtPrice: compareVal, isActive, isFeatured, isNewArrival, sortOrder,
       });
       await setProductImages(id, images);
       toast.success("Product saved");
@@ -456,6 +464,7 @@ function ProductEditModal({ id, onClose, onSaved }: { id: string; onClose: () =>
             <div className="flex items-center gap-6">
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} /> Visible on website</label>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={isFeatured} onChange={(e) => setIsFeatured(e.target.checked)} /> Featured</label>
+              <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={isNewArrival} onChange={(e) => setIsNewArrival(e.target.checked)} /> New arrival</label>
             </div>
 
             {/* Images grouped by colour */}

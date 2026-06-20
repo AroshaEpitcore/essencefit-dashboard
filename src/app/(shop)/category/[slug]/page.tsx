@@ -21,7 +21,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
   const products = await searchProducts({ categorySlug: slug });
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6">
+    <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-6">
       <nav className="flex items-center gap-1 text-sm text-gray-500 mb-4">
         <Link href="/" className="hover:text-primary">Home</Link>
         <ChevronRight className="w-4 h-4" />

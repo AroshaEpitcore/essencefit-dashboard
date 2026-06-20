@@ -44,10 +44,10 @@ export default function StoreSettingsPage() {
     }
   }
 
-  async function uploadLogo(file: File | null) {
+  async function uploadLogo(which: "logoDark" | "logoLight", file: File | null) {
     if (!file || !s) return;
     try {
-      set("logo", await uploadFile(file, "store"));
+      set(which, await uploadFile(file, "store"));
       toast.success("Logo uploaded (remember to Save)");
     } catch (e: any) {
       toast.error(e.message || "Upload failed");
@@ -56,9 +56,14 @@ export default function StoreSettingsPage() {
 
   async function addSlide(file: File | null) {
     if (!file || !s) return;
+    const type = file.type.startsWith("video") ? "video" : "image";
     try {
-      const url = await uploadFile(file, "store");
-      set("heroSlides", [...s.heroSlides, { image: url, title: "", subtitle: "", link: "" }]);
+      const url = await uploadFile(file, "hero");
+      set("heroSlides", [
+        ...s.heroSlides,
+        { type, src: url, heading: "", subheading: "", ctaText: "Shop now", ctaLink: "/shop", align: "center" },
+      ]);
+      toast.success(`${type === "video" ? "Video" : "Image"} slide added (remember to Save)`);
     } catch (e: any) {
       toast.error(e.message || "Upload failed");
     }
@@ -67,6 +72,15 @@ export default function StoreSettingsPage() {
   function updateSlide(i: number, patch: Partial<HeroSlide>) {
     if (!s) return;
     set("heroSlides", s.heroSlides.map((sl, k) => (k === i ? { ...sl, ...patch } : sl)));
+  }
+
+  function moveSlide(i: number, dir: -1 | 1) {
+    if (!s) return;
+    const arr = [...s.heroSlides];
+    const j = i + dir;
+    if (j < 0 || j >= arr.length) return;
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+    set("heroSlides", arr);
   }
 
   if (!s) {
@@ -98,44 +112,98 @@ export default function StoreSettingsPage() {
             <label className="block text-sm font-medium mb-1">Store name</label>
             <input value={s.storeName} onChange={(e) => set("storeName", e.target.value)} className={input} />
           </div>
-          <div className="flex items-center gap-4">
-            {s.logo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={s.logo} alt="logo" className="h-14 rounded-lg bg-gray-100 dark:bg-gray-900 object-contain px-2" />
-            ) : (
-              <div className="h-14 w-14 rounded-lg bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-400"><ImagePlus className="w-6 h-6" /></div>
-            )}
-            <label className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 cursor-pointer text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600">
-              Upload logo
-              <input type="file" accept="image/*" hidden onChange={(e) => uploadLogo(e.target.files?.[0] || null)} />
-            </label>
+          <div className="grid sm:grid-cols-2 gap-4">
+            {/* Dark logo — shown on the solid white header */}
+            <div>
+              <p className="text-sm font-medium mb-1">Dark logo <span className="text-gray-400">(on white header)</span></p>
+              <div className="flex items-center gap-3">
+                <div className="h-14 w-24 rounded-lg bg-white border border-gray-200 flex items-center justify-center overflow-hidden">
+                  {s.logoDark ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={s.logoDark} alt="dark logo" className="h-12 object-contain" />
+                  ) : <ImagePlus className="w-5 h-5 text-gray-400" />}
+                </div>
+                <label className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 cursor-pointer text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600">
+                  Upload
+                  <input type="file" accept="image/*" hidden onChange={(e) => uploadLogo("logoDark", e.target.files?.[0] || null)} />
+                </label>
+              </div>
+            </div>
+            {/* Light logo — shown on the transparent header over the hero */}
+            <div>
+              <p className="text-sm font-medium mb-1">Light logo <span className="text-gray-400">(on transparent header)</span></p>
+              <div className="flex items-center gap-3">
+                <div className="h-14 w-24 rounded-lg bg-gray-800 flex items-center justify-center overflow-hidden">
+                  {s.logoLight ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={s.logoLight} alt="light logo" className="h-12 object-contain" />
+                  ) : <ImagePlus className="w-5 h-5 text-gray-400" />}
+                </div>
+                <label className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 cursor-pointer text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600">
+                  Upload
+                  <input type="file" accept="image/*" hidden onChange={(e) => uploadLogo("logoLight", e.target.files?.[0] || null)} />
+                </label>
+              </div>
+            </div>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Announcement bar text</label>
-            <input value={s.announcement} onChange={(e) => set("announcement", e.target.value)} className={input} />
+            <label className="block text-sm font-medium mb-1">Top promo banner text <span className="text-gray-400">(leave empty to hide)</span></label>
+            <input value={s.announcement} onChange={(e) => set("announcement", e.target.value)} placeholder="e.g. Free delivery over Rs. 10,000 • Island-wide COD" className={input} />
           </div>
         </div>
 
         {/* Hero slides */}
         <div className={card}>
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold flex items-center gap-2"><ImagePlus className="w-4 h-4 text-primary" /> Hero banners</h2>
-            <label className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 cursor-pointer text-sm font-medium flex items-center gap-1 hover:bg-gray-200 dark:hover:bg-gray-600">
-              <Plus className="w-4 h-4" /> Add slide
-              <input type="file" accept="image/*" hidden onChange={(e) => addSlide(e.target.files?.[0] || null)} />
-            </label>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h2 className="font-semibold flex items-center gap-2"><ImagePlus className="w-4 h-4 text-primary" /> Hero slides</h2>
+            <div className="flex gap-2">
+              <label className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 cursor-pointer text-sm font-medium flex items-center gap-1 hover:bg-gray-200 dark:hover:bg-gray-600">
+                <Plus className="w-4 h-4" /> Image
+                <input type="file" accept="image/*" hidden onChange={(e) => addSlide(e.target.files?.[0] || null)} />
+              </label>
+              <label className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 cursor-pointer text-sm font-medium flex items-center gap-1 hover:bg-gray-200 dark:hover:bg-gray-600">
+                <Plus className="w-4 h-4" /> Video
+                <input type="file" accept="video/*" hidden onChange={(e) => addSlide(e.target.files?.[0] || null)} />
+              </label>
+            </div>
           </div>
-          {s.heroSlides.length === 0 && <p className="text-sm text-gray-400">No banners yet. Add one for the homepage hero.</p>}
+          <p className="text-xs text-gray-400">
+            Each slide is a full-screen image or video with its own heading and button. They auto-rotate on the homepage hero. Video max 60MB.
+          </p>
+          {s.heroSlides.length === 0 && <p className="text-sm text-gray-400">No slides yet — add an image or video.</p>}
+
           {s.heroSlides.map((sl, i) => (
             <div key={i} className="flex gap-3 items-start border border-gray-200 dark:border-gray-700 rounded-lg p-3">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={sl.image} alt="" className="w-28 h-20 rounded object-cover" />
-              <div className="flex-1 space-y-2">
-                <input value={sl.title} onChange={(e) => updateSlide(i, { title: e.target.value })} placeholder="Title" className={input} />
-                <input value={sl.subtitle} onChange={(e) => updateSlide(i, { subtitle: e.target.value })} placeholder="Subtitle" className={input} />
-                <input value={sl.link} onChange={(e) => updateSlide(i, { link: e.target.value })} placeholder="Link (e.g. /category/t-shirts)" className={input} />
+              <div className="w-28 h-20 rounded overflow-hidden bg-gray-200 dark:bg-gray-900 shrink-0">
+                {sl.type === "video" ? (
+                  <video src={sl.src} muted className="w-full h-full object-cover" />
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={sl.src} alt="" className="w-full h-full object-cover" />
+                )}
               </div>
-              <button onClick={() => set("heroSlides", s.heroSlides.filter((_, k) => k !== i))} className="text-red-500 hover:text-red-600 p-2"><Trash2 className="w-4 h-4" /></button>
+              <div className="flex-1 space-y-2 min-w-0">
+                <input value={sl.heading} onChange={(e) => updateSlide(i, { heading: e.target.value })} placeholder="Large heading" className={input} />
+                <input value={sl.subheading} onChange={(e) => updateSlide(i, { subheading: e.target.value })} placeholder="Small line above heading (optional)" className={input} />
+                <div className="grid grid-cols-2 gap-2">
+                  <input value={sl.ctaText} onChange={(e) => updateSlide(i, { ctaText: e.target.value })} placeholder="Button text" className={input} />
+                  <input value={sl.ctaLink} onChange={(e) => updateSlide(i, { ctaLink: e.target.value })} placeholder="Button link (e.g. /shop)" className={input} />
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-gray-500 dark:text-gray-400">Align:</span>
+                  <select value={sl.align} onChange={(e) => updateSlide(i, { align: e.target.value as HeroSlide["align"] })} className="bg-gray-50 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1.5">
+                    <option value="left">Left</option>
+                    <option value="center">Center</option>
+                    <option value="right">Right</option>
+                  </select>
+                  <span className="ml-2 text-xs uppercase tracking-wide text-gray-400">{sl.type}</span>
+                </div>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <button onClick={() => moveSlide(i, -1)} disabled={i === 0} className="text-gray-500 hover:text-primary disabled:opacity-30 px-2">▲</button>
+                <button onClick={() => moveSlide(i, 1)} disabled={i === s.heroSlides.length - 1} className="text-gray-500 hover:text-primary disabled:opacity-30 px-2">▼</button>
+                <button onClick={() => set("heroSlides", s.heroSlides.filter((_, k) => k !== i))} className="text-red-500 hover:text-red-600 p-1"><Trash2 className="w-4 h-4" /></button>
+              </div>
             </div>
           ))}
         </div>

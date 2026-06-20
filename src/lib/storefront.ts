@@ -120,6 +120,19 @@ export async function getDeals(limit = 8): Promise<StoreProduct[]> {
   return attachColors(pool, res.recordset as StoreProduct[]);
 }
 
+/* Admin-curated "New Collection" — products explicitly flagged IsNewArrival.
+   Drives the homepage slider that sits right under the hero. */
+export async function getNewArrivals(limit = 12): Promise<StoreProduct[]> {
+  const pool = await getDb();
+  const res = await pool
+    .request()
+    .input("n", sql.Int, limit)
+    .query(`${PRODUCT_SELECT} WHERE p.IsActive = 1 AND p.IsNewArrival = 1
+            ORDER BY p.SortOrder, p.CreatedAt DESC
+            OFFSET 0 ROWS FETCH NEXT @n ROWS ONLY`);
+  return attachColors(pool, res.recordset as StoreProduct[]);
+}
+
 export async function getNewProducts(limit = 8): Promise<StoreProduct[]> {
   const pool = await getDb();
   const res = await pool

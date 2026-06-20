@@ -11,3 +11,18 @@ body {
 .dark body {
   @apply bg-gray-900 text-gray-100;
 }
+
+/* Storefront headings use the dedicated heading font */
+.store-headings :is(h1, h2, h3) {
+  font-family: var(--font-heading), "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Hero animations */
+@keyframes heroFadeUp {
+  from { opacity: 0; transform: translateY(26px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes heroProgress {
+  from { width: 0; }
+  to { width: 100%; }
+}

@@ -24,7 +24,7 @@ export default function WishlistPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-8">
       <h1 className="text-2xl font-bold text-gray-900 mb-1">My wishlist</h1>
       <p className="text-sm text-gray-500 mb-6">{items.length} item{items.length !== 1 ? "s" : ""}</p>
 

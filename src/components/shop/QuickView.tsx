@@ -6,6 +6,7 @@ import { X } from "lucide-react";
 import ProductView from "./ProductView";
 import { money, discountPct } from "./format";
 import { getQuickViewData } from "@/app/(shop)/quickview-actions";
+import { displayFont, headingFont } from "@/lib/fonts";
 import type { QuickView } from "@/lib/storefront";
 
 type Ctx = { open: (productId: string) => void };
@@ -49,7 +50,7 @@ export function QuickViewProvider({ children }: { children: React.ReactNode }) {
         />
         {/* drawer */}
         <aside
-          className={`absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl overflow-y-auto transition-transform duration-300 ${
+          className={`${displayFont.className} ${headingFont.variable} store-headings absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl overflow-y-auto transition-transform duration-300 ${
             isOpen ? "translate-x-0" : "translate-x-full"
           }`}
         >

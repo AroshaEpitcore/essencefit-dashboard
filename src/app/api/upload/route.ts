@@ -2,15 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 
-const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 const EXT: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/png": "png",
   "image/webp": "webp",
   "image/gif": "gif",
+  "video/mp4": "mp4",
+  "video/webm": "webm",
+  "video/quicktime": "mov",
 };
-const MAX_BYTES = 5 * 1024 * 1024; // 5MB
-const SAFE_FOLDERS = new Set(["products", "categories", "slips", "store", "misc"]);
+const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+const VIDEO_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime"]);
+const MAX_IMAGE = 5 * 1024 * 1024; // 5MB
+const MAX_VIDEO = 60 * 1024 * 1024; // 60MB
+const SAFE_FOLDERS = new Set(["products", "categories", "slips", "store", "hero", "misc"]);
 
 export const runtime = "nodejs";
 
@@ -26,14 +31,21 @@ export async function POST(req: NextRequest) {
     }
 
     const blob = file as File;
-    if (!ALLOWED.has(blob.type)) {
+    const isImage = IMAGE_TYPES.has(blob.type);
+    const isVideo = VIDEO_TYPES.has(blob.type);
+
+    if (!isImage && !isVideo) {
       return NextResponse.json(
-        { error: "Unsupported file type. Use JPG, PNG, WEBP or GIF." },
+        { error: "Unsupported file type. Use JPG, PNG, WEBP, GIF or MP4/WEBM." },
         { status: 415 }
       );
     }
-    if (blob.size > MAX_BYTES) {
-      return NextResponse.json({ error: "File too large (max 5MB)." }, { status: 413 });
+    const limit = isVideo ? MAX_VIDEO : MAX_IMAGE;
+    if (blob.size > limit) {
+      return NextResponse.json(
+        { error: `File too large (max ${isVideo ? "60MB" : "5MB"}).` },
+        { status: 413 }
+      );
     }
 
     const ext = EXT[blob.type] || "bin";
@@ -45,7 +57,7 @@ export async function POST(req: NextRequest) {
     await writeFile(path.join(dir, name), bytes);
 
     const url = `/uploads/${folder}/${name}`;
-    return NextResponse.json({ url });
+    return NextResponse.json({ url, kind: isVideo ? "video" : "image" });
   } catch (err) {
     console.error("[upload] failed:", err);
     return NextResponse.json({ error: "Upload failed." }, { status: 500 });
