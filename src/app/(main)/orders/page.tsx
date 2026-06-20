@@ -2053,7 +2053,7 @@ export default function OrdersPage() {
       {/* EDIT MODAL */}
       {editOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-end">
-          <div className="w-full max-w-7xl bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+          <div className="w-full max-w-7xl bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 h-full overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <div className="font-semibold text-lg">Edit Order</div>
               <button

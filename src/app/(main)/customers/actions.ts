@@ -55,17 +55,20 @@ export async function upsertCustomer(
 export async function getCustomers() {
   const db = await getDb();
   const res = await db.request().query(`
-    SELECT 
+    SELECT
       c.Id,
       c.Name,
       c.Phone,
+      c.Email,
       c.Address,
       c.CreatedAt,
+      CAST(CASE WHEN c.PasswordHash IS NOT NULL THEN 1 ELSE 0 END AS BIT) AS HasAccount,
       COUNT(o.Id) AS OrderCount,
+      SUM(CASE WHEN o.Source = 'web' THEN 1 ELSE 0 END) AS WebOrderCount,
       ISNULL(SUM(o.Total), 0) AS TotalSpent
     FROM Customers c
     LEFT JOIN Orders o ON o.CustomerId = c.Id
-    GROUP BY c.Id, c.Name, c.Phone, c.Address, c.CreatedAt
+    GROUP BY c.Id, c.Name, c.Phone, c.Email, c.Address, c.CreatedAt, c.PasswordHash
     ORDER BY c.CreatedAt DESC
   `);
   return res.recordset;

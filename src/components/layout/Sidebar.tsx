@@ -24,6 +24,9 @@ import {
   BarChart3,
   Palette,
   SendHorizonal,
+  Printer,
+  Store,
+  Globe,
 } from "lucide-react";
 import { Tooltip } from "react-tooltip";
 
@@ -33,6 +36,10 @@ const navItems = [
   { href: "/stocks", label: "Stocks", icon: Package },
   { href: "/sales", label: "Sales", icon: Receipt },
   { href: "/orders", label: "Orders", icon: ShoppingCart },
+  { href: "/web-orders", label: "Website Orders", icon: Globe },
+  { href: "/catalog", label: "Storefront Catalog", icon: Store },
+  { href: "/store-settings", label: "Store Settings", icon: Globe },
+  { href: "/dtf", label: "DTF Printing", icon: Printer },
   { href: "/order-logs", label: "Order Logs", icon: History },
   { href: "/invoices", label: "Invoices", icon: ClipboardList },
   { href: "/finance", label: "Finance", icon: DollarSign },

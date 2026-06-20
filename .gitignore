@@ -24,6 +24,10 @@
 .DS_Store
 *.pem
 
+# uploaded media (runtime user content) — keep the folder, ignore contents
+/public/uploads/*
+!/public/uploads/.gitkeep
+
 # debug
 npm-debug.log*
 yarn-debug.log*

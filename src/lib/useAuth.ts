@@ -15,6 +15,9 @@ const ADMIN_ONLY_ROUTES = [
   "/reports",
   "/users",
   "/settings",
+  "/dtf",
+  "/catalog",
+  "/store-settings",
 ];
 
 export function useAuth() {

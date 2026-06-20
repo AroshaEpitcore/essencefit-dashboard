@@ -14,8 +14,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${inter.className} bg-gray-50 dark:bg-gray-900`}>
+    <html lang="en">
+      <body className={`${inter.className} bg-white`}>
         <LoadingWrapper>{children}</LoadingWrapper>
       </body>
     </html>

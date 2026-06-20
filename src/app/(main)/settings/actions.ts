@@ -2,6 +2,11 @@
 
 import { getDb } from "@/lib/db";
 import sql from "mssql";
+import {
+  STORE_KEYS,
+  getPublicStoreSettings,
+  type StoreSettings,
+} from "@/lib/storeSettings";
 
 // ✅ Get all settings
 export async function getSettings() {
@@ -51,5 +56,34 @@ export async function deleteSetting(id: string) {
   await pool.request()
     .input("Id", sql.UniqueIdentifier, id)
     .query(`DELETE FROM Settings WHERE Id=@Id`);
+  return true;
+}
+
+/* ============================================================
+   STORE / WEBSITE SETTINGS (typed wrapper over Settings store)
+   ============================================================ */
+
+// Read all store settings (for the admin form)
+export async function getStoreSettings(): Promise<StoreSettings> {
+  return getPublicStoreSettings();
+}
+
+// Save the full store settings object (one upsert per key)
+export async function saveStoreSettings(s: StoreSettings) {
+  const pairs: Array<[string, string | null]> = [
+    [STORE_KEYS.storeName, s.storeName ?? ""],
+    [STORE_KEYS.logo, s.logo ?? ""],
+    [STORE_KEYS.announcement, s.announcement ?? ""],
+    [STORE_KEYS.heroSlides, JSON.stringify(s.heroSlides ?? [])],
+    [STORE_KEYS.bank, JSON.stringify(s.bank ?? {})],
+    [STORE_KEYS.deliveryFee, String(s.deliveryFee ?? 0)],
+    [STORE_KEYS.freeDeliveryOver, String(s.freeDeliveryOver ?? 0)],
+    [STORE_KEYS.contactPhone, s.contactPhone ?? ""],
+    [STORE_KEYS.contactEmail, s.contactEmail ?? ""],
+    [STORE_KEYS.social, JSON.stringify(s.social ?? {})],
+  ];
+  for (const [key, value] of pairs) {
+    await saveSetting(key, value);
+  }
   return true;
 }

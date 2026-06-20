@@ -55,7 +55,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen relative">
+    <div className="dark flex h-screen relative bg-gray-900 text-gray-100">
       {loading && <FullScreenLoader />}
 
       <Sidebar collapsed={collapsed} />

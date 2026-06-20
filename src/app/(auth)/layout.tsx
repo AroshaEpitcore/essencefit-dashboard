@@ -9,7 +9,7 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className={`${inter.className} min-h-screen`}>
+    <div className={`dark ${inter.className} min-h-screen bg-gray-900 text-gray-100`}>
       {children}
     </div>
   );

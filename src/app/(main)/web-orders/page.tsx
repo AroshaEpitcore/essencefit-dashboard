@@ -1,0 +1,156 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import toast, { Toaster } from "react-hot-toast";
+import { getWebOrders, verifyWebPayment, setWebOrderStatus } from "./actions";
+import {
+  Globe, Truck, Landmark, CheckCircle2, ExternalLink, Phone, MapPin, ShieldCheck, RefreshCw,
+} from "lucide-react";
+
+const money = (n: number) => "Rs. " + Number(n || 0).toLocaleString();
+
+const STATUSES = ["Pending", "Paid", "Partial", "Completed", "Canceled"] as const;
+const statusColor: Record<string, string> = {
+  Pending: "bg-amber-500/20 text-amber-400",
+  Paid: "bg-green-500/20 text-green-400",
+  Completed: "bg-green-500/20 text-green-400",
+  Partial: "bg-blue-500/20 text-blue-400",
+  Canceled: "bg-red-500/20 text-red-400",
+};
+
+export default function WebOrdersPage() {
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [filter, setFilter] = useState<"all" | "unverified">("all");
+  const [slip, setSlip] = useState<string | null>(null);
+
+  async function load() {
+    setLoading(true);
+    try {
+      setOrders(await getWebOrders());
+    } catch (e: any) {
+      toast.error(e.message || "Failed to load");
+    } finally {
+      setLoading(false);
+    }
+  }
+  useEffect(() => { load(); }, []);
+
+  async function verify(id: string) {
+    if (!confirm("Mark this bank-transfer payment as verified and set the order to Paid?")) return;
+    try {
+      await verifyWebPayment(id);
+      toast.success("Payment verified — order marked Paid");
+      load();
+    } catch (e: any) {
+      toast.error(e.message || "Failed");
+    }
+  }
+
+  async function changeStatus(id: string, status: any) {
+    try {
+      await setWebOrderStatus(id, status);
+      toast.success("Status updated");
+      load();
+    } catch (e: any) {
+      toast.error(e.message || "Failed");
+    }
+  }
+
+  const shown = filter === "unverified"
+    ? orders.filter((o) => o.PaymentMethod === "BankTransfer" && !o.PaymentVerified)
+    : orders;
+
+  return (
+    <div className="text-gray-900 dark:text-white">
+      <Toaster position="top-right" />
+
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="bg-primary/20 p-3 rounded-lg"><Globe className="w-6 h-6 text-primary" /></div>
+          <div>
+            <h1 className="text-xl font-bold">Website Orders</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Orders placed by customers on the storefront</p>
+          </div>
+        </div>
+        <button onClick={load} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-sm font-medium">
+          <RefreshCw className="w-4 h-4" /> Refresh
+        </button>
+      </div>
+
+      <div className="flex gap-2 mb-4">
+        <button onClick={() => setFilter("all")} className={`px-4 py-2 rounded-lg text-sm font-medium ${filter === "all" ? "bg-primary text-white" : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"}`}>All ({orders.length})</button>
+        <button onClick={() => setFilter("unverified")} className={`px-4 py-2 rounded-lg text-sm font-medium ${filter === "unverified" ? "bg-primary text-white" : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"}`}>
+          Needs verification ({orders.filter((o) => o.PaymentMethod === "BankTransfer" && !o.PaymentVerified).length})
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary" /></div>
+      ) : shown.length === 0 ? (
+        <div className="bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl text-center py-12 text-gray-500 dark:text-gray-400">
+          <Globe className="w-12 h-12 mx-auto mb-3 opacity-50" />
+          No website orders yet.
+        </div>
+      ) : (
+        <div className="grid gap-3">
+          {shown.map((o) => (
+            <div key={o.Id} className="bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+              <div className="flex flex-wrap items-start gap-4">
+                <div className="flex-1 min-w-[200px]">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-bold">#{String(o.Id).slice(0, 8).toUpperCase()}</span>
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusColor[o.PaymentStatus] || "bg-gray-200 text-gray-600"}`}>{o.PaymentStatus}</span>
+                    {o.PaymentMethod === "BankTransfer" ? (
+                      <span className="text-xs flex items-center gap-1 text-gray-500"><Landmark className="w-3 h-3" /> Bank{o.PaymentVerified ? <ShieldCheck className="w-3 h-3 text-green-500" /> : ""}</span>
+                    ) : (
+                      <span className="text-xs flex items-center gap-1 text-gray-500"><Truck className="w-3 h-3" /> COD</span>
+                    )}
+                  </div>
+                  <p className="text-sm font-medium">{o.Customer}</p>
+                  <p className="text-xs text-gray-500 flex items-center gap-1"><Phone className="w-3 h-3" /> {o.CustomerPhone}{o.SecondaryPhone ? ` / ${o.SecondaryPhone}` : ""}</p>
+                  <p className="text-xs text-gray-500 flex items-start gap-1 mt-0.5"><MapPin className="w-3 h-3 mt-0.5 shrink-0" /> {o.Address}</p>
+                  {o.Notes && <p className="text-xs text-gray-400 mt-1 italic">“{o.Notes}”</p>}
+                  <p className="text-xs text-gray-400 mt-1">{new Date(o.OrderDate).toLocaleString()} · {o.LineCount} item(s)</p>
+                </div>
+
+                <div className="text-right">
+                  <p className="text-lg font-bold">{money(o.Total)}</p>
+                  <p className="text-xs text-gray-400">{money(o.Subtotal)} + {o.DeliveryFee === 0 ? "free del." : money(o.DeliveryFee)}</p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                {o.PaymentSlipUrl && (
+                  <button onClick={() => setSlip(o.PaymentSlipUrl)} className="text-xs flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 font-medium">
+                    <ExternalLink className="w-3 h-3" /> View slip
+                  </button>
+                )}
+                {o.PaymentMethod === "BankTransfer" && !o.PaymentVerified && o.PaymentStatus !== "Paid" && o.PaymentStatus !== "Completed" && (
+                  <button onClick={() => verify(o.Id)} className="text-xs flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-500/20 text-green-500 font-medium hover:bg-green-500/30">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Verify payment → Paid
+                  </button>
+                )}
+                <select
+                  value={o.PaymentStatus}
+                  onChange={(e) => changeStatus(o.Id, e.target.value)}
+                  className="ml-auto text-xs bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1.5"
+                >
+                  {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Slip viewer */}
+      {slip && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setSlip(null)}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={slip} alt="Payment slip" className="max-h-[90vh] max-w-full rounded-lg" />
+        </div>
+      )}
+    </div>
+  );
+}

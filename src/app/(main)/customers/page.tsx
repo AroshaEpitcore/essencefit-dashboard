@@ -132,6 +132,7 @@ export default function CustomersPage() {
                   <th className="text-left p-4 font-semibold text-gray-700 dark:text-gray-300">Name</th>
                   <th className="text-left p-4 font-semibold text-gray-700 dark:text-gray-300">Phone</th>
                   <th className="text-left p-4 font-semibold text-gray-700 dark:text-gray-300">Address</th>
+                  <th className="text-left p-4 font-semibold text-gray-700 dark:text-gray-300">Account</th>
                   <th className="text-center p-4 font-semibold text-gray-700 dark:text-gray-300">Orders</th>
                   <th className="text-center p-4 font-semibold text-gray-700 dark:text-gray-300">Total Spent</th>
                   <th className="text-center p-4 font-semibold text-gray-700 dark:text-gray-300">Actions</th>
@@ -140,7 +141,7 @@ export default function CustomersPage() {
               <tbody>
                 {paginatedCustomers.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center py-12 text-gray-500 dark:text-gray-400">
+                    <td colSpan={7} className="text-center py-12 text-gray-500 dark:text-gray-400">
                       <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
                       <p>{search ? "No customers found matching your search" : "No customers yet"}</p>
                     </td>
@@ -155,6 +156,19 @@ export default function CustomersPage() {
                       <td className="p-4 font-medium">{c.Name}</td>
                       <td className="p-4 text-gray-600 dark:text-gray-400">{c.Phone ? formatPhone(c.Phone) : "-"}</td>
                       <td className="p-4 text-gray-600 dark:text-gray-400 max-w-xs truncate">{c.Address || "-"}</td>
+                      <td className="p-4">
+                        <div className="text-sm text-gray-600 dark:text-gray-400">{c.Email || "—"}</div>
+                        <div className="flex gap-1 mt-0.5">
+                          {c.HasAccount ? (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Registered</span>
+                          ) : (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">Guest</span>
+                          )}
+                          {c.WebOrderCount > 0 && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">Web</span>
+                          )}
+                        </div>
+                      </td>
                       <td className="p-4 text-center">
                         <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 text-xs font-medium">
                           {c.OrderCount}
