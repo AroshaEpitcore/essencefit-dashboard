@@ -6,7 +6,7 @@ import { useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import { registerCustomer } from "../actions";
 
-const input = "w-full bg-white border border-gray-300 rounded-lg px-4 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/40";
+const input = "w-full bg-white border border-gray-300  px-4 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/40";
 
 export default function CustomerRegisterPage() {
   const router = useRouter();
@@ -39,7 +39,7 @@ export default function CustomerRegisterPage() {
         <input className={input} placeholder="Email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
         <input className={input} placeholder="Phone" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
         <input className={input} type="password" placeholder="Password (min 6 chars)" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} />
-        <button disabled={busy} className="w-full bg-primary text-white py-3 rounded-xl font-semibold hover:bg-primary/90 disabled:opacity-50">
+        <button disabled={busy} className="w-full bg-primary text-white py-3  font-semibold hover:bg-primary/90 disabled:opacity-50">
           {busy ? "Creating..." : "Create account"}
         </button>
       </form>

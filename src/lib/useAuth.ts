@@ -16,6 +16,7 @@ const ADMIN_ONLY_ROUTES = [
   "/users",
   "/settings",
   "/dtf",
+  "/dtf-orders",
   "/catalog",
   "/store-settings",
 ];

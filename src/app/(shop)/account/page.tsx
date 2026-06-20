@@ -34,13 +34,13 @@ export default async function AccountPage() {
       </div>
 
       <div className="grid sm:grid-cols-2 gap-4 mb-8">
-        <Link href="/account/orders" className="flex items-center gap-3 bg-white border border-gray-200 rounded-xl p-5 hover:border-primary">
-          <div className="bg-primary/10 p-3 rounded-lg"><Package className="w-6 h-6 text-primary" /></div>
+        <Link href="/account/orders" className="flex items-center gap-3 bg-white border border-gray-200  p-5 hover:border-primary">
+          <div className="bg-primary/10 p-3 "><Package className="w-6 h-6 text-primary" /></div>
           <div className="flex-1"><p className="font-semibold text-gray-900">My orders</p><p className="text-sm text-gray-500">{orders.length} order{orders.length !== 1 ? "s" : ""}</p></div>
           <ChevronRight className="w-5 h-5 text-gray-400" />
         </Link>
-        <Link href="/account/profile" className="flex items-center gap-3 bg-white border border-gray-200 rounded-xl p-5 hover:border-primary">
-          <div className="bg-primary/10 p-3 rounded-lg"><User className="w-6 h-6 text-primary" /></div>
+        <Link href="/account/profile" className="flex items-center gap-3 bg-white border border-gray-200  p-5 hover:border-primary">
+          <div className="bg-primary/10 p-3 "><User className="w-6 h-6 text-primary" /></div>
           <div className="flex-1"><p className="font-semibold text-gray-900">Profile</p><p className="text-sm text-gray-500">Name, phone, address, password</p></div>
           <ChevronRight className="w-5 h-5 text-gray-400" />
         </Link>
@@ -48,11 +48,11 @@ export default async function AccountPage() {
 
       <h2 className="font-semibold text-gray-900 mb-3">Recent orders</h2>
       {orders.length === 0 ? (
-        <div className="bg-white border border-gray-200 rounded-xl p-8 text-center text-gray-500">
+        <div className="bg-white border border-gray-200  p-8 text-center text-gray-500">
           No orders yet. <Link href="/shop" className="text-primary font-medium">Start shopping</Link>
         </div>
       ) : (
-        <div className="bg-white border border-gray-200 rounded-xl divide-y divide-gray-100">
+        <div className="bg-white border border-gray-200  divide-y divide-gray-100">
           {orders.slice(0, 5).map((o: any) => (
             <div key={o.Id} className="flex items-center gap-4 p-4">
               <div className="flex-1">

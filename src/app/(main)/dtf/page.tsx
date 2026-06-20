@@ -19,6 +19,7 @@ import {
   Package,
   TrendingUp,
   Wallet,
+  Settings,
 } from "lucide-react";
 import {
   getPriceItems,
@@ -32,6 +33,8 @@ import {
   addTemplate,
   updateTemplate,
   deleteTemplate,
+  getDtfPageSettings,
+  saveDtfPageSettings,
 } from "./actions";
 
 /* ---------------- Types ---------------- */
@@ -75,7 +78,10 @@ type Template = {
   UpdatedAt: string;
 };
 
-const CATEGORIES = ["Garment", "Print", "Overhead", "Profit", "Charge"] as const;
+// Garments are real products now (managed in Stocks → Storefront Catalog), so the
+// Price Setup tab only manages print rates / overheads / profit / charges. The
+// Quote Builder still reads any existing "Garment" price rows for manual quotes.
+const CATEGORIES = ["Print", "Overhead", "Profit", "Charge"] as const;
 const CAT_META: Record<string, { label: string; icon: any; color: string }> = {
   Garment: { label: "Garments (Blank Cost)", icon: Shirt, color: "text-blue-500" },
   Print: { label: "Print Rates", icon: Printer, color: "text-purple-500" },
@@ -88,6 +94,7 @@ const TABS = [
   { key: "prices", label: "Price Setup", icon: Tag },
   { key: "builder", label: "Quote Builder", icon: Calculator },
   { key: "templates", label: "Sinhala Templates", icon: MessageCircle },
+  { key: "page", label: "Customize Page", icon: Settings },
 ] as const;
 
 export default function DtfPage() {
@@ -177,8 +184,112 @@ export default function DtfPage() {
               reload={loadAll}
             />
           )}
+          {tab === "page" && <CustomizePageTab />}
         </>
       )}
+    </div>
+  );
+}
+
+/* ============================================================
+   TAB 4 — CUSTOMIZE PAGE CONTENT (intro note + suggestions)
+   ============================================================ */
+function CustomizePageTab() {
+  const [introNote, setIntroNote] = useState("");
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [whatsapp, setWhatsapp] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const s = await getDtfPageSettings();
+        setIntroNote(s.introNote);
+        setSuggestions(s.suggestions.length ? s.suggestions : [""]);
+        setWhatsapp(s.whatsapp);
+      } catch {
+        toast.error("Failed to load page settings");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  async function save() {
+    setSaving(true);
+    try {
+      await saveDtfPageSettings(introNote, suggestions);
+      toast.success("Customize page updated");
+    } catch {
+      toast.error("Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-16">
+        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-2xl space-y-6">
+      <div className="bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
+        <h2 className="text-lg font-semibold mb-1">Customize Page Content</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Shown to customers on the storefront <code className="px-1 bg-gray-100 dark:bg-gray-700 rounded">/customize</code> page.
+          The contact number comes from Store Settings (WhatsApp): <b>{whatsapp || "not set"}</b>.
+        </p>
+
+        <label className="block text-sm font-medium mb-2">Intro note / disclaimer</label>
+        <textarea
+          value={introNote}
+          onChange={(e) => setIntroNote(e.target.value)}
+          rows={3}
+          className="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2.5 text-sm"
+        />
+
+        <label className="block text-sm font-medium mt-5 mb-2">Suggestions for customers</label>
+        <div className="space-y-2">
+          {suggestions.map((s, i) => (
+            <div key={i} className="flex gap-2">
+              <input
+                value={s}
+                onChange={(e) =>
+                  setSuggestions((prev) => prev.map((x, k) => (k === i ? e.target.value : x)))
+                }
+                placeholder="e.g. Send high-resolution artwork (300 DPI)"
+                className="flex-1 bg-gray-50 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2.5 text-sm"
+              />
+              <button
+                onClick={() => setSuggestions((prev) => prev.filter((_, k) => k !== i))}
+                className="p-2.5 bg-red-500 hover:bg-red-600 text-white rounded-lg"
+                title="Remove"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+        <button
+          onClick={() => setSuggestions((prev) => [...prev, ""])}
+          className="mt-3 text-sm font-medium text-primary flex items-center gap-1.5"
+        >
+          <Plus className="w-4 h-4" /> Add suggestion
+        </button>
+      </div>
+
+      <button
+        onClick={save}
+        disabled={saving}
+        className="bg-primary hover:bg-primary/90 text-white px-6 py-2.5 rounded-lg flex items-center gap-2 font-semibold disabled:opacity-50"
+      >
+        <Save className="w-4 h-4" /> {saving ? "Saving..." : "Save"}
+      </button>
     </div>
   );
 }
@@ -248,7 +359,7 @@ function PriceSetup({
   items: PriceItem[];
   reload: () => void;
 }) {
-  const empty = { id: "", category: "Garment", name: "", amount: "", unit: "per piece" };
+  const empty = { id: "", category: "Print", name: "", amount: "", unit: "per print" };
   const [form, setForm] = useState<typeof empty>(empty);
   const [editing, setEditing] = useState(false);
 
@@ -310,6 +421,13 @@ function PriceSetup({
 
   return (
     <div>
+      {/* Note */}
+      <div className="mb-4 text-sm bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-lg px-4 py-3">
+        Garments (T-Shirts, Shorts, Skinners…) are managed as real products in{" "}
+        <b>Stocks → Storefront Catalog</b> (mark them <b>DTF printable</b>). Here you only set the
+        print rates, overheads, profit and charges added on top.
+      </div>
+
       {/* Form */}
       <div className="bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl p-6 mb-6">
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">

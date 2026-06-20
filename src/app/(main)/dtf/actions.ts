@@ -1,6 +1,7 @@
 "use server";
 
 import { getDb, sql } from "@/lib/db";
+import { DTF_KEYS, getDtfPageSettings as readDtfPageSettings, type DtfPageSettings } from "@/lib/dtfSettings";
 
 /* ============================================================
    PRICE ITEMS  (Garment / Print / Overhead / Profit)
@@ -233,5 +234,38 @@ export async function deleteTemplate(id: string) {
     .request()
     .input("Id", sql.UniqueIdentifier, id)
     .query(`DELETE FROM DtfTemplates WHERE Id=@Id`);
+  return true;
+}
+
+/* ============================================================
+   CUSTOMIZE PAGE SETTINGS (intro note + suggestions)
+   Stored in the generic Settings Key/Value table.
+   ============================================================ */
+
+export async function getDtfPageSettings(): Promise<DtfPageSettings> {
+  return readDtfPageSettings();
+}
+
+export async function saveDtfPageSettings(introNote: string, suggestions: string[]) {
+  const pool = await getDb();
+  const clean = (suggestions || []).map((s) => s.trim()).filter(Boolean);
+  const pairs: Array<[string, string]> = [
+    [DTF_KEYS.introNote, introNote ?? ""],
+    [DTF_KEYS.suggestions, JSON.stringify(clean)],
+  ];
+  for (const [key, value] of pairs) {
+    await pool
+      .request()
+      .input("Key", sql.NVarChar(100), key)
+      .input("Value", sql.NVarChar(sql.MAX), value)
+      .query(`
+        MERGE Settings AS target
+        USING (SELECT @Key AS [Key]) AS src
+        ON target.[Key] = src.[Key]
+        WHEN MATCHED THEN UPDATE SET [Value]=@Value, UpdatedAt=SYSUTCDATETIME()
+        WHEN NOT MATCHED THEN INSERT (Id, [Key], [Value], UpdatedAt)
+          VALUES (NEWID(), @Key, @Value, SYSUTCDATETIME());
+      `);
+  }
   return true;
 }

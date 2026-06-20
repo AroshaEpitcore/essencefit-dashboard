@@ -12,7 +12,7 @@ export default async function DealsPage() {
   return (
     <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-6">
       <div className="flex items-center gap-2 mb-6">
-        <div className="bg-primary/10 p-2.5 rounded-lg"><Tag className="w-6 h-6 text-primary" /></div>
+        <div className="bg-primary/10 p-2.5 "><Tag className="w-6 h-6 text-primary" /></div>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Deals & Offers</h1>
           <p className="text-sm text-gray-500">{deals.length} product{deals.length !== 1 ? "s" : ""} on sale</p>

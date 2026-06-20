@@ -29,14 +29,14 @@ export default async function MyOrdersPage() {
       <h1 className="text-2xl font-bold text-gray-900 mb-6">My orders</h1>
 
       {orders.length === 0 ? (
-        <div className="bg-white border border-gray-200 rounded-xl p-10 text-center text-gray-500">
+        <div className="bg-white border border-gray-200  p-10 text-center text-gray-500">
           <Package className="w-12 h-12 mx-auto text-gray-300 mb-3" />
           No orders yet. <Link href="/shop" className="text-primary font-medium">Start shopping</Link>
         </div>
       ) : (
         <div className="space-y-3">
           {orders.map((o: any) => (
-            <Link key={o.Id} href={`/order/${o.Id}`} className="flex items-center gap-4 bg-white border border-gray-200 rounded-xl p-4 hover:border-primary">
+            <Link key={o.Id} href={`/order/${o.Id}`} className="flex items-center gap-4 bg-white border border-gray-200  p-4 hover:border-primary">
               <div className="flex-1">
                 <p className="font-medium text-gray-900">#{String(o.Id).slice(0, 8).toUpperCase()}</p>
                 <p className="text-xs text-gray-500">{new Date(o.OrderDate).toLocaleString()} · {o.LineCount} item(s) · {o.PaymentMethod || "—"}</p>

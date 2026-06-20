@@ -17,7 +17,7 @@ import {
   type AdminColor,
 } from "./actions";
 import {
-  Store, Edit3, X, Star, Sparkles, Eye, EyeOff, ImagePlus, Trash2, Tag, Package, Layers, Palette,
+  Store, Edit3, X, Star, Sparkles, Printer, Eye, EyeOff, ImagePlus, Trash2, Tag, Package, Layers, Palette,
 } from "lucide-react";
 import { resolveSwatch } from "@/lib/colorHex";
 
@@ -225,7 +225,7 @@ function ColorsTable({ colors, reload }: { colors: AdminColor[]; reload: () => v
 function ProductsTable({ products, reload }: { products: CatalogProduct[]; reload: () => void }) {
   const [editId, setEditId] = useState<string | null>(null);
 
-  async function quickToggle(p: CatalogProduct, field: "IsActive" | "IsFeatured" | "IsNewArrival") {
+  async function quickToggle(p: CatalogProduct, field: "IsActive" | "IsFeatured" | "IsNewArrival" | "IsDtfPrintable") {
     try {
       await toggleProductFlag(p.Id, field, !p[field]);
       reload();
@@ -254,6 +254,7 @@ function ProductsTable({ products, reload }: { products: CatalogProduct[]; reloa
                 <th className="p-3 text-center font-semibold">Active</th>
                 <th className="p-3 text-center font-semibold">Featured</th>
                 <th className="p-3 text-center font-semibold">New</th>
+                <th className="p-3 text-center font-semibold">DTF</th>
                 <th className="p-3 text-center font-semibold">Edit</th>
               </tr>
             </thead>
@@ -298,6 +299,11 @@ function ProductsTable({ products, reload }: { products: CatalogProduct[]; reloa
                       </button>
                     </td>
                     <td className="p-3 text-center">
+                      <button onClick={() => quickToggle(p, "IsDtfPrintable")} title="Toggle DTF printable (shows on the customer Customize page)">
+                        <Printer className={`w-5 h-5 mx-auto ${p.IsDtfPrintable ? "text-primary" : "text-gray-400"}`} />
+                      </button>
+                    </td>
+                    <td className="p-3 text-center">
                       <button onClick={() => setEditId(p.Id)} className="text-blue-500 hover:text-blue-600 p-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20">
                         <Edit3 className="w-4 h-4" />
                       </button>
@@ -332,6 +338,7 @@ function ProductEditModal({ id, onClose, onSaved }: { id: string; onClose: () =>
   const [isActive, setIsActive] = useState(true);
   const [isFeatured, setIsFeatured] = useState(false);
   const [isNewArrival, setIsNewArrival] = useState(false);
+  const [isDtfPrintable, setIsDtfPrintable] = useState(false);
   const [sortOrder, setSortOrder] = useState(0);
   const [images, setImages] = useState<ImgItem[]>([]);
   const [productColors, setProductColors] = useState<{ Id: string; Name: string; Hex: string | null }[]>([]);
@@ -350,6 +357,7 @@ function ProductEditModal({ id, onClose, onSaved }: { id: string; onClose: () =>
         setIsActive(!!product.IsActive);
         setIsFeatured(!!product.IsFeatured);
         setIsNewArrival(!!product.IsNewArrival);
+        setIsDtfPrintable(!!product.IsDtfPrintable);
         setSortOrder(product.SortOrder || 0);
         const cols = colors || [];
         setProductColors(cols);
@@ -407,7 +415,7 @@ function ProductEditModal({ id, onClose, onSaved }: { id: string; onClose: () =>
       }
       await updateProductStorefront(id, {
         name, slug, description: description || null,
-        compareAtPrice: compareVal, isActive, isFeatured, isNewArrival, sortOrder,
+        compareAtPrice: compareVal, isActive, isFeatured, isNewArrival, isDtfPrintable, sortOrder,
       });
       await setProductImages(id, images);
       toast.success("Product saved");
@@ -465,6 +473,7 @@ function ProductEditModal({ id, onClose, onSaved }: { id: string; onClose: () =>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} /> Visible on website</label>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={isFeatured} onChange={(e) => setIsFeatured(e.target.checked)} /> Featured</label>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={isNewArrival} onChange={(e) => setIsNewArrival(e.target.checked)} /> New arrival</label>
+              <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={isDtfPrintable} onChange={(e) => setIsDtfPrintable(e.target.checked)} /> DTF printable</label>
             </div>
 
             {/* Images grouped by colour */}

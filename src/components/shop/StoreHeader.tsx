@@ -81,6 +81,7 @@ export default function StoreHeader({
               <Link key={c.Id} href={`/category/${c.Slug}`} className={`${linkCls} whitespace-nowrap`}>{c.Name}</Link>
             ))}
             <Link href="/deals" className={onDark ? "text-white font-semibold" : "text-primary font-semibold"}>Deals</Link>
+            <Link href="/customize" className={`${linkCls} whitespace-nowrap`}>Customize</Link>
           </nav>
 
           <form onSubmit={submitSearch} className="hidden lg:flex flex-1 max-w-xs ml-auto relative">
@@ -131,6 +132,7 @@ export default function StoreHeader({
               <Link key={c.Id} href={`/category/${c.Slug}`} onClick={() => setMenuOpen(false)} className="block py-2 text-gray-700">{c.Name}</Link>
             ))}
             <Link href="/deals" onClick={() => setMenuOpen(false)} className="block py-2 text-primary font-semibold">Deals</Link>
+            <Link href="/customize" onClick={() => setMenuOpen(false)} className="block py-2 text-gray-700">Customize &amp; DTF Print</Link>
             <Link href="/wishlist" onClick={() => setMenuOpen(false)} className="block py-2 text-gray-700">Wishlist</Link>
             <Link href="/account" onClick={() => setMenuOpen(false)} className="block py-2 text-gray-700">My account</Link>
           </nav>

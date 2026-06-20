@@ -133,7 +133,7 @@ export default function ProductCard({ p }: { p: StoreProduct }) {
           type="button"
           onClick={() => openQuickView(p.Id)}
           disabled={outOfStock}
-          className="mt-3 w-full border border-gray-900 text-gray-900 text-sm font-semibold py-2 flex items-center justify-center gap-2 hover:bg-gray-900 hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="mt-3 w-full border border-gray-900 bg-white text-gray-900 text-sm font-semibold py-2 flex items-center justify-center gap-2 hover:bg-gray-900 hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <ShoppingCart className="w-4 h-4" /> Add to cart
         </button>

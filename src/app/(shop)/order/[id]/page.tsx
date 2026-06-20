@@ -26,12 +26,12 @@ export default async function OrderConfirmationPage({ params }: { params: Promis
         <p className="text-gray-500 text-sm">We&apos;ll contact you on {order.CustomerPhone} to confirm delivery.</p>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-xl p-5 mb-6">
+      <div className="bg-white border border-gray-200  p-5 mb-6">
         <h2 className="font-semibold text-gray-900 mb-4">Order summary</h2>
         <div className="space-y-3">
           {items.map((it: any, idx: number) => (
             <div key={idx} className="flex gap-3 text-sm">
-              <div className="w-12 h-12 rounded-lg bg-gray-100 overflow-hidden shrink-0">
+              <div className="w-12 h-12  bg-gray-100 overflow-hidden shrink-0">
                 {it.ImageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={it.ImageUrl} alt="" className="w-full h-full object-cover" />
@@ -53,7 +53,7 @@ export default async function OrderConfirmationPage({ params }: { params: Promis
       </div>
 
       {order.PaymentMethod === "BankTransfer" && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 mb-6">
+        <div className="bg-amber-50 border border-amber-200  p-5 mb-6">
           <h3 className="font-semibold text-gray-900 flex items-center gap-2 mb-2"><Landmark className="w-4 h-4" /> Bank transfer</h3>
           <p className="text-sm text-gray-600 mb-2">We&apos;ll verify your uploaded slip and confirm your order shortly.</p>
           {settings.bank.bank && (
@@ -66,7 +66,7 @@ export default async function OrderConfirmationPage({ params }: { params: Promis
       )}
 
       {order.PaymentMethod === "COD" && (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-5 mb-6 text-sm text-gray-700">
+        <div className="bg-green-50 border border-green-200  p-5 mb-6 text-sm text-gray-700">
           Pay <b>{money(order.Total)}</b> in cash when your order is delivered.
         </div>
       )}

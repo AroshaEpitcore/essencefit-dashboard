@@ -144,6 +144,30 @@ export async function getNewProducts(limit = 8): Promise<StoreProduct[]> {
   return attachColors(pool, res.recordset as StoreProduct[]);
 }
 
+/* Garments marked DTF-printable in the admin — drives the customer Customize page. */
+export async function getDtfPrintableProducts(): Promise<StoreProduct[]> {
+  const pool = await getDb();
+  const res = await pool
+    .request()
+    .query(`${PRODUCT_SELECT} WHERE p.IsActive = 1 AND p.IsDtfPrintable = 1
+            ORDER BY p.SortOrder, p.Name`);
+  return attachColors(pool, res.recordset as StoreProduct[]);
+}
+
+/* A single printable garment + its variants, for the Customize picker.
+   Returns null if the product isn't active/printable. */
+export async function getDtfGarment(productId: string): Promise<{ product: StoreProduct; variants: StoreVariant[] } | null> {
+  const pool = await getDb();
+  const res = await pool
+    .request()
+    .input("pid", sql.UniqueIdentifier, productId)
+    .query(`${PRODUCT_SELECT} WHERE p.Id = @pid AND p.IsActive = 1 AND p.IsDtfPrintable = 1`);
+  const rows = await attachColors(pool, res.recordset as StoreProduct[]);
+  if (!rows[0]) return null;
+  const variants = await getProductVariants(productId);
+  return { product: rows[0], variants };
+}
+
 /* ---------- Category by slug ---------- */
 export async function getCategoryBySlug(slug: string): Promise<StoreCategory | null> {
   const pool = await getDb();

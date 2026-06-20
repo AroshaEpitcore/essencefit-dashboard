@@ -20,7 +20,7 @@ async function uploadSlip(file: File): Promise<string> {
   return data.url as string;
 }
 
-const input = "w-full bg-white border border-gray-300 rounded-lg px-4 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/40";
+const input = "w-full bg-white border border-gray-300  px-4 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/40";
 
 export default function CheckoutPage() {
   const { items, subtotal, clear, ready } = useCart();
@@ -111,7 +111,7 @@ export default function CheckoutPage() {
       <div className="grid lg:grid-cols-[1fr_360px] gap-8">
         {/* Form */}
         <div className="space-y-6">
-          <section className="bg-white border border-gray-200 rounded-xl p-5">
+          <section className="bg-white border border-gray-200  p-5">
             <h2 className="font-semibold text-gray-900 mb-4">Delivery details</h2>
             <div className="grid sm:grid-cols-2 gap-4">
               <input className={input} placeholder="Full name *" value={f.customer} onChange={(e) => setF({ ...f, customer: e.target.value })} />
@@ -124,7 +124,7 @@ export default function CheckoutPage() {
           </section>
 
           {!loggedIn && (
-            <section className="bg-white border border-gray-200 rounded-xl p-5">
+            <section className="bg-white border border-gray-200  p-5">
               <label className="flex items-center gap-2 cursor-pointer mb-1">
                 <input type="checkbox" checked={makeAccount} onChange={(e) => setMakeAccount(e.target.checked)} />
                 <span className="font-semibold text-gray-900">Create an account to track my orders</span>
@@ -144,10 +144,10 @@ export default function CheckoutPage() {
             </section>
           )}
 
-          <section className="bg-white border border-gray-200 rounded-xl p-5">
+          <section className="bg-white border border-gray-200  p-5">
             <h2 className="font-semibold text-gray-900 mb-4">Payment method</h2>
             <div className="space-y-3">
-              <button onClick={() => setMethod("COD")} className={`w-full flex items-center gap-3 border rounded-xl p-4 text-left ${method === "COD" ? "border-primary bg-primary/5" : "border-gray-300"}`}>
+              <button onClick={() => setMethod("COD")} className={`w-full flex items-center gap-3 border  p-4 text-left ${method === "COD" ? "border-primary bg-primary/5" : "border-gray-300"}`}>
                 <Truck className="w-5 h-5 text-primary" />
                 <div className="flex-1">
                   <p className="font-medium text-gray-900">Cash on delivery</p>
@@ -156,7 +156,7 @@ export default function CheckoutPage() {
                 {method === "COD" && <Check className="w-5 h-5 text-primary" />}
               </button>
 
-              <button onClick={() => setMethod("BankTransfer")} className={`w-full flex items-center gap-3 border rounded-xl p-4 text-left ${method === "BankTransfer" ? "border-primary bg-primary/5" : "border-gray-300"}`}>
+              <button onClick={() => setMethod("BankTransfer")} className={`w-full flex items-center gap-3 border  p-4 text-left ${method === "BankTransfer" ? "border-primary bg-primary/5" : "border-gray-300"}`}>
                 <Landmark className="w-5 h-5 text-primary" />
                 <div className="flex-1">
                   <p className="font-medium text-gray-900">Bank transfer</p>
@@ -167,7 +167,7 @@ export default function CheckoutPage() {
             </div>
 
             {method === "BankTransfer" && config && (
-              <div className="mt-4 bg-gray-50 rounded-xl p-4 text-sm">
+              <div className="mt-4 bg-gray-50  p-4 text-sm">
                 <p className="font-medium text-gray-900 mb-2">Bank details</p>
                 {config.bank.bank ? (
                   <ul className="text-gray-600 space-y-0.5">
@@ -179,7 +179,7 @@ export default function CheckoutPage() {
                 ) : (
                   <p className="text-gray-500">Bank details will be shared by our team.</p>
                 )}
-                <label className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-900 text-white cursor-pointer text-sm font-medium hover:bg-gray-800">
+                <label className="mt-3 inline-flex items-center gap-2 px-4 py-2  bg-gray-900 text-white cursor-pointer text-sm font-medium hover:bg-gray-800">
                   <Upload className="w-4 h-4" /> {uploading ? "Uploading..." : slipUrl ? "Slip uploaded ✓" : "Upload deposit slip *"}
                   <input type="file" accept="image/*" hidden onChange={(e) => onSlip(e.target.files?.[0] || null)} />
                 </label>
@@ -189,12 +189,12 @@ export default function CheckoutPage() {
         </div>
 
         {/* Summary */}
-        <div className="lg:sticky lg:top-24 h-max bg-gray-50 border border-gray-200 rounded-xl p-5">
+        <div className="lg:sticky lg:top-24 h-max bg-gray-50 border border-gray-200  p-5">
           <h2 className="font-semibold text-gray-900 mb-4">Your order</h2>
           <div className="space-y-3 max-h-64 overflow-y-auto mb-4">
             {items.map((it) => (
               <div key={it.variantId} className="flex gap-3 text-sm">
-                <div className="w-12 h-12 rounded-lg bg-gray-100 overflow-hidden shrink-0">
+                <div className="w-12 h-12  bg-gray-100 overflow-hidden shrink-0">
                   {it.image ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={it.image} alt="" className="w-full h-full object-cover" />
@@ -213,7 +213,7 @@ export default function CheckoutPage() {
             <div className="flex justify-between"><span className="text-gray-500">Delivery</span><span>{deliveryFee === 0 ? "Free" : money(deliveryFee)}</span></div>
             <div className="flex justify-between text-base border-t border-gray-200 pt-2"><span className="font-semibold">Total</span><span className="font-bold">{money(total)}</span></div>
           </div>
-          <button onClick={place} disabled={placing} className="mt-5 w-full bg-primary text-white py-3 rounded-xl font-semibold hover:bg-primary/90 disabled:opacity-50">
+          <button onClick={place} disabled={placing} className="mt-5 w-full bg-primary text-white py-3  font-semibold hover:bg-primary/90 disabled:opacity-50">
             {placing ? "Placing order..." : "Place order"}
           </button>
           <Link href="/cart" className="mt-2 block text-center text-sm text-gray-500 hover:text-primary">Back to cart</Link>
