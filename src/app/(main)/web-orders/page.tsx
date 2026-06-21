@@ -127,7 +127,7 @@ export default function WebOrdersPage() {
                   </div>
                   <p className="text-sm font-medium">{o.Customer}</p>
                   <p className="text-xs text-gray-500 flex items-center gap-1"><Phone className="w-3 h-3" /> {o.CustomerPhone}{o.SecondaryPhone ? ` / ${o.SecondaryPhone}` : ""}</p>
-                  <p className="text-xs text-gray-500 flex items-start gap-1 mt-0.5"><MapPin className="w-3 h-3 mt-0.5 shrink-0" /> {o.Address}</p>
+                  <p className="text-xs text-gray-500 flex items-start gap-1 mt-0.5"><MapPin className="w-3 h-3 mt-0.5 shrink-0" /> {o.Address}{o.Province ? `, ${o.Province}` : ""}</p>
                   {o.Notes && <p className="text-xs text-gray-400 mt-1 italic">“{o.Notes}”</p>}
                   <p className="text-xs text-gray-400 mt-1">{new Date(o.OrderDate).toLocaleString()} · {o.LineCount} item(s)</p>
                 </div>
@@ -171,12 +171,18 @@ export default function WebOrdersPage() {
                   ) : (
                     <div className="space-y-2">
                       {items[o.Id].map((it: any) => (
-                        <div key={it.Id} className="flex items-center justify-between text-sm">
-                          <div>
-                            <span className="font-medium">{it.ProductName}</span>
-                            <span className="text-gray-500"> · {[it.SizeName, it.ColorName].filter(Boolean).join(" / ") || "—"}</span>
+                        <div key={it.Id} className="flex items-center justify-between text-sm gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            {it.LineImage && (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={it.LineImage} alt="" className="w-9 h-9 rounded object-cover shrink-0 border border-gray-200 dark:border-gray-700" />
+                            )}
+                            <div className="min-w-0">
+                              <span className="font-medium">{it.ProductName}</span>
+                              <span className="text-gray-500"> · {[it.SizeName, it.ColorName].filter(Boolean).join(" / ") || "—"}</span>
+                            </div>
                           </div>
-                          <span className="text-gray-600 dark:text-gray-300">{it.Qty} × {money(it.SellingPrice)} = <b>{money(it.Qty * it.SellingPrice)}</b></span>
+                          <span className="text-gray-600 dark:text-gray-300 shrink-0">{it.Qty} × {money(it.SellingPrice)} = <b>{money(it.Qty * it.SellingPrice)}</b></span>
                         </div>
                       ))}
                     </div>

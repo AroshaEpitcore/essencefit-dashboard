@@ -13,6 +13,7 @@ import {
   getSizesByProduct,
   getColorsByProductAndSize,
   getVariant,
+  getDesignsByProduct,
   getRecentOrders,
   getOrderDetails,
   createOrder,
@@ -42,6 +43,8 @@ import {
 import { formatPhone, cleanPhoneInput } from "@/lib/phoneMask";
 
 type Opt = { Id: string; Name: string };
+type ProdOpt = { Id: string; Name: string; SelectByImage: boolean; PrintOnDemand: boolean };
+type DesignOpt = { VariantId: string; Url: string; Qty: number; SellingPrice: number };
 
 type LineDraft = {
   key: string;
@@ -51,6 +54,7 @@ type LineDraft = {
   variant?: { VariantId: string; InStock: number; SellingPrice: number };
   qty: number;
   price: number;
+  label?: string; // human-readable line label (product / design / size+colour)
 };
 
 const ORDER_STATUSES = [
@@ -165,14 +169,16 @@ export default function OrdersPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [categories, setCategories] = useState<Opt[]>([]);
-  const [products, setProducts] = useState<Opt[]>([]);
+  const [products, setProducts] = useState<ProdOpt[]>([]);
   const [sizes, setSizes] = useState<Opt[]>([]);
   const [colors, setColors] = useState<Opt[]>([]);
+  const [designs, setDesigns] = useState<DesignOpt[]>([]);
 
   const [selCat, setSelCat] = useState("");
   const [selProd, setSelProd] = useState("");
   const [selSize, setSelSize] = useState("");
   const [selColor, setSelColor] = useState("");
+  const [selDesign, setSelDesign] = useState("");
 
   const [lineQty, setLineQty] = useState<number>(1);
   const [linePrice, setLinePrice] = useState<number>(0);
@@ -251,13 +257,15 @@ export default function OrdersPage() {
   const [editLines, setEditLines] = useState<LineDraft[]>([]);
 
   // edit pickers
-  const [editProducts, setEditProducts] = useState<Opt[]>([]);
+  const [editProducts, setEditProducts] = useState<ProdOpt[]>([]);
   const [editSizes, setEditSizes] = useState<Opt[]>([]);
   const [editColors, setEditColors] = useState<Opt[]>([]);
+  const [editDesigns, setEditDesigns] = useState<DesignOpt[]>([]);
   const [editSelCat, setEditSelCat] = useState("");
   const [editSelProd, setEditSelProd] = useState("");
   const [editSelSize, setEditSelSize] = useState("");
   const [editSelColor, setEditSelColor] = useState("");
+  const [editSelDesign, setEditSelDesign] = useState("");
   const [editLineQty, setEditLineQty] = useState<number>(1);
   const [editLinePrice, setEditLinePrice] = useState<number>(0);
 
@@ -477,6 +485,15 @@ export default function OrdersPage() {
     setEditLinePrice(line.price);
   }
 
+  // Selected-product type flags drive whether we show the size/colour cascade
+  // or the design picker, and whether stock is enforced (POD = made to order).
+  const selProdMeta = useMemo(() => products.find((p) => p.Id === selProd), [products, selProd]);
+  const isDesignProd = !!selProdMeta?.SelectByImage;
+  const isPodProd = !!selProdMeta?.PrintOnDemand;
+  const editSelProdMeta = useMemo(() => editProducts.find((p) => p.Id === editSelProd), [editProducts, editSelProd]);
+  const isEditDesignProd = !!editSelProdMeta?.SelectByImage;
+  const isEditPodProd = !!editSelProdMeta?.PrintOnDemand;
+
   /* ---- cascading pickers (CREATE) ---- */
   async function onPickCategory(catId: string) {
     setSelCat(catId);
@@ -486,6 +503,8 @@ export default function OrdersPage() {
     setSizes([]);
     setSelColor("");
     setColors([]);
+    setSelDesign("");
+    setDesigns([]);
     setLineQty(1);
     setLinePrice(0);
     if (!catId) return;
@@ -498,10 +517,24 @@ export default function OrdersPage() {
     setSizes([]);
     setSelColor("");
     setColors([]);
+    setSelDesign("");
+    setDesigns([]);
     setLineQty(1);
     setLinePrice(0);
     if (!prodId) return;
-    setSizes(await getSizesByProduct(prodId));
+    const meta = products.find((p) => p.Id === prodId);
+    if (meta?.SelectByImage) {
+      setDesigns(await getDesignsByProduct(prodId));
+    } else {
+      setSizes(await getSizesByProduct(prodId));
+    }
+  }
+
+  function onPickDesign(variantId: string) {
+    setSelDesign(variantId);
+    setLineQty(1);
+    const d = designs.find((x) => x.VariantId === variantId);
+    if (d) setLinePrice(Number(d.SellingPrice) || 0);
   }
 
   async function onPickSize(sizeId: string) {
@@ -541,6 +574,8 @@ export default function OrdersPage() {
     setEditSizes([]);
     setEditSelColor("");
     setEditColors([]);
+    setEditSelDesign("");
+    setEditDesigns([]);
     setEditLineQty(1);
     setEditLinePrice(0);
     setEditMode("add");
@@ -555,12 +590,26 @@ export default function OrdersPage() {
     setEditSizes([]);
     setEditSelColor("");
     setEditColors([]);
+    setEditSelDesign("");
+    setEditDesigns([]);
     setEditLineQty(1);
     setEditLinePrice(0);
     setEditMode("add");
     setEditSelectedKey(null);
     if (!prodId) return;
-    setEditSizes(await getSizesByProduct(prodId));
+    const meta = editProducts.find((p) => p.Id === prodId);
+    if (meta?.SelectByImage) {
+      setEditDesigns(await getDesignsByProduct(prodId));
+    } else {
+      setEditSizes(await getSizesByProduct(prodId));
+    }
+  }
+
+  function onPickDesignEdit(variantId: string) {
+    setEditSelDesign(variantId);
+    setEditLineQty(1);
+    const d = editDesigns.find((x) => x.VariantId === variantId);
+    if (d) setEditLinePrice(Number(d.SellingPrice) || 0);
   }
 
   async function onPickSizeEdit(sizeId: string) {
@@ -595,46 +644,89 @@ export default function OrdersPage() {
 
   async function addLine(target: "create" | "edit") {
     if (target === "create") {
-      if (!selProd || !selSize || !selColor)
-        return toast.error("Pick Product, Size, Color first.");
-      const v = await getVariant(selProd, selSize, selColor);
-      if (!v) return toast.error("Variant not found.");
-      if (lineQty <= 0) return toast.error("Qty must be > 0");
-      if (lineQty > v.InStock)
-        return toast.error(`Only ${v.InStock} in stock for this variant.`);
-
-      const row: LineDraft = {
-        key: `${v.VariantId}-${Date.now()}`,
-        productId: selProd,
-        sizeId: selSize,
-        colorId: selColor,
-        variant: v,
-        qty: lineQty,
-        price: Number(linePrice || v.SellingPrice || 0),
-      };
+      let row: LineDraft;
+      if (isDesignProd) {
+        if (!selDesign) return toast.error("Pick a design first.");
+        const d = designs.find((x) => x.VariantId === selDesign);
+        if (!d) return toast.error("Design not found.");
+        if (lineQty <= 0) return toast.error("Qty must be > 0");
+        if (!isPodProd && lineQty > d.Qty)
+          return toast.error(`Only ${d.Qty} in stock for this design.`);
+        const designNo = designs.findIndex((x) => x.VariantId === selDesign) + 1;
+        row = {
+          key: `${d.VariantId}-${Date.now()}`,
+          productId: selProd,
+          variant: { VariantId: d.VariantId, InStock: d.Qty, SellingPrice: d.SellingPrice },
+          qty: lineQty,
+          price: Number(linePrice || d.SellingPrice || 0),
+          label: `${selProdMeta?.Name ?? "Product"} — Design ${designNo}`,
+        };
+        setSelDesign("");
+      } else {
+        if (!selProd || !selSize || !selColor)
+          return toast.error("Pick Product, Size, Color first.");
+        const v = await getVariant(selProd, selSize, selColor);
+        if (!v) return toast.error("Variant not found.");
+        if (lineQty <= 0) return toast.error("Qty must be > 0");
+        if (!isPodProd && lineQty > v.InStock)
+          return toast.error(`Only ${v.InStock} in stock for this variant.`);
+        const sizeName = sizes.find((s) => s.Id === selSize)?.Name;
+        const colorName = colors.find((c) => c.Id === selColor)?.Name;
+        row = {
+          key: `${v.VariantId}-${Date.now()}`,
+          productId: selProd,
+          sizeId: selSize,
+          colorId: selColor,
+          variant: v,
+          qty: lineQty,
+          price: Number(linePrice || v.SellingPrice || 0),
+          label: `${selProdMeta?.Name ?? "Product"}${sizeName || colorName ? ` (${[sizeName, colorName].filter(Boolean).join(" / ")})` : ""}`,
+        };
+      }
 
       setLines((p) => [...p, row]);
       setLineQty(1);
       return;
     }
 
-    if (!editSelProd || !editSelSize || !editSelColor)
-      return toast.error("Pick Product, Size, Color first.");
-    const v = await getVariant(editSelProd, editSelSize, editSelColor);
-    if (!v) return toast.error("Variant not found.");
-    if (editLineQty <= 0) return toast.error("Qty must be > 0");
-    if (editLineQty > v.InStock)
-      return toast.error(`Only ${v.InStock} in stock for this variant.`);
-
-    const row: LineDraft = {
-      key: editSelectedKey ?? `${v.VariantId}-${Date.now()}`,
-      productId: editSelProd,
-      sizeId: editSelSize,
-      colorId: editSelColor,
-      variant: v,
-      qty: editLineQty,
-      price: Number(editLinePrice || v.SellingPrice || 0),
-    };
+    let row: LineDraft;
+    if (isEditDesignProd) {
+      if (!editSelDesign) return toast.error("Pick a design first.");
+      const d = editDesigns.find((x) => x.VariantId === editSelDesign);
+      if (!d) return toast.error("Design not found.");
+      if (editLineQty <= 0) return toast.error("Qty must be > 0");
+      if (!isEditPodProd && editLineQty > d.Qty)
+        return toast.error(`Only ${d.Qty} in stock for this design.`);
+      const designNo = editDesigns.findIndex((x) => x.VariantId === editSelDesign) + 1;
+      row = {
+        key: editSelectedKey ?? `${d.VariantId}-${Date.now()}`,
+        productId: editSelProd,
+        variant: { VariantId: d.VariantId, InStock: d.Qty, SellingPrice: d.SellingPrice },
+        qty: editLineQty,
+        price: Number(editLinePrice || d.SellingPrice || 0),
+        label: `${editSelProdMeta?.Name ?? "Product"} — Design ${designNo}`,
+      };
+    } else {
+      if (!editSelProd || !editSelSize || !editSelColor)
+        return toast.error("Pick Product, Size, Color first.");
+      const v = await getVariant(editSelProd, editSelSize, editSelColor);
+      if (!v) return toast.error("Variant not found.");
+      if (editLineQty <= 0) return toast.error("Qty must be > 0");
+      if (!isEditPodProd && editLineQty > v.InStock)
+        return toast.error(`Only ${v.InStock} in stock for this variant.`);
+      const sizeName = editSizes.find((s) => s.Id === editSelSize)?.Name;
+      const colorName = editColors.find((c) => c.Id === editSelColor)?.Name;
+      row = {
+        key: editSelectedKey ?? `${v.VariantId}-${Date.now()}`,
+        productId: editSelProd,
+        sizeId: editSelSize,
+        colorId: editSelColor,
+        variant: v,
+        qty: editLineQty,
+        price: Number(editLinePrice || v.SellingPrice || 0),
+        label: `${editSelProdMeta?.Name ?? "Product"}${sizeName || colorName ? ` (${[sizeName, colorName].filter(Boolean).join(" / ")})` : ""}`,
+      };
+    }
 
     if (editMode === "replace" && editSelectedKey) {
       setEditLines((prev) =>
@@ -655,9 +747,11 @@ export default function OrdersPage() {
     setEditSelProd("");
     setEditSelSize("");
     setEditSelColor("");
+    setEditSelDesign("");
     setEditProducts([]);
     setEditSizes([]);
     setEditColors([]);
+    setEditDesigns([]);
     setEditLineQty(1);
     setEditLinePrice(0);
   }
@@ -900,9 +994,11 @@ export default function OrdersPage() {
     setEditSelProd("");
     setEditSelSize("");
     setEditSelColor("");
+    setEditSelDesign("");
     setEditProducts([]);
     setEditSizes([]);
     setEditColors([]);
+    setEditDesigns([]);
     setEditLineQty(1);
     setEditLinePrice(0);
     setEditMode("add");
@@ -1257,44 +1353,72 @@ export default function OrdersPage() {
             ))}
           </select>
 
-          <select
-            value={selSize}
-            onChange={(e) => onPickSize(e.target.value)}
-            disabled={!selProd}
-            className="bg-gray-50 dark:bg-gray-800/50 border rounded-lg px-4 py-3 disabled:opacity-50"
-          >
-            <option value="">Size</option>
-            {sizes.map((s) => (
-              <option key={s.Id} value={s.Id}>
-                {s.Name}
-              </option>
-            ))}
-          </select>
+          {isDesignProd ? (
+            <select
+              value={selDesign}
+              onChange={(e) => onPickDesign(e.target.value)}
+              disabled={!selProd}
+              className="bg-gray-50 dark:bg-gray-800/50 border rounded-lg px-4 py-3 disabled:opacity-50 md:col-span-2"
+            >
+              <option value="">Design</option>
+              {designs.map((d, i) => {
+                const out = !isPodProd && d.Qty <= 0;
+                return (
+                  <option key={d.VariantId} value={d.VariantId} disabled={out}>
+                    Design {i + 1}{" "}
+                    {isPodProd
+                      ? "(POD)"
+                      : out
+                      ? "❌ OUT"
+                      : d.Qty <= 5
+                      ? `⚠️ ${d.Qty}`
+                      : `✓ ${d.Qty}`}
+                  </option>
+                );
+              })}
+            </select>
+          ) : (
+            <>
+              <select
+                value={selSize}
+                onChange={(e) => onPickSize(e.target.value)}
+                disabled={!selProd}
+                className="bg-gray-50 dark:bg-gray-800/50 border rounded-lg px-4 py-3 disabled:opacity-50"
+              >
+                <option value="">Size</option>
+                {sizes.map((s) => (
+                  <option key={s.Id} value={s.Id}>
+                    {s.Name}
+                  </option>
+                ))}
+              </select>
 
-          <select
-            value={selColor}
-            onChange={(e) => onPickColor(e.target.value)}
-            disabled={!selSize}
-            className="bg-gray-50 dark:bg-gray-800/50 border rounded-lg px-4 py-3 disabled:opacity-50"
-          >
-            <option value="">Color</option>
-            {colors.map((c) => {
-              const stock = variantStock[c.Id] ?? 0;
-              const isLowStock = stock > 0 && stock <= 5;
-              const isOutOfStock = stock === 0;
+              <select
+                value={selColor}
+                onChange={(e) => onPickColor(e.target.value)}
+                disabled={!selSize}
+                className="bg-gray-50 dark:bg-gray-800/50 border rounded-lg px-4 py-3 disabled:opacity-50"
+              >
+                <option value="">Color</option>
+                {colors.map((c) => {
+                  const stock = variantStock[c.Id] ?? 0;
+                  const isLowStock = stock > 0 && stock <= 5;
+                  const isOutOfStock = stock === 0;
 
-              return (
-                <option key={c.Id} value={c.Id} disabled={isOutOfStock}>
-                  {c.Name}{" "}
-                  {isOutOfStock
-                    ? "❌ OUT"
-                    : isLowStock
-                    ? `⚠️ ${stock}`
-                    : `✓ ${stock}`}
-                </option>
-              );
-            })}
-          </select>
+                  return (
+                    <option key={c.Id} value={c.Id} disabled={isOutOfStock}>
+                      {c.Name}{" "}
+                      {isOutOfStock
+                        ? "❌ OUT"
+                        : isLowStock
+                        ? `⚠️ ${stock}`
+                        : `✓ ${stock}`}
+                    </option>
+                  );
+                })}
+              </select>
+            </>
+          )}
 
           <input
             type="number"
@@ -1337,7 +1461,7 @@ export default function OrdersPage() {
                   className="flex items-center justify-between gap-3 bg-gray-50 dark:bg-gray-900/30 border border-gray-200 dark:border-gray-700 rounded-lg p-3"
                 >
                   <div className="text-sm">
-                    <div className="font-mono">{l.variant?.VariantId}</div>
+                    <div className={l.label ? "font-medium" : "font-mono"}>{l.label || l.variant?.VariantId}</div>
                     <div className="text-xs text-gray-500">
                       Qty {l.qty} × Rs {l.price.toFixed(2)}
                     </div>
@@ -2162,44 +2286,72 @@ export default function OrdersPage() {
                 ))}
               </select>
 
-              <select
-                value={editSelSize}
-                onChange={(e) => onPickSizeEdit(e.target.value)}
-                disabled={!editSelProd}
-                className="bg-gray-50 dark:bg-gray-800/50 border rounded-lg px-3 py-2 disabled:opacity-50"
-              >
-                <option value="">Size</option>
-                {editSizes.map((s) => (
-                  <option key={s.Id} value={s.Id}>
-                    {s.Name}
-                  </option>
-                ))}
-              </select>
+              {isEditDesignProd ? (
+                <select
+                  value={editSelDesign}
+                  onChange={(e) => onPickDesignEdit(e.target.value)}
+                  disabled={!editSelProd}
+                  className="bg-gray-50 dark:bg-gray-800/50 border rounded-lg px-3 py-2 disabled:opacity-50 md:col-span-2"
+                >
+                  <option value="">Design</option>
+                  {editDesigns.map((d, i) => {
+                    const out = !isEditPodProd && d.Qty <= 0;
+                    return (
+                      <option key={d.VariantId} value={d.VariantId} disabled={out}>
+                        Design {i + 1}{" "}
+                        {isEditPodProd
+                          ? "(POD)"
+                          : out
+                          ? "❌ OUT"
+                          : d.Qty <= 5
+                          ? `⚠️ ${d.Qty}`
+                          : `✓ ${d.Qty}`}
+                      </option>
+                    );
+                  })}
+                </select>
+              ) : (
+                <>
+                  <select
+                    value={editSelSize}
+                    onChange={(e) => onPickSizeEdit(e.target.value)}
+                    disabled={!editSelProd}
+                    className="bg-gray-50 dark:bg-gray-800/50 border rounded-lg px-3 py-2 disabled:opacity-50"
+                  >
+                    <option value="">Size</option>
+                    {editSizes.map((s) => (
+                      <option key={s.Id} value={s.Id}>
+                        {s.Name}
+                      </option>
+                    ))}
+                  </select>
 
-              <select
-                value={editSelColor}
-                onChange={(e) => onPickColorEdit(e.target.value)}
-                disabled={!editSelSize}
-                className="bg-gray-50 dark:bg-gray-800/50 border rounded-lg px-3 py-2 disabled:opacity-50"
-              >
-                <option value="">Color</option>
-                {editColors.map((c) => {
-                  const stock = editVariantStock[c.Id] ?? 0;
-                  const isLowStock = stock > 0 && stock <= 5;
-                  const isOutOfStock = stock === 0;
+                  <select
+                    value={editSelColor}
+                    onChange={(e) => onPickColorEdit(e.target.value)}
+                    disabled={!editSelSize}
+                    className="bg-gray-50 dark:bg-gray-800/50 border rounded-lg px-3 py-2 disabled:opacity-50"
+                  >
+                    <option value="">Color</option>
+                    {editColors.map((c) => {
+                      const stock = editVariantStock[c.Id] ?? 0;
+                      const isLowStock = stock > 0 && stock <= 5;
+                      const isOutOfStock = stock === 0;
 
-                  return (
-                    <option key={c.Id} value={c.Id} disabled={isOutOfStock}>
-                      {c.Name}{" "}
-                      {isOutOfStock
-                        ? "❌ OUT"
-                        : isLowStock
-                        ? `⚠️ ${stock}`
-                        : `✓ ${stock}`}
-                    </option>
-                  );
-                })}
-              </select>
+                      return (
+                        <option key={c.Id} value={c.Id} disabled={isOutOfStock}>
+                          {c.Name}{" "}
+                          {isOutOfStock
+                            ? "❌ OUT"
+                            : isLowStock
+                            ? `⚠️ ${stock}`
+                            : `✓ ${stock}`}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </>
+              )}
 
               <input
                 type="number"
@@ -2328,8 +2480,8 @@ export default function OrdersPage() {
                   }`}
                   title="Click to load this item into the pickers"
                 >
-                  <div className="text-xs font-mono">
-                    {l.variant?.VariantId}
+                  <div className={l.label ? "text-xs font-medium" : "text-xs font-mono"}>
+                    {l.label || l.variant?.VariantId}
                   </div>
 
                   <div

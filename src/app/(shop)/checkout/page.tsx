@@ -97,7 +97,7 @@ export default function CheckoutPage() {
         items: items.map((i) => ({ variantId: i.variantId, qty: i.qty })),
       });
       clear();
-      router.push(`/order/${orderId}`);
+      router.push(`/order/${orderId}?placed=1`);
     } catch (e: any) {
       toast.error(e.message || "Could not place order");
       setPlacing(false);

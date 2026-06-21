@@ -9,6 +9,8 @@ import {
   toggleProductFlag,
   getBlankCandidates,
   setProductImages,
+  getProductDesigns,
+  saveDesigns,
   getCatalogCategories,
   updateCategoryStorefront,
   getColorsAdmin,
@@ -347,6 +349,9 @@ function ProductEditModal({ id, onClose, onSaved }: { id: string; onClose: () =>
   const [printOnDemand, setPrintOnDemand] = useState(false);
   const [sizeChartUrl, setSizeChartUrl] = useState<string>("");
   const [uploadingChart, setUploadingChart] = useState(false);
+  const [selectByImage, setSelectByImage] = useState(false);
+  const [designs, setDesigns] = useState<{ imageId?: string; url: string; qty: string }[]>([]);
+  const [uploadingDesign, setUploadingDesign] = useState(false);
   const [blankCandidates, setBlankCandidates] = useState<{ Id: string; Name: string }[]>([]);
   const [sortOrder, setSortOrder] = useState(0);
   const [images, setImages] = useState<ImgItem[]>([]);
@@ -371,6 +376,12 @@ function ProductEditModal({ id, onClose, onSaved }: { id: string; onClose: () =>
         setDtfProfit(product.DtfProfit != null ? String(product.DtfProfit) : "");
         setPrintOnDemand(!!product.PrintOnDemand);
         setSizeChartUrl(product.SizeChartUrl || "");
+        setSelectByImage(!!product.SelectByImage);
+        if (product.SelectByImage) {
+          getProductDesigns(id)
+            .then((rows) => setDesigns(rows.map((r) => ({ imageId: r.ImageId, url: r.Url, qty: String(r.Qty ?? 0) }))))
+            .catch(() => {});
+        }
         getBlankCandidates(id).then(setBlankCandidates).catch(() => {});
         setSortOrder(product.SortOrder || 0);
         const cols = colors || [];
@@ -406,6 +417,20 @@ function ProductEditModal({ id, onClose, onSaved }: { id: string; onClose: () =>
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
+
+  async function onUploadDesigns(files: FileList | null) {
+    if (!files?.length) return;
+    setUploadingDesign(true);
+    try {
+      const added: { url: string; qty: string }[] = [];
+      for (const f of Array.from(files)) added.push({ url: await uploadFile(f, "products"), qty: "1" });
+      setDesigns((prev) => [...prev, ...added]);
+    } catch (err: any) {
+      toast.error(err.message || "Upload failed");
+    } finally {
+      setUploadingDesign(false);
+    }
+  }
 
   async function onUploadChart(file: File | null) {
     if (!file) return;
@@ -452,9 +477,14 @@ function ProductEditModal({ id, onClose, onSaved }: { id: string; onClose: () =>
         dtfProfit: dtfProfit.trim() === "" ? null : Number(dtfProfit),
         printOnDemand,
         sizeChartUrl: sizeChartUrl || null,
+        selectByImage,
         sortOrder,
       });
-      await setProductImages(id, images);
+      if (selectByImage) {
+        await saveDesigns(id, designs.map((d) => ({ imageId: d.imageId, url: d.url, qty: Number(d.qty) || 0 })));
+      } else {
+        await setProductImages(id, images);
+      }
       toast.success("Product saved");
       onSaved();
     } catch (err: any) {
@@ -512,6 +542,7 @@ function ProductEditModal({ id, onClose, onSaved }: { id: string; onClose: () =>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={isNewArrival} onChange={(e) => setIsNewArrival(e.target.checked)} /> New arrival</label>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={isDtfPrintable} onChange={(e) => setIsDtfPrintable(e.target.checked)} /> DTF printable</label>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={printOnDemand} onChange={(e) => setPrintOnDemand(e.target.checked)} /> Print on demand</label>
+              <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={selectByImage} onChange={(e) => setSelectByImage(e.target.checked)} /> Select by image (designs)</label>
             </div>
 
             {/* Shared stock + DTF profit */}
@@ -557,7 +588,41 @@ function ProductEditModal({ id, onClose, onSaved }: { id: string; onClose: () =>
               </div>
             </div>
 
+            {/* Designs manager — each image is a selectable design with its own stock */}
+            {selectByImage && (
+              <div className="space-y-3">
+                <label className="block text-sm font-medium">Designs</label>
+                <p className="text-xs text-gray-400 -mt-1">Each image is a design the customer picks. Set the stock qty per design.</p>
+                <div className="flex flex-wrap gap-3">
+                  {designs.map((d, i) => (
+                    <div key={(d.imageId || "new") + i} className="w-28 border border-gray-200 dark:border-gray-700 rounded-lg p-2">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={d.url} alt="" className="w-full h-24 object-cover rounded" />
+                      <div className="flex items-center gap-1 mt-1">
+                        <span className="text-[10px] text-gray-400">Qty</span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={d.qty}
+                          onChange={(e) => setDesigns((prev) => prev.map((x, k) => (k === i ? { ...x, qty: e.target.value } : x)))}
+                          className="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700 rounded px-1 py-0.5 text-xs"
+                        />
+                        <button onClick={() => setDesigns((prev) => prev.filter((_, k) => k !== i))} className="text-red-500 hover:text-red-600">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  <label className="w-28 h-[7.5rem] rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center cursor-pointer hover:border-primary text-gray-400 hover:text-primary">
+                    {uploadingDesign ? <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-primary" /> : <ImagePlus className="w-6 h-6" />}
+                    <input type="file" accept="image/*" multiple hidden onChange={(e) => onUploadDesigns(e.target.files)} />
+                  </label>
+                </div>
+              </div>
+            )}
+
             {/* Images grouped by colour */}
+            {!selectByImage && (
             <div className="space-y-4">
               <label className="block text-sm font-medium">Images</label>
               <p className="text-xs text-gray-400 -mt-2">
@@ -609,6 +674,7 @@ function ProductEditModal({ id, onClose, onSaved }: { id: string; onClose: () =>
                 );
               })}
             </div>
+            )}
 
             <div className="flex justify-end gap-3 pt-3 border-t border-gray-200 dark:border-gray-700">
               <button onClick={onClose} className="px-5 py-2.5 rounded-lg font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">Cancel</button>

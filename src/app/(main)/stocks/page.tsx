@@ -15,6 +15,7 @@ import {
   deleteColor,
   getProductsByCategory,
   addProduct,
+  addOneOffStock,
   updateProduct,
   deleteProduct,
   quickStock,
@@ -58,6 +59,9 @@ export default function StocksPage() {
   const [pName, setPName] = useState("");
   const [pCost, setPCost] = useState("");
   const [pSell, setPSell] = useState("");
+  const [pOneOff, setPOneOff] = useState(false);
+  const [pOneOffQty, setPOneOffQty] = useState("1");
+  const [rowOneOffQty, setRowOneOffQty] = useState<Record<string, string>>({});
 
   // Modals
   const [editItem, setEditItem] = useState<any | null>(null); // {type, id, name, cost, sell}
@@ -330,11 +334,31 @@ export default function StocksPage() {
 
   async function handleAddProduct() {
     try {
-      await addProduct(selectedCat, pName, Number(pCost), Number(pSell));
-      toast.success("Product added");
+      await addProduct(
+        selectedCat,
+        pName,
+        Number(pCost),
+        Number(pSell),
+        pOneOff,
+        pOneOff ? Number(pOneOffQty) || 0 : 0
+      );
+      toast.success(pOneOff ? "One-off product added with stock" : "Product added");
       setPName("");
       setPCost("");
       setPSell("");
+      setPOneOff(false);
+      setPOneOffQty("1");
+      refreshProducts(selectedCat);
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  }
+
+  async function handleAddOneOff(productId: string) {
+    try {
+      const q = Number(rowOneOffQty[productId] ?? "1") || 1;
+      await addOneOffStock(productId, q);
+      toast.success("One-off stock added");
       refreshProducts(selectedCat);
     } catch (e: any) {
       toast.error(e.message);
@@ -650,6 +674,32 @@ export default function StocksPage() {
                 </button>
               </div>
 
+              {/* One-off / single item: create the product with a single
+                  no-size/no-colour variant so it's immediately sellable. */}
+              <div className="flex flex-wrap items-center gap-4 mb-4 -mt-1">
+                <label className="flex items-center gap-2 cursor-pointer text-sm">
+                  <input
+                    type="checkbox"
+                    checked={pOneOff}
+                    onChange={(e) => setPOneOff(e.target.checked)}
+                    className="w-4 h-4"
+                  />
+                  Single item (one-off) — no size/colour
+                </label>
+                {pOneOff && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Qty</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={pOneOffQty}
+                      onChange={(e) => setPOneOffQty(e.target.value)}
+                      className="w-24 bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                )}
+              </div>
+
               <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
                 <table className="w-full">
                   <thead className="bg-gray-100 dark:bg-gray-700/50">
@@ -703,6 +753,26 @@ export default function StocksPage() {
                               <Trash2 className="w-3.5 h-3.5" />
                               <span className="text-xs">Delete</span>
                             </button>
+                            {p.Variants === 0 && (
+                              <div className="flex items-center gap-1 ml-2 pl-2 border-l border-gray-200 dark:border-gray-700">
+                                <input
+                                  type="number"
+                                  min={1}
+                                  value={rowOneOffQty[p.Id] ?? "1"}
+                                  onChange={(e) => setRowOneOffQty((m) => ({ ...m, [p.Id]: e.target.value }))}
+                                  className="w-14 bg-gray-50 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700 rounded px-2 py-1 text-xs"
+                                  title="One-off quantity"
+                                />
+                                <button
+                                  onClick={() => handleAddOneOff(p.Id)}
+                                  className="text-green-600 hover:text-green-500 transition-colors flex items-center gap-1"
+                                  title="Create a single no-size/no-colour stock row for this item"
+                                >
+                                  <Plus className="w-3.5 h-3.5" />
+                                  <span className="text-xs whitespace-nowrap">One-off stock</span>
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </td>
                       </tr>

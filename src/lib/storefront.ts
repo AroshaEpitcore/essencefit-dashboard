@@ -267,8 +267,11 @@ export type StoreProductDetail = StoreProduct & {
   Description: string | null;
   CategoryId: string | null;
   SizeChartUrl: string | null;
+  SelectByImage: boolean;
   Images: string[];
 };
+
+export type StoreDesign = { VariantId: string; Image: string; Qty: number; Price: number };
 
 export type StoreVariant = {
   VariantId: string;
@@ -307,7 +310,7 @@ export async function getProductBySlug(slug: string): Promise<StoreProductDetail
   const res = await pool
     .request()
     .input("slug", sql.NVarChar(250), slug)
-    .query(`${PRODUCT_SELECT.replace("FROM Products p", ", p.Description, p.CategoryId, p.SizeChartUrl FROM Products p")}
+    .query(`${PRODUCT_SELECT.replace("FROM Products p", ", p.Description, p.CategoryId, p.SizeChartUrl, p.SelectByImage FROM Products p")}
             WHERE p.Slug = @slug AND p.IsActive = 1`);
   const row = res.recordset[0];
   if (!row) return null;
@@ -320,7 +323,27 @@ export async function getProductBySlug(slug: string): Promise<StoreProductDetail
   const images = imgs.recordset.map((r: any) => r.Url as string);
   if (images.length === 0 && row.ImageUrl) images.push(row.ImageUrl);
 
-  return { ...(row as StoreProduct), Description: row.Description, CategoryId: row.CategoryId, SizeChartUrl: row.SizeChartUrl, Images: images };
+  return { ...(row as StoreProduct), Description: row.Description, CategoryId: row.CategoryId, SizeChartUrl: row.SizeChartUrl, SelectByImage: !!row.SelectByImage, Images: images };
+}
+
+// Designs for a select-by-image product: each is a variant tied to its image,
+// with blank-resolved stock. Ordered by the image SortOrder.
+export async function getProductDesigns(productId: string): Promise<StoreDesign[]> {
+  const pool = await getDb();
+  const res = await pool
+    .request()
+    .input("pid", sql.UniqueIdentifier, productId)
+    .query(`
+      SELECT v.Id AS VariantId, pi.Url AS Image,
+             ISNULL((SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(v.Id)), 0) AS Qty,
+             ISNULL(v.SellingPrice, p.SellingPrice) AS Price
+      FROM ProductImages pi
+      JOIN ProductVariants v ON v.Id = pi.VariantId
+      JOIN Products p ON p.Id = v.ProductId
+      WHERE pi.ProductId = @pid
+      ORDER BY pi.SortOrder
+    `);
+  return res.recordset as StoreDesign[];
 }
 
 export async function getProductVariants(productId: string): Promise<StoreVariant[]> {

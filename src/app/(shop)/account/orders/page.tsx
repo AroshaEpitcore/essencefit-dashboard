@@ -40,7 +40,21 @@ export default async function MyOrdersPage() {
         <div className="space-y-3">
           {orders.map((o) => (
             <Link key={o.id} href={o.href} className="flex items-center gap-4 bg-white border border-gray-200  p-4 hover:border-primary">
-              <div className="flex-1">
+              <div className="flex -space-x-3 shrink-0">
+                {o.thumbs.length > 0 ? (
+                  o.thumbs.slice(0, 4).map((src, i) => (
+                    <div key={i} className="w-12 h-12 rounded border-2 border-white bg-gray-100 overflow-hidden ring-1 ring-gray-200">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={src} alt="" className="w-full h-full object-cover" />
+                    </div>
+                  ))
+                ) : (
+                  <div className="w-12 h-12 rounded bg-gray-100 flex items-center justify-center ring-1 ring-gray-200">
+                    <Package className="w-5 h-5 text-gray-300" />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
                 <p className="font-medium text-gray-900 flex items-center gap-2">
                   #{o.number}
                   {o.kind === "dtf" && <span className="text-[10px] font-semibold uppercase tracking-wide bg-primary/10 text-primary px-1.5 py-0.5 rounded">Custom</span>}

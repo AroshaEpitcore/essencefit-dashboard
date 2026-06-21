@@ -7,7 +7,7 @@ export async function getWebOrders() {
   const pool = await getDb();
   const res = await pool.request().query(`
     SELECT
-      o.Id, o.Customer, o.CustomerPhone, o.SecondaryPhone, o.Address, o.CustomerEmail,
+      o.Id, o.Customer, o.CustomerPhone, o.SecondaryPhone, o.Address, o.Province, o.CustomerEmail,
       o.PaymentMethod, o.PaymentSlipUrl, o.PaymentVerified, o.PaymentStatus,
       o.OrderDate, o.Notes, o.Subtotal, o.DeliveryFee, o.Total,
       (SELECT COUNT(*) FROM OrderItems oi WHERE oi.OrderId = o.Id) AS LineCount,

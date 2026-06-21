@@ -206,10 +206,28 @@ export async function createWebOrder(payload: WebOrderPayload): Promise<{ orderI
         .query(`INSERT INTO OrderItems (Id, OrderId, VariantId, Qty, SellingPrice)
                 VALUES (@Id, @OrderId, @VariantId, @Qty, @SellingPrice)`);
 
-      await new sql.Request(tx)
+      // Resolve to the blank-aware variant, decrement, and log the sale to StockHistory.
+      const vr = await new sql.Request(tx)
         .input("VariantId", UniqueIdentifier, it.variantId)
+        .query(`
+          SELECT dbo.fn_StockVariantId(@VariantId) AS StockVid,
+                 (SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(@VariantId)) AS Qty,
+                 ISNULL((SELECT z.SellingPrice FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(@VariantId)), 0) AS SellingPrice
+        `);
+      const sv = vr.recordset[0];
+      const prev = sv?.Qty ?? 0;
+      await new sql.Request(tx)
+        .input("Vid", UniqueIdentifier, sv.StockVid)
         .input("Qty", Int, it.qty)
-        .query(`UPDATE ProductVariants SET Qty = Qty - @Qty WHERE Id = dbo.fn_StockVariantId(@VariantId)`);
+        .query(`UPDATE ProductVariants SET Qty = Qty - @Qty WHERE Id = @Vid`);
+      await new sql.Request(tx)
+        .input("VariantId", UniqueIdentifier, sv.StockVid)
+        .input("ChangeQty", Int, -it.qty)
+        .input("PreviousQty", Int, prev)
+        .input("NewQty", Int, prev - it.qty)
+        .input("Price", Decimal(18, 2), sv?.SellingPrice ?? 0)
+        .query(`INSERT INTO StockHistory (VariantId, ChangeQty, Reason, PreviousQty, NewQty, PriceAtChange, CreatedAt)
+                VALUES (@VariantId, @ChangeQty, 'order-sale', @PreviousQty, @NewQty, @Price, GETDATE())`);
     }
 
     // 6) Status log
@@ -234,34 +252,4 @@ export async function createWebOrder(payload: WebOrderPayload): Promise<{ orderI
     try { await tx.rollback(); } catch {}
     throw err;
   }
-}
-
-/* ---------- Confirmation read ---------- */
-export async function getOrderForConfirmation(orderId: string) {
-  const pool = await getDb();
-  const header = await pool
-    .request()
-    .input("Id", UniqueIdentifier, orderId)
-    .query(`
-      SELECT TOP 1 Id, Customer, CustomerPhone, Address, CustomerEmail, PaymentMethod,
-             PaymentStatus, OrderDate, Subtotal, DeliveryFee, Total
-      FROM Orders WHERE Id=@Id AND Source='web'
-    `);
-  if (!header.recordset[0]) return null;
-
-  const items = await pool
-    .request()
-    .input("Id", UniqueIdentifier, orderId)
-    .query(`
-      SELECT oi.Qty, oi.SellingPrice, p.Name AS ProductName, p.ImageUrl,
-             s.Name AS SizeName, c.Name AS ColorName
-      FROM OrderItems oi
-      JOIN ProductVariants v ON v.Id = oi.VariantId
-      JOIN Products p ON p.Id = v.ProductId
-      LEFT JOIN Sizes s ON s.Id = v.SizeId
-      LEFT JOIN Colors c ON c.Id = v.ColorId
-      WHERE oi.OrderId=@Id
-    `);
-
-  return { order: header.recordset[0], items: items.recordset };
 }

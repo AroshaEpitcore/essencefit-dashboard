@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { getProductBySlug, getProductVariants, getRelatedProducts, getProductImagesByColor } from "@/lib/storefront";
+import { getProductBySlug, getProductVariants, getRelatedProducts, getProductImagesByColor, getProductDesigns } from "@/lib/storefront";
 import ProductView from "@/components/shop/ProductView";
+import DesignPicker from "@/components/shop/DesignPicker";
 import ProductCard from "@/components/shop/ProductCard";
 import SizeChartButton from "@/components/shop/SizeChartButton";
 import { money, discountPct } from "@/components/shop/format";
@@ -33,10 +34,11 @@ export default async function ProductPage({
   const product = await getProductBySlug(slug);
   if (!product) notFound();
 
-  const [variants, images, related] = await Promise.all([
+  const [variants, images, related, designs] = await Promise.all([
     getProductVariants(product.Id),
     getProductImagesByColor(product.Id),
     product.CategoryId ? getRelatedProducts(product.CategoryId, product.Id, 4) : Promise.resolve([]),
+    product.SelectByImage ? getProductDesigns(product.Id) : Promise.resolve([]),
   ]);
 
   // Colourless products keep using the flat image list as their "shared" set.
@@ -44,6 +46,38 @@ export default async function ProductPage({
   if (images.shared.length === 0 && !hasColorImages) images.shared = product.Images;
 
   const pct = discountPct(product.SellingPrice, product.CompareAtPrice);
+
+  const productLite = {
+    Id: product.Id, Name: product.Name, Slug: product.Slug, ImageUrl: product.ImageUrl,
+    SellingPrice: product.SellingPrice, CompareAtPrice: product.CompareAtPrice,
+  };
+  const headerSlot = (
+    <div>
+      {product.CategoryName && <p className="text-xs uppercase tracking-wide text-gray-400 mb-1">{product.CategoryName}</p>}
+      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">{product.Name}</h1>
+      {/* Server-rendered price (in HTML for SEO / instant paint) */}
+      <div className="flex items-baseline gap-3 mb-5">
+        <span className="text-3xl font-bold text-gray-900">{money(product.SellingPrice)}</span>
+        {pct > 0 && (
+          <>
+            <span className="text-lg text-gray-400 line-through">{money(product.CompareAtPrice)}</span>
+            <span className="text-sm font-semibold text-primary">-{pct}%</span>
+          </>
+        )}
+      </div>
+      {product.SizeChartUrl && (
+        <div className="mb-5">
+          <SizeChartButton url={product.SizeChartUrl} />
+        </div>
+      )}
+    </div>
+  );
+  const footerSlot = product.Description ? (
+    <div className="mt-8 pt-6 border-t border-gray-200">
+      <h2 className="font-semibold text-gray-900 mb-2">Description</h2>
+      <p className="text-gray-600 whitespace-pre-line leading-relaxed">{product.Description}</p>
+    </div>
+  ) : null;
 
   return (
     <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-6">
@@ -60,44 +94,18 @@ export default async function ProductPage({
         <span className="text-gray-700">{product.Name}</span>
       </nav>
 
-      <ProductView
-        product={{
-          Id: product.Id, Name: product.Name, Slug: product.Slug, ImageUrl: product.ImageUrl,
-          SellingPrice: product.SellingPrice, CompareAtPrice: product.CompareAtPrice,
-        }}
-        variants={variants}
-        images={images}
-        initialColorId={color ?? null}
-        header={
-          <div>
-            {product.CategoryName && <p className="text-xs uppercase tracking-wide text-gray-400 mb-1">{product.CategoryName}</p>}
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">{product.Name}</h1>
-            {/* Server-rendered price (in HTML for SEO / instant paint) */}
-            <div className="flex items-baseline gap-3 mb-5">
-              <span className="text-3xl font-bold text-gray-900">{money(product.SellingPrice)}</span>
-              {pct > 0 && (
-                <>
-                  <span className="text-lg text-gray-400 line-through">{money(product.CompareAtPrice)}</span>
-                  <span className="text-sm font-semibold text-primary">-{pct}%</span>
-                </>
-              )}
-            </div>
-            {product.SizeChartUrl && (
-              <div className="mb-5">
-                <SizeChartButton url={product.SizeChartUrl} />
-              </div>
-            )}
-          </div>
-        }
-        footer={
-          product.Description ? (
-            <div className="mt-8 pt-6 border-t border-gray-200">
-              <h2 className="font-semibold text-gray-900 mb-2">Description</h2>
-              <p className="text-gray-600 whitespace-pre-line leading-relaxed">{product.Description}</p>
-            </div>
-          ) : null
-        }
-      />
+      {product.SelectByImage ? (
+        <DesignPicker product={productLite} designs={designs} header={headerSlot} footer={footerSlot} />
+      ) : (
+        <ProductView
+          product={productLite}
+          variants={variants}
+          images={images}
+          initialColorId={color ?? null}
+          header={headerSlot}
+          footer={footerSlot}
+        />
+      )}
 
       {related.length > 0 && (
         <section className="mt-14">

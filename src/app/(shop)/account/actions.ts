@@ -107,7 +107,11 @@ export type MyOrder = {
   count: number; // line items / designs
   label: string | null; // payment method / "Custom print"
   href: string;
+  thumbs: string[]; // a few product / design image urls for the list preview
 };
+
+const splitThumbs = (s: string | null): string[] =>
+  (s ? s.split("|") : []).filter(Boolean);
 
 /* All of the customer's orders — regular web orders AND DTF custom orders —
    matched by account id OR the same phone/email (so guest-placed orders surface
@@ -125,18 +129,29 @@ export async function getMyOrders(): Promise<MyOrder[]> {
 
   const ordersRes = await bind(pool.request()).query(`
     SELECT o.Id, o.OrderDate, o.PaymentStatus, o.PaymentMethod, o.Total,
-           (SELECT COUNT(*) FROM OrderItems oi WHERE oi.OrderId=o.Id) AS LineCount
+           (SELECT COUNT(*) FROM OrderItems oi WHERE oi.OrderId=o.Id) AS LineCount,
+           (SELECT STRING_AGG(t.Url, '|') FROM (
+              SELECT TOP 4 ISNULL((SELECT TOP 1 Url FROM ProductImages WHERE VariantId = oi.VariantId), p.ImageUrl) AS Url
+              FROM OrderItems oi
+              JOIN ProductVariants v ON v.Id = oi.VariantId
+              JOIN Products p ON p.Id = v.ProductId
+              WHERE oi.OrderId = o.Id
+            ) t) AS Thumbs
     FROM Orders o
-    WHERE o.CustomerId=@Cid
+    WHERE o.Source='web' AND (o.CustomerId=@Cid
        OR (@Phone IS NOT NULL AND o.CustomerPhone=@Phone)
-       OR (@Email IS NOT NULL AND o.CustomerEmail=@Email)
+       OR (@Email IS NOT NULL AND o.CustomerEmail=@Email))
     ORDER BY o.OrderDate DESC
   `);
 
   const dtfRes = await bind(pool.request()).query(`
     SELECT d.Id, d.Ref, d.CreatedAt, d.Status,
            COALESCE(d.FinalTotal, d.EstimatedTotal) AS Total,
-           (SELECT COUNT(*) FROM DtfOrderDesigns g WHERE g.DtfOrderId=d.Id) AS DesignCount
+           (SELECT COUNT(*) FROM DtfOrderDesigns g WHERE g.DtfOrderId=d.Id) AS DesignCount,
+           (SELECT STRING_AGG(t.Url, '|') FROM (
+              SELECT TOP 4 Url FROM DtfOrderDesigns
+              WHERE DtfOrderId = d.Id AND Kind = 'image' ORDER BY SortOrder
+            ) t) AS Thumbs
     FROM DtfOrders d
     WHERE d.CustomerId=@Cid
        OR (@Phone IS NOT NULL AND d.CustomerPhone=@Phone)
@@ -154,6 +169,7 @@ export async function getMyOrders(): Promise<MyOrder[]> {
     count: o.LineCount,
     label: o.PaymentMethod || null,
     href: `/order/${o.Id}`,
+    thumbs: splitThumbs(o.Thumbs),
   }));
 
   const dtf: MyOrder[] = dtfRes.recordset.map((d: any) => ({
@@ -166,6 +182,7 @@ export async function getMyOrders(): Promise<MyOrder[]> {
     count: d.DesignCount,
     label: "Custom print",
     href: `/dtf-order/${d.Id}`,
+    thumbs: splitThumbs(d.Thumbs),
   }));
 
   return [...orders, ...dtf].sort((a, b) => +new Date(b.date) - +new Date(a.date));
@@ -202,6 +219,78 @@ export async function getMyDtfOrder(id: string) {
     .input("Id", sql.UniqueIdentifier, id)
     .query(`SELECT Id, Url, Kind, SortOrder FROM DtfOrderDesigns WHERE DtfOrderId=@Id ORDER BY SortOrder`);
   return { order: header.recordset[0], designs: designs.recordset };
+}
+
+export type MyOrderItem = {
+  Qty: number;
+  SellingPrice: number;
+  ProductName: string;
+  Slug: string | null;
+  ImageUrl: string | null;
+  SizeName: string | null;
+  ColorName: string | null;
+};
+
+export type MyOrderStatusLog = {
+  OldStatus: string | null;
+  NewStatus: string;
+  ChangedAt: string;
+};
+
+/* A single web order for its owner (account id or matching phone/email), for the
+   customer order-detail / tracking page. Returns null if it isn't theirs. */
+export async function getMyOrder(id: string) {
+  const me = await getCurrentCustomer();
+  if (!me) return null;
+  const pool = await getDb();
+
+  const header = await pool
+    .request()
+    .input("Id", sql.UniqueIdentifier, id)
+    .input("Cid", sql.UniqueIdentifier, me.Id)
+    .input("Phone", sql.NVarChar(50), me.Phone || null)
+    .input("Email", sql.NVarChar(200), me.Email || null)
+    .query(`
+      SELECT TOP 1 o.Id, o.Customer, o.CustomerPhone, o.SecondaryPhone, o.Address, o.Province,
+             o.CustomerEmail, o.Notes, o.PaymentMethod, o.PaymentSlipUrl, o.PaymentStatus,
+             o.PaymentVerified, o.OrderDate, o.Subtotal, o.ManualDiscount, o.Discount,
+             o.DeliveryFee, o.Total
+      FROM Orders o
+      WHERE o.Id=@Id AND o.Source='web' AND (
+        o.CustomerId=@Cid
+        OR (@Phone IS NOT NULL AND o.CustomerPhone=@Phone)
+        OR (@Email IS NOT NULL AND o.CustomerEmail=@Email)
+      )
+    `);
+  if (!header.recordset[0]) return null;
+
+  const items = await pool
+    .request()
+    .input("Id", sql.UniqueIdentifier, id)
+    .query(`
+      SELECT oi.Qty, oi.SellingPrice, p.Name AS ProductName, p.Slug,
+             ISNULL((SELECT TOP 1 Url FROM ProductImages WHERE VariantId = oi.VariantId), p.ImageUrl) AS ImageUrl,
+             s.Name AS SizeName, c.Name AS ColorName
+      FROM OrderItems oi
+      JOIN ProductVariants v ON v.Id = oi.VariantId
+      JOIN Products p ON p.Id = v.ProductId
+      LEFT JOIN Sizes s ON s.Id = v.SizeId
+      LEFT JOIN Colors c ON c.Id = v.ColorId
+      WHERE oi.OrderId=@Id
+      ORDER BY p.Name
+    `);
+
+  const logs = await pool
+    .request()
+    .input("Id", sql.UniqueIdentifier, id)
+    .query(`SELECT OldStatus, NewStatus, ChangedAt FROM OrderStatusLogs
+            WHERE OrderId=@Id ORDER BY ChangedAt ASC`);
+
+  return {
+    order: header.recordset[0],
+    items: items.recordset as MyOrderItem[],
+    logs: logs.recordset as MyOrderStatusLog[],
+  };
 }
 
 export async function updateMyProfile(input: { name: string; phone: string; address: string; password?: string }) {

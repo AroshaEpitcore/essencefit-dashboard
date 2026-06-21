@@ -77,7 +77,8 @@
       "Bash(PORT=3001 npm start *)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3001/product/ck-sport-short-214da50a)",
       "PowerShell($conns = Get-NetTCPConnection -LocalPort 3001 -State Listen -ErrorAction SilentlyContinue; foreach \\($c in $conns\\) { try { Stop-Process -Id $c.OwningProcess -Force -ErrorAction Stop; \"killed PID $\\($c.OwningProcess\\) on 3001\" } catch {} })",
-      "PowerShell(npx tsc --noEmit -p tsconfig.json 2>&1 | Select-Object -First 15)"
+      "PowerShell(npx tsc --noEmit -p tsconfig.json 2>&1 | Select-Object -First 15)",
+      "Bash(npx eslint *)"
     ]
   }
 }
