@@ -46,11 +46,13 @@ export default function AddToCart({
   variants,
   colorId,
   setColorId,
+  currentImage,
 }: {
   product: ProductLite;
   variants: StoreVariant[];
   colorId: string | null;
   setColorId: (id: string | null) => void;
+  currentImage?: string | null;
 }) {
   const { addItem } = useCart();
   const router = useRouter();
@@ -123,7 +125,7 @@ export default function AddToCart({
       productId: product.Id,
       name: product.Name,
       slug: product.Slug,
-      image: product.ImageUrl,
+      image: currentImage ?? product.ImageUrl,
       size: variant.SizeName,
       color: variant.ColorName,
       price,

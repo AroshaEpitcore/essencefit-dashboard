@@ -7,6 +7,6 @@ import { usePathname } from "next/navigation";
 export default function HeaderOffset({ hasPromo }: { hasPromo: boolean }) {
   const pathname = usePathname();
   if (pathname === "/") return null;
-  // promo strip = 36px (h-9); nav = 64px (h-16) / 80px (md:h-20)
-  return <div className={hasPromo ? "h-[100px] md:h-[116px]" : "h-16 md:h-20"} aria-hidden />;
+  // promo strip = 36px (h-9); nav = 64px (h-16) / 96px (md:h-24)
+  return <div className={hasPromo ? "h-[100px] md:h-[132px]" : "h-16 md:h-24"} aria-hidden />;
 }

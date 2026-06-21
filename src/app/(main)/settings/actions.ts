@@ -80,6 +80,7 @@ export async function saveStoreSettings(s: StoreSettings) {
     [STORE_KEYS.bank, JSON.stringify(s.bank ?? {})],
     [STORE_KEYS.deliveryFee, String(s.deliveryFee ?? 0)],
     [STORE_KEYS.freeDeliveryOver, String(s.freeDeliveryOver ?? 0)],
+    [STORE_KEYS.deliveryProvinces, JSON.stringify(s.deliveryProvinces ?? [])],
     [STORE_KEYS.contactPhone, s.contactPhone ?? ""],
     [STORE_KEYS.contactEmail, s.contactEmail ?? ""],
     [STORE_KEYS.social, JSON.stringify(s.social ?? {})],

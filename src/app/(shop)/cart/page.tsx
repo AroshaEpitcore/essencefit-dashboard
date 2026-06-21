@@ -13,12 +13,9 @@ export default function CartPage() {
 
   useEffect(() => { getCheckoutConfig().then(setConfig).catch(() => {}); }, []);
 
-  const deliveryFee = config
-    ? config.freeDeliveryOver > 0 && subtotal >= config.freeDeliveryOver
-      ? 0
-      : config.deliveryFee
-    : 0;
-  const total = subtotal + deliveryFee;
+  // Delivery depends on the province chosen at checkout, so the cart only shows
+  // the subtotal — except when the order already qualifies for free delivery.
+  const freeDelivery = !!config && config.freeDeliveryOver > 0 && subtotal >= config.freeDeliveryOver;
 
   if (ready && items.length === 0) {
     return (
@@ -76,10 +73,14 @@ export default function CartPage() {
           <h2 className="font-semibold text-gray-900 mb-4">Order summary</h2>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between"><span className="text-gray-500">Subtotal</span><span className="font-medium">{money(subtotal)}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">Delivery</span><span className="font-medium">{deliveryFee === 0 ? "Free" : money(deliveryFee)}</span></div>
-            <div className="border-t border-gray-200 pt-2 flex justify-between text-base">
-              <span className="font-semibold">Total</span><span className="font-bold">{money(total)}</span>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Delivery</span>
+              <span className="font-medium text-gray-500">{freeDelivery ? "Free" : "Calculated at checkout"}</span>
             </div>
+            <div className="border-t border-gray-200 pt-2 flex justify-between text-base">
+              <span className="font-semibold">Total</span><span className="font-bold">{money(subtotal)}</span>
+            </div>
+            <p className="text-xs text-gray-400 pt-1">Delivery is calculated by your province at checkout.</p>
           </div>
           <Link href="/checkout" className="mt-5 w-full bg-primary text-white py-3  font-semibold flex items-center justify-center gap-2 hover:bg-primary/90">
             Checkout <ArrowRight className="w-4 h-4" />

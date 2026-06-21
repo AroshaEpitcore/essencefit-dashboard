@@ -65,17 +65,21 @@ export type DtfEstimate = {
   };
 };
 
-/* Server-authoritative estimate. Looks selected print rates up by name from
-   the live active price items (never trusts client amounts). */
+/* Server-authoritative estimate. The garment base is the blank's COST plus a
+   DTF profit (per-product override, else the global Profit price item). Print
+   rates are looked up by name from the live active price items (never trusts
+   client amounts). */
 export async function computeDtfEstimate(input: {
-  garmentPrice: number;
+  garmentCost: number;
   printNames: string[];
   qty: number;
+  profitOverride?: number | null;
 }): Promise<DtfEstimate> {
   const items = await getActivePriceItems();
-  const { overheadTotal, profit, orderExtra } = derive(items);
+  const { overheadTotal, profit: globalProfit, orderExtra } = derive(items);
 
-  const garmentPrice = Math.max(0, Number(input.garmentPrice) || 0);
+  const garmentCost = Math.max(0, Number(input.garmentCost) || 0);
+  const profit = input.profitOverride != null ? Math.max(0, Number(input.profitOverride) || 0) : globalProfit;
   const qty = Math.max(1, Math.floor(Number(input.qty) || 1));
 
   const printRows = items.filter((i) => i.Category === "Print");
@@ -86,15 +90,15 @@ export async function computeDtfEstimate(input: {
 
   const printSum = selected.reduce((s, p) => s + p.amount, 0);
   const printCharges = printSum + overheadTotal + profit;
-  const perPiece = garmentPrice + printCharges;
+  const perPiece = garmentCost + printCharges;
   const total = perPiece * qty + orderExtra;
 
   return {
-    garmentPrice,
+    garmentPrice: garmentCost, // garment base used (cost, not retail)
     printCharges,
     perPiece,
     qty,
     total,
-    breakdown: { garmentPrice, prints: selected, overheadTotal, profit, orderExtra, perPiece, qty, total },
+    breakdown: { garmentPrice: garmentCost, prints: selected, overheadTotal, profit, orderExtra, perPiece, qty, total },
   };
 }

@@ -10,7 +10,13 @@ export async function getWebOrders() {
       o.Id, o.Customer, o.CustomerPhone, o.SecondaryPhone, o.Address, o.CustomerEmail,
       o.PaymentMethod, o.PaymentSlipUrl, o.PaymentVerified, o.PaymentStatus,
       o.OrderDate, o.Notes, o.Subtotal, o.DeliveryFee, o.Total,
-      (SELECT COUNT(*) FROM OrderItems oi WHERE oi.OrderId = o.Id) AS LineCount
+      (SELECT COUNT(*) FROM OrderItems oi WHERE oi.OrderId = o.Id) AS LineCount,
+      CAST(CASE WHEN EXISTS (
+        SELECT 1 FROM OrderItems oi
+        JOIN ProductVariants v ON v.Id = oi.VariantId
+        JOIN Products p ON p.Id = v.ProductId
+        WHERE oi.OrderId = o.Id AND p.PrintOnDemand = 1
+      ) THEN 1 ELSE 0 END AS BIT) AS HasPrintOnDemand
     FROM Orders o
     WHERE o.Source = 'web'
     ORDER BY o.OrderDate DESC

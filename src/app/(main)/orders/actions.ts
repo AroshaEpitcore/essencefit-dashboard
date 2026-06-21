@@ -70,7 +70,7 @@ export async function getVariant(productId: string, sizeId: string, colorId: str
     .query(`
       SELECT TOP 1
         v.Id AS VariantId,
-        v.Qty AS InStock,
+        ISNULL((SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(v.Id)), 0) AS InStock,
         ISNULL(v.SellingPrice, p.SellingPrice) AS SellingPrice
       FROM ProductVariants v
       JOIN Products p ON p.Id = v.ProductId
@@ -92,7 +92,8 @@ export async function getVariantStockByProductAndSize(
     .input("pid", UniqueIdentifier, productId)
     .input("sid", UniqueIdentifier, sizeId)
     .query(`
-      SELECT v.ColorId, v.Qty
+      SELECT v.ColorId,
+             ISNULL((SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(v.Id)), 0) AS Qty
       FROM ProductVariants v
       WHERE v.ProductId=@pid AND v.SizeId=@sid
     `);
@@ -264,7 +265,7 @@ async function validateAndReduceStock(tx: sql.Transaction, items: OrderItemInput
   for (const it of items) {
     const chk = await new sql.Request(tx)
       .input("VariantId", UniqueIdentifier, it.VariantId)
-      .query(`SELECT TOP 1 Qty FROM ProductVariants WHERE Id=@VariantId`);
+      .query(`SELECT TOP 1 Qty FROM ProductVariants WHERE Id = dbo.fn_StockVariantId(@VariantId)`);
 
     const inStock = chk.recordset?.[0]?.Qty ?? 0;
     if (it.Qty > inStock) throw new Error(`Not enough stock. In stock: ${inStock}`);
@@ -274,7 +275,7 @@ async function validateAndReduceStock(tx: sql.Transaction, items: OrderItemInput
     await new sql.Request(tx)
       .input("VariantId", UniqueIdentifier, it.VariantId)
       .input("Qty", Int, it.Qty)
-      .query(`UPDATE ProductVariants SET Qty = Qty - @Qty WHERE Id=@VariantId`);
+      .query(`UPDATE ProductVariants SET Qty = Qty - @Qty WHERE Id = dbo.fn_StockVariantId(@VariantId)`);
   }
 }
 
@@ -285,7 +286,7 @@ async function restoreStockFromOrder(tx: sql.Transaction, orderId: string) {
       UPDATE v
       SET v.Qty = v.Qty + oi.Qty
       FROM ProductVariants v
-      JOIN OrderItems oi ON oi.VariantId = v.Id
+      JOIN OrderItems oi ON v.Id = dbo.fn_StockVariantId(oi.VariantId)
       WHERE oi.OrderId=@OrderId
     `);
 }

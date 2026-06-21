@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
-import { getWebOrders, verifyWebPayment, setWebOrderStatus } from "./actions";
+import { getWebOrders, verifyWebPayment, setWebOrderStatus, getWebOrderDetails } from "./actions";
 import {
-  Globe, Truck, Landmark, CheckCircle2, ExternalLink, Phone, MapPin, ShieldCheck, RefreshCw,
+  Globe, Truck, Landmark, CheckCircle2, ExternalLink, Phone, MapPin, ShieldCheck, RefreshCw, Package, ChevronDown,
 } from "lucide-react";
 
 const money = (n: number) => "Rs. " + Number(n || 0).toLocaleString();
@@ -23,6 +23,21 @@ export default function WebOrdersPage() {
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<"all" | "unverified">("all");
   const [slip, setSlip] = useState<string | null>(null);
+  const [items, setItems] = useState<Record<string, any[]>>({});
+  const [openItems, setOpenItems] = useState<string | null>(null);
+
+  async function toggleItems(id: string) {
+    if (openItems === id) { setOpenItems(null); return; }
+    setOpenItems(id);
+    if (!items[id]) {
+      try {
+        const d = await getWebOrderDetails(id);
+        setItems((prev) => ({ ...prev, [id]: d.items || [] }));
+      } catch (e: any) {
+        toast.error(e.message || "Failed to load items");
+      }
+    }
+  }
 
   async function load() {
     setLoading(true);
@@ -106,6 +121,9 @@ export default function WebOrdersPage() {
                     ) : (
                       <span className="text-xs flex items-center gap-1 text-gray-500"><Truck className="w-3 h-3" /> COD</span>
                     )}
+                    {o.HasPrintOnDemand && (
+                      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">Print on demand</span>
+                    )}
                   </div>
                   <p className="text-sm font-medium">{o.Customer}</p>
                   <p className="text-xs text-gray-500 flex items-center gap-1"><Phone className="w-3 h-3" /> {o.CustomerPhone}{o.SecondaryPhone ? ` / ${o.SecondaryPhone}` : ""}</p>
@@ -121,6 +139,10 @@ export default function WebOrdersPage() {
               </div>
 
               <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                <button onClick={() => toggleItems(o.Id)} className="text-xs flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 font-medium">
+                  <Package className="w-3 h-3" /> {openItems === o.Id ? "Hide items" : `View items (${o.LineCount})`}
+                  <ChevronDown className={`w-3 h-3 transition-transform ${openItems === o.Id ? "rotate-180" : ""}`} />
+                </button>
                 {o.PaymentSlipUrl && (
                   <button onClick={() => setSlip(o.PaymentSlipUrl)} className="text-xs flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 font-medium">
                     <ExternalLink className="w-3 h-3" /> View slip
@@ -139,6 +161,28 @@ export default function WebOrdersPage() {
                   {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
+
+              {openItems === o.Id && (
+                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                  {!items[o.Id] ? (
+                    <p className="text-xs text-gray-400">Loading items…</p>
+                  ) : items[o.Id].length === 0 ? (
+                    <p className="text-xs text-gray-400">No items.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {items[o.Id].map((it: any) => (
+                        <div key={it.Id} className="flex items-center justify-between text-sm">
+                          <div>
+                            <span className="font-medium">{it.ProductName}</span>
+                            <span className="text-gray-500"> · {[it.SizeName, it.ColorName].filter(Boolean).join(" / ") || "—"}</span>
+                          </div>
+                          <span className="text-gray-600 dark:text-gray-300">{it.Qty} × {money(it.SellingPrice)} = <b>{money(it.Qty * it.SellingPrice)}</b></span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>

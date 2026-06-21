@@ -6,6 +6,7 @@ import Link from "next/link";
 import toast, { Toaster } from "react-hot-toast";
 import { Landmark, Truck, Upload, Check } from "lucide-react";
 import { useCart } from "@/components/shop/CartContext";
+import Select from "@/components/shop/Select";
 import { money } from "@/components/shop/format";
 import { getCheckoutConfig, createWebOrder, type CheckoutConfig } from "./actions";
 import { getMyAccount } from "../account/actions";
@@ -27,13 +28,12 @@ export default function CheckoutPage() {
   const router = useRouter();
   const [config, setConfig] = useState<CheckoutConfig | null>(null);
 
-  const [f, setF] = useState({ customer: "", customerPhone: "", secondaryPhone: "", address: "", email: "", notes: "" });
+  const [f, setF] = useState({ customer: "", customerPhone: "", secondaryPhone: "", address: "", province: "", email: "", notes: "" });
   const [method, setMethod] = useState<"COD" | "BankTransfer">("COD");
   const [slipUrl, setSlipUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [placing, setPlacing] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
-  const [makeAccount, setMakeAccount] = useState(true);
   const [password, setPassword] = useState("");
 
   useEffect(() => { getCheckoutConfig().then(setConfig).catch(() => {}); }, []);
@@ -43,7 +43,6 @@ export default function CheckoutPage() {
     getMyAccount().then((me) => {
       if (me) {
         setLoggedIn(true);
-        setMakeAccount(false);
         setF((prev) => ({
           ...prev,
           customer: prev.customer || me.Name || "",
@@ -59,9 +58,10 @@ export default function CheckoutPage() {
     if (ready && items.length === 0 && !placing) router.replace("/cart");
   }, [ready, items.length, placing, router]);
 
-  const deliveryFee = config
-    ? config.freeDeliveryOver > 0 && subtotal >= config.freeDeliveryOver ? 0 : config.deliveryFee
-    : 0;
+  const provinceFee = config?.deliveryProvinces.find((p) => p.name === f.province)?.fee;
+  const baseFee = provinceFee != null ? provinceFee : config?.deliveryFee ?? 0;
+  const freeApplies = !!config && config.freeDeliveryOver > 0 && subtotal >= config.freeDeliveryOver;
+  const deliveryFee = freeApplies ? 0 : baseFee;
   const total = subtotal + deliveryFee;
 
   async function onSlip(file: File | null) {
@@ -80,10 +80,11 @@ export default function CheckoutPage() {
   async function place() {
     if (!f.customer.trim()) return toast.error("Please enter your name.");
     if (!f.customerPhone.trim()) return toast.error("Please enter your phone number.");
+    if (config && config.deliveryProvinces.length > 0 && !f.province) return toast.error("Please select your province.");
     if (!f.address.trim()) return toast.error("Please enter your delivery address.");
     if (method === "BankTransfer" && !slipUrl) return toast.error("Please upload your bank transfer slip.");
-    if (!loggedIn && makeAccount && password && password.trim().length < 6) {
-      return toast.error("Password must be at least 6 characters (or untick 'create account').");
+    if (!loggedIn && (!password || password.trim().length < 6)) {
+      return toast.error("Please choose a password (at least 6 characters) to create your account, or log in.");
     }
 
     setPlacing(true);
@@ -92,7 +93,7 @@ export default function CheckoutPage() {
         ...f,
         paymentMethod: method,
         paymentSlipUrl: slipUrl,
-        password: !loggedIn && makeAccount && password ? password : undefined,
+        password: !loggedIn ? password : undefined,
         items: items.map((i) => ({ variantId: i.variantId, qty: i.qty })),
       });
       clear();
@@ -118,6 +119,16 @@ export default function CheckoutPage() {
               <input className={input} placeholder="Phone number *" value={f.customerPhone} onChange={(e) => setF({ ...f, customerPhone: e.target.value })} />
               <input className={input} placeholder="Secondary phone (optional)" value={f.secondaryPhone} onChange={(e) => setF({ ...f, secondaryPhone: e.target.value })} />
               <input className={input} placeholder="Email (optional)" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
+              {config && config.deliveryProvinces.length > 0 && (
+                <Select
+                  ariaLabel="Province"
+                  placeholder="Select province *"
+                  value={f.province}
+                  onChange={(v) => setF({ ...f, province: v })}
+                  triggerClassName={`${input} flex items-center justify-between gap-2 text-left`}
+                  options={config.deliveryProvinces.map((p) => ({ value: p.name, label: `${p.name} — ${money(p.fee)}` }))}
+                />
+              )}
               <textarea className={`${input} sm:col-span-2 resize-none`} rows={3} placeholder="Delivery address *" value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })} />
               <textarea className={`${input} sm:col-span-2 resize-none`} rows={2} placeholder="Order notes (optional)" value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} />
             </div>
@@ -125,22 +136,22 @@ export default function CheckoutPage() {
 
           {!loggedIn && (
             <section className="bg-white border border-gray-200  p-5">
-              <label className="flex items-center gap-2 cursor-pointer mb-1">
-                <input type="checkbox" checked={makeAccount} onChange={(e) => setMakeAccount(e.target.checked)} />
-                <span className="font-semibold text-gray-900">Create an account to track my orders</span>
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-semibold text-gray-900">Create an account to track your order</span>
+                <Link href="/account/login?next=/checkout" className="text-sm text-primary font-medium hover:underline">
+                  Already have an account? Log in
+                </Link>
+              </div>
               <p className="text-sm text-gray-500 mb-3">
-                We&apos;ll save your details so you can sign in later and follow your orders. Sign in with your email or phone.
+                We&apos;ll save your details so you can sign in (with your phone or email) and follow your order anytime.
               </p>
-              {makeAccount && (
-                <input
-                  className={input}
-                  type="password"
-                  placeholder="Choose a password (min 6 characters)"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              )}
+              <input
+                className={input}
+                type="password"
+                placeholder="Choose a password (min 6 characters) *"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             </section>
           )}
 

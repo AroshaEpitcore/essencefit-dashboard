@@ -6,57 +6,115 @@ import { Upload, X, FileText, MessageCircle, Check, Loader2, Lightbulb } from "l
 import type { StoreProduct, StoreVariant } from "@/lib/storefront";
 import type { DtfPricingConfig } from "@/lib/dtfPricing";
 import type { DtfPageSettings } from "@/lib/dtfSettings";
-import { money } from "@/components/shop/format";
+import { money, sizeRank } from "@/components/shop/format";
+import { resolveSwatch, cutLineColor } from "@/lib/colorHex";
 import { createDtfOrder, getGarmentVariants, type DtfDesignInput } from "./actions";
+
+type AccountInfo = { name: string; phone: string | null; email: string | null } | null;
+
+function uniqBy<T>(arr: T[], key: (x: T) => string): T[] {
+  const seen = new Set<string>();
+  return arr.filter((x) => {
+    const k = key(x);
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
+
+// Diagonal "cut" line for sold-out options (matches the PDP).
+function CutLine({ hex }: { hex: string | null }) {
+  const c = cutLineColor(hex);
+  return (
+    <span
+      className="absolute inset-0 pointer-events-none"
+      style={{
+        backgroundImage: `linear-gradient(to top right, transparent calc(50% - 0.75px), ${c} calc(50% - 0.75px), ${c} calc(50% + 0.75px), transparent calc(50% + 0.75px))`,
+      }}
+    />
+  );
+}
 
 export default function CustomizeForm({
   products,
   pricing,
   settings,
+  account,
 }: {
   products: StoreProduct[];
   pricing: DtfPricingConfig;
   settings: DtfPageSettings;
+  account: AccountInfo;
 }) {
+  const loggedIn = !!account;
   const [productId, setProductId] = useState("");
   const [variants, setVariants] = useState<StoreVariant[]>([]);
-  const [variantId, setVariantId] = useState<string>("");
+  const [colorId, setColorId] = useState<string | null>(null);
+  const [sizeId, setSizeId] = useState<string | null>(null);
+  const [dtfProfit, setDtfProfit] = useState<number | null>(null);
+  const [productCost, setProductCost] = useState(0);
   const [qty, setQty] = useState(1);
   const [prints, setPrints] = useState<string[]>([]);
   const [designs, setDesigns] = useState<DtfDesignInput[]>([]);
   const [uploading, setUploading] = useState(false);
   const [note, setNote] = useState("");
 
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
+  const [name, setName] = useState(account?.name ?? "");
+  const [phone, setPhone] = useState(account?.phone ?? "");
   const [whatsapp, setWhatsapp] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(account?.email ?? "");
   const [address, setAddress] = useState("");
+  const [password, setPassword] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState<{ ref: string } | null>(null);
+  const [success, setSuccess] = useState<{ id: string; ref: string } | null>(null);
 
   const product = products.find((p) => p.Id === productId) || null;
-  const variant = variants.find((v) => v.VariantId === variantId) || null;
-  const garmentPrice = Number(variant?.SellingPrice ?? product?.SellingPrice ?? 0);
+
+  // Colour + size selection (mirrors the PDP). Resolve to a single variant.
+  const hasColors = variants.some((v) => v.ColorId);
+  const hasSizes = variants.some((v) => v.SizeId);
+  const allColors = uniqBy(variants.filter((v) => v.ColorId), (v) => v.ColorId!).map((v) => ({
+    id: v.ColorId!, name: v.ColorName || "", hex: v.ColorHex,
+  }));
+  const allSizes = uniqBy(variants.filter((v) => v.SizeId), (v) => v.SizeId!)
+    .map((v) => ({ id: v.SizeId!, name: v.SizeName || "" }))
+    .sort((a, b) => sizeRank(a.name) - sizeRank(b.name));
+
+  const colorAvailable = (cid: string) =>
+    variants.some((v) => v.ColorId === cid && (!hasSizes || !sizeId || v.SizeId === sizeId) && v.Qty > 0);
+  const sizeAvailable = (sid: string) =>
+    variants.some((v) => v.SizeId === sid && (!hasColors || !colorId || v.ColorId === colorId) && v.Qty > 0);
+
+  const variant =
+    variants.find((v) => (!hasColors || v.ColorId === colorId) && (!hasSizes || v.SizeId === sizeId)) || null;
+  const variantId = variant?.VariantId || "";
+
+  // DTF garment base = the blank's COST + a DTF profit (per-product, else global).
+  const garmentCost = Number(variant?.CostPrice ?? productCost ?? 0);
+  const effProfit = dtfProfit != null ? dtfProfit : pricing.profit;
+  const garmentDisplay = garmentCost + effProfit; // "garment" line shown to the customer (hides raw cost)
 
   const printSum = pricing.prints
     .filter((p) => prints.includes(p.Name))
     .reduce((s, p) => s + Number(p.Amount), 0);
-  const perPiece = garmentPrice + printSum + pricing.overheadTotal + pricing.profit;
+  const perPiece = garmentCost + printSum + pricing.overheadTotal + effProfit;
   const estimate = product ? perPiece * Math.max(1, qty) + pricing.orderExtra : 0;
 
   const waNumber = (settings.whatsapp || "").replace(/[^\d]/g, "");
 
   async function onPickProduct(id: string) {
-    setProductId(id);
-    setVariantId("");
+    setProductId(id === productId ? "" : id);
+    setColorId(null);
+    setSizeId(null);
     setVariants([]);
-    if (!id) return;
+    if (!id || id === productId) return;
     try {
-      const vs = await getGarmentVariants(id);
-      setVariants(vs);
+      const g = await getGarmentVariants(id);
+      setVariants(g.variants);
+      setDtfProfit(g.dtfProfit);
+      setProductCost(g.productCost);
     } catch {
       setVariants([]);
     }
@@ -90,14 +148,18 @@ export default function CustomizeForm({
   async function submit() {
     setError("");
     if (!product) return setError("Please choose a garment.");
-    if (variants.length > 0 && !variantId) return setError("Please choose a size / colour.");
+    if (hasColors && !colorId) return setError("Please choose a colour.");
+    if (hasSizes && !sizeId) return setError("Please choose a size.");
     if (!designs.length) return setError("Please upload at least one design.");
     if (!name.trim()) return setError("Please enter your name.");
     if (!phone.trim()) return setError("Please enter a phone number.");
+    if (!loggedIn && (!password || password.trim().length < 6)) {
+      return setError("Please choose a password (at least 6 characters) to create your account, or log in.");
+    }
 
     setSubmitting(true);
     try {
-      const { ref } = await createDtfOrder({
+      const { id, ref } = await createDtfOrder({
         customerName: name,
         customerPhone: phone,
         whatsapp: whatsapp || undefined,
@@ -109,8 +171,9 @@ export default function CustomizeForm({
         printNames: prints,
         customerNote: note || undefined,
         designs,
+        password: loggedIn ? undefined : password,
       });
-      setSuccess({ ref });
+      setSuccess({ id, ref });
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Could not submit your request.");
@@ -130,18 +193,27 @@ export default function CustomizeForm({
           Your customization request <b>{success.ref}</b> has been submitted. We&apos;ll review your
           artwork and confirm the final price with you shortly.
         </p>
-        {waNumber && (
-          <a
-            href={`https://wa.me/${waNumber}?text=${encodeURIComponent(`Hi, about my DTF order ${success.ref}`)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-6 inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3  font-semibold"
+        <div className="mt-6 flex flex-wrap gap-3 justify-center">
+          <Link
+            href={`/dtf-order/${success.id}`}
+            className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-white px-6 py-3 font-semibold"
           >
-            <MessageCircle className="w-5 h-5" /> Chat with us on WhatsApp
-          </a>
-        )}
-        <div className="mt-4">
-          <Link href="/shop" className="text-sm font-medium text-primary">Continue shopping →</Link>
+            Track my order
+          </Link>
+          {waNumber && (
+            <a
+              href={`https://wa.me/${waNumber}?text=${encodeURIComponent(`Hi, about my DTF order ${success.ref}`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 border border-green-600 text-green-700 hover:bg-green-50 px-6 py-3 font-semibold"
+            >
+              <MessageCircle className="w-5 h-5" /> Chat on WhatsApp
+            </a>
+          )}
+        </div>
+        <div className="mt-4 flex gap-4 justify-center text-sm">
+          <Link href="/account/orders" className="font-medium text-primary">View in My Account</Link>
+          <Link href="/shop" className="font-medium text-gray-500 hover:text-primary">Continue shopping →</Link>
         </div>
       </div>
     );
@@ -161,50 +233,107 @@ export default function CustomizeForm({
       {/* Left: builder */}
       <div className="lg:col-span-2 space-y-6">
         {/* 1. Garment */}
-        <section className="border border-gray-200  p-5">
+        <section className="border border-gray-200 p-5">
           <h3 className="font-semibold text-gray-900 mb-3">1. Choose your garment</h3>
-          <select
-            value={productId}
-            onChange={(e) => onPickProduct(e.target.value)}
-            className="w-full border border-gray-300  px-3 py-2.5"
-          >
-            <option value="">Select a garment…</option>
-            {products.map((p) => (
-              <option key={p.Id} value={p.Id}>
-                {p.Name} — {money(p.SellingPrice)}
-              </option>
-            ))}
-          </select>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            {products.map((p) => {
+              const sel = productId === p.Id;
+              return (
+                <button
+                  key={p.Id}
+                  type="button"
+                  onClick={() => onPickProduct(p.Id)}
+                  className={`text-left border-2 p-2 transition-[border-color] ${sel ? "border-gray-900" : "border-gray-200 hover:border-gray-400"}`}
+                >
+                  <div className="aspect-square bg-gray-100 overflow-hidden mb-2">
+                    {p.ImageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={p.ImageUrl} alt={p.Name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">No image</div>
+                    )}
+                  </div>
+                  <p className="text-sm font-medium text-gray-900 line-clamp-1">{p.Name}</p>
+                  <p className="text-sm text-gray-600">{money(p.SellingPrice)}</p>
+                </button>
+              );
+            })}
+          </div>
 
-          {variants.length > 0 && (
-            <div className="mt-3">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Size &amp; colour</label>
-              <select
-                value={variantId}
-                onChange={(e) => setVariantId(e.target.value)}
-                className="w-full border border-gray-300  px-3 py-2.5"
-              >
-                <option value="">Select size / colour…</option>
-                {variants.map((v) => (
-                  <option key={v.VariantId} value={v.VariantId}>
-                    {[v.SizeName, v.ColorName].filter(Boolean).join(" / ") || "Standard"}
-                    {v.Qty > 0 ? "" : " — out of stock"}
-                  </option>
-                ))}
-              </select>
+          {/* COLOUR — same swatch UI as the product page */}
+          {product && hasColors && (
+            <div className="mt-5">
+              <p className="text-xs font-semibold tracking-wide text-gray-700 mb-2">
+                COLOUR{colorId ? `: ${allColors.find((c) => c.id === colorId)?.name ?? ""}` : ""}
+              </p>
+              <div className="flex flex-wrap gap-2.5">
+                {allColors.map((c) => {
+                  const avail = colorAvailable(c.id);
+                  const sw = resolveSwatch(c.name, c.hex);
+                  const selected = colorId === c.id;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      disabled={!avail}
+                      title={c.name + (avail ? "" : " — sold out")}
+                      onClick={() => setColorId(c.id)}
+                      className={`relative w-11 h-11 rounded-sm border-2 overflow-hidden transition-[border-color] ${
+                        selected ? "border-gray-900" : "border-gray-200"
+                      } ${!avail ? "cursor-not-allowed opacity-70" : "hover:border-gray-400"}`}
+                    >
+                      <span
+                        className="absolute inset-0"
+                        style={sw.hex ? { backgroundColor: sw.hex } : { backgroundImage: "linear-gradient(135deg,#e5e7eb 0 50%,#9ca3af 50% 100%)" }}
+                      />
+                      {!avail && <CutLine hex={sw.hex} />}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
 
-          <div className="mt-3 w-32">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
-            <input
-              type="number"
-              min={1}
-              value={qty}
-              onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))}
-              className="w-full border border-gray-300  px-3 py-2.5"
-            />
-          </div>
+          {/* SIZE — same button UI as the product page */}
+          {product && hasSizes && (
+            <div className="mt-5">
+              <p className="text-xs font-semibold tracking-wide text-gray-700 mb-2">SIZE</p>
+              <div className="flex flex-wrap gap-2.5">
+                {allSizes.map((s) => {
+                  const avail = sizeAvailable(s.id);
+                  const selected = sizeId === s.id;
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      disabled={!avail}
+                      title={s.name + (avail ? "" : " — sold out")}
+                      onClick={() => setSizeId(s.id)}
+                      className={`relative min-w-[3rem] h-11 px-3 rounded-sm border-2 text-sm font-medium flex items-center justify-center transition-[border-color] ${
+                        selected ? "border-gray-900 text-gray-900" : "border-gray-200 text-gray-700"
+                      } ${!avail ? "cursor-not-allowed text-gray-400" : "hover:border-gray-400"}`}
+                    >
+                      {s.name}
+                      {!avail && <CutLine hex={null} />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {product && (
+            <div className="mt-5 w-32">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+              <input
+                type="number"
+                min={1}
+                value={qty}
+                onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))}
+                className="w-full border border-gray-300 px-3 py-2.5"
+              />
+            </div>
+          )}
         </section>
 
         {/* 2. Print positions */}
@@ -294,6 +423,26 @@ export default function CustomizeForm({
             <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email (optional)" className="border border-gray-300  px-3 py-2.5" />
             <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Delivery address (optional)" className="border border-gray-300  px-3 py-2.5 sm:col-span-2" />
           </div>
+
+          {loggedIn ? (
+            <p className="mt-3 text-sm text-gray-500">Ordering as <b>{account!.name}</b> — you can track this in your account.</p>
+          ) : (
+            <div className="mt-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-medium text-gray-700">Create an account to track your order</span>
+                <Link href="/account/login?next=/customize" className="text-sm text-primary font-medium hover:underline">
+                  Already have an account? Log in
+                </Link>
+              </div>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Choose a password (min 6 characters) *"
+                className="w-full border border-gray-300 px-3 py-2.5"
+              />
+            </div>
+          )}
         </section>
       </div>
 
@@ -305,7 +454,7 @@ export default function CustomizeForm({
             <>
               <div className="flex justify-between text-sm py-1">
                 <span className="text-gray-600">Garment</span>
-                <span>{money(garmentPrice)}</span>
+                <span>{money(garmentDisplay)}</span>
               </div>
               {pricing.prints.filter((p) => prints.includes(p.Name)).map((p) => (
                 <div key={p.Id} className="flex justify-between text-sm py-1">
@@ -313,10 +462,12 @@ export default function CustomizeForm({
                   <span>+{money(p.Amount)}</span>
                 </div>
               ))}
-              <div className="flex justify-between text-sm py-1">
-                <span className="text-gray-600">Print overheads + handling</span>
-                <span>+{money(pricing.overheadTotal + pricing.profit)}</span>
-              </div>
+              {pricing.overheadTotal > 0 && (
+                <div className="flex justify-between text-sm py-1">
+                  <span className="text-gray-600">Handling</span>
+                  <span>+{money(pricing.overheadTotal)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm py-1 border-t border-gray-100 mt-1 pt-2">
                 <span className="text-gray-600">Per piece × {Math.max(1, qty)}</span>
                 <span>{money(perPiece * Math.max(1, qty))}</span>

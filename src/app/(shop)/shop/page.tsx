@@ -36,7 +36,7 @@ export default async function ShopPage({
       <p className="text-sm text-gray-500 mb-6">{products.length} product{products.length !== 1 ? "s" : ""}</p>
 
       <div className="grid lg:grid-cols-[220px_1fr] gap-8">
-        <aside className="lg:sticky lg:top-24 h-max bg-gray-50  p-4 border border-gray-200">
+        <aside className="lg:sticky lg:top-24 h-max">
           <ShopFilters
             categories={categories.map((c) => ({ Slug: c.Slug, Name: c.Name }))}
             sizes={options.sizes}

@@ -39,7 +39,7 @@ const PRODUCT_SELECT = `
   SELECT
     p.Id, p.Name, p.Slug, p.ImageUrl, p.SellingPrice, p.CompareAtPrice,
     cat.Name AS CategoryName, cat.Slug AS CategorySlug,
-    ISNULL((SELECT SUM(v.Qty) FROM ProductVariants v WHERE v.ProductId = p.Id), 0) AS Stock,
+    ISNULL((SELECT SUM(b.Qty) FROM ProductVariants b WHERE b.ProductId = ISNULL(p.BlankProductId, p.Id)), 0) AS Stock,
     (SELECT TOP 1 pi.Url FROM ProductImages pi
        WHERE pi.ProductId = p.Id AND (p.ImageUrl IS NULL OR pi.Url <> p.ImageUrl)
        ORDER BY CASE WHEN pi.ColorId IS NULL THEN 0 ELSE 1 END, pi.SortOrder) AS HoverImageUrl
@@ -70,9 +70,10 @@ async function attachColors<T extends StoreProduct>(
          ORDER BY pi.SortOrder OFFSET 1 ROWS FETCH NEXT 1 ROWS ONLY) AS ImageUrl2,
       ISNULL((SELECT MIN(pi.SortOrder) FROM ProductImages pi
          WHERE pi.ProductId = v.ProductId AND pi.ColorId = c.Id), 2147483647) AS ImgSort,
-      MAX(CASE WHEN v.Qty > 0 THEN 1 ELSE 0 END) AS InStock
+      MAX(CASE WHEN ISNULL(sv.Qty, 0) > 0 THEN 1 ELSE 0 END) AS InStock
     FROM ProductVariants v
     JOIN Colors c ON c.Id = v.ColorId
+    OUTER APPLY (SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(v.Id)) sv
     WHERE v.ColorId IS NOT NULL AND v.ProductId IN (${params.join(",")})
     GROUP BY v.ProductId, c.Id, c.Name, c.Hex
     ORDER BY ImgSort, c.Name
@@ -155,17 +156,29 @@ export async function getDtfPrintableProducts(): Promise<StoreProduct[]> {
 }
 
 /* A single printable garment + its variants, for the Customize picker.
-   Returns null if the product isn't active/printable. */
-export async function getDtfGarment(productId: string): Promise<{ product: StoreProduct; variants: StoreVariant[] } | null> {
+   `cost` is the product's own cost fallback; `dtfProfit` is the per-product DTF
+   garment profit (null → use the global Profit). The DTF garment base is each
+   variant's resolved (blank) CostPrice + that profit. Returns null if the
+   product isn't active/printable. */
+export async function getDtfGarment(
+  productId: string
+): Promise<{ product: StoreProduct; variants: StoreVariant[]; cost: number; dtfProfit: number | null } | null> {
   const pool = await getDb();
   const res = await pool
     .request()
     .input("pid", sql.UniqueIdentifier, productId)
-    .query(`${PRODUCT_SELECT} WHERE p.Id = @pid AND p.IsActive = 1 AND p.IsDtfPrintable = 1`);
-  const rows = await attachColors(pool, res.recordset as StoreProduct[]);
-  if (!rows[0]) return null;
+    .query(`${PRODUCT_SELECT.replace("FROM Products p", ", p.CostPrice AS BaseCost, p.DtfProfit AS DtfProfit FROM Products p")}
+            WHERE p.Id = @pid AND p.IsActive = 1 AND p.IsDtfPrintable = 1`);
+  const row = res.recordset[0] as (StoreProduct & { BaseCost: number | null; DtfProfit: number | null }) | undefined;
+  if (!row) return null;
+  const rows = await attachColors(pool, [row] as StoreProduct[]);
   const variants = await getProductVariants(productId);
-  return { product: rows[0], variants };
+  return {
+    product: rows[0],
+    variants,
+    cost: Number(row.BaseCost) || 0,
+    dtfProfit: row.DtfProfit != null ? Number(row.DtfProfit) : null,
+  };
 }
 
 /* ---------- Category by slug ---------- */
@@ -253,6 +266,7 @@ export async function searchProducts(params: ProductQuery): Promise<StoreProduct
 export type StoreProductDetail = StoreProduct & {
   Description: string | null;
   CategoryId: string | null;
+  SizeChartUrl: string | null;
   Images: string[];
 };
 
@@ -265,6 +279,7 @@ export type StoreVariant = {
   ColorHex: string | null;
   Qty: number;
   SellingPrice: number;
+  CostPrice: number; // resolved to the blank's cost when linked (for DTF garment base)
 };
 
 export type ProductImagesByColor = {
@@ -292,7 +307,7 @@ export async function getProductBySlug(slug: string): Promise<StoreProductDetail
   const res = await pool
     .request()
     .input("slug", sql.NVarChar(250), slug)
-    .query(`${PRODUCT_SELECT.replace("FROM Products p", ", p.Description, p.CategoryId FROM Products p")}
+    .query(`${PRODUCT_SELECT.replace("FROM Products p", ", p.Description, p.CategoryId, p.SizeChartUrl FROM Products p")}
             WHERE p.Slug = @slug AND p.IsActive = 1`);
   const row = res.recordset[0];
   if (!row) return null;
@@ -305,7 +320,7 @@ export async function getProductBySlug(slug: string): Promise<StoreProductDetail
   const images = imgs.recordset.map((r: any) => r.Url as string);
   if (images.length === 0 && row.ImageUrl) images.push(row.ImageUrl);
 
-  return { ...(row as StoreProduct), Description: row.Description, CategoryId: row.CategoryId, Images: images };
+  return { ...(row as StoreProduct), Description: row.Description, CategoryId: row.CategoryId, SizeChartUrl: row.SizeChartUrl, Images: images };
 }
 
 export async function getProductVariants(productId: string): Promise<StoreVariant[]> {
@@ -315,8 +330,10 @@ export async function getProductVariants(productId: string): Promise<StoreVarian
     .input("pid", sql.UniqueIdentifier, productId)
     .query(`
       SELECT v.Id AS VariantId, v.SizeId, s.Name AS SizeName,
-             v.ColorId, c.Name AS ColorName, c.Hex AS ColorHex, v.Qty,
-             ISNULL(v.SellingPrice, p.SellingPrice) AS SellingPrice
+             v.ColorId, c.Name AS ColorName, c.Hex AS ColorHex,
+             ISNULL((SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(v.Id)), 0) AS Qty,
+             ISNULL(v.SellingPrice, p.SellingPrice) AS SellingPrice,
+             ISNULL((SELECT z.CostPrice FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(v.Id)), ISNULL(v.CostPrice, p.CostPrice)) AS CostPrice
       FROM ProductVariants v
       JOIN Products p ON p.Id = v.ProductId
       LEFT JOIN Sizes s ON s.Id = v.SizeId

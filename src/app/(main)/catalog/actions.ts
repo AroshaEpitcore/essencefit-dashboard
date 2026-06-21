@@ -25,6 +25,10 @@ export type CatalogProduct = {
   IsFeatured: boolean;
   IsNewArrival: boolean;
   IsDtfPrintable: boolean;
+  BlankProductId: string | null;
+  BlankName: string | null;
+  DtfProfit: number | null;
+  PrintOnDemand: boolean;
   SortOrder: number;
   Stock: number;
   ImageCount: number;
@@ -37,11 +41,13 @@ export async function getCatalogProducts(): Promise<CatalogProduct[]> {
       p.Id, p.Name, p.Slug, p.SKU, p.CategoryId,
       cat.Name AS CategoryName,
       p.CostPrice, p.SellingPrice, p.CompareAtPrice,
-      p.Description, p.ImageUrl, p.IsActive, p.IsFeatured, p.IsNewArrival, p.IsDtfPrintable, p.SortOrder,
-      ISNULL((SELECT SUM(v.Qty) FROM ProductVariants v WHERE v.ProductId = p.Id), 0) AS Stock,
+      p.Description, p.ImageUrl, p.IsActive, p.IsFeatured, p.IsNewArrival, p.IsDtfPrintable,
+      p.BlankProductId, blank.Name AS BlankName, p.DtfProfit, p.PrintOnDemand, p.SortOrder,
+      ISNULL((SELECT SUM(b.Qty) FROM ProductVariants b WHERE b.ProductId = ISNULL(p.BlankProductId, p.Id)), 0) AS Stock,
       (SELECT COUNT(*) FROM ProductImages pi WHERE pi.ProductId = p.Id) AS ImageCount
     FROM Products p
     LEFT JOIN Categories cat ON cat.Id = p.CategoryId
+    LEFT JOIN Products blank ON blank.Id = p.BlankProductId
     ORDER BY p.SortOrder, p.Name
   `);
   return res.recordset as CatalogProduct[];
@@ -54,7 +60,8 @@ export async function getProductForEdit(id: string) {
     .input("Id", sql.UniqueIdentifier, id)
     .query(`
       SELECT Id, Name, Slug, SKU, CategoryId, CostPrice, SellingPrice,
-             CompareAtPrice, Description, ImageUrl, IsActive, IsFeatured, IsNewArrival, IsDtfPrintable, SortOrder
+             CompareAtPrice, Description, ImageUrl, IsActive, IsFeatured, IsNewArrival, IsDtfPrintable,
+             BlankProductId, DtfProfit, PrintOnDemand, SizeChartUrl, SortOrder
       FROM Products WHERE Id=@Id
     `);
   const imgs = await pool
@@ -84,12 +91,18 @@ export type ProductStorefrontInput = {
   isFeatured: boolean;
   isNewArrival: boolean;
   isDtfPrintable: boolean;
+  blankProductId: string | null;
+  dtfProfit: number | null;
+  printOnDemand: boolean;
+  sizeChartUrl: string | null;
   sortOrder: number;
 };
 
 export async function updateProductStorefront(id: string, data: ProductStorefrontInput) {
   const pool = await getDb();
   const slug = data.slug?.trim() ? slugify(data.slug) : slugWithId(data.name, id);
+  // A product can't be its own blank, and a blank can't itself be linked (no chains).
+  const blankId = data.blankProductId && data.blankProductId !== id ? data.blankProductId : null;
   await pool
     .request()
     .input("Id", sql.UniqueIdentifier, id)
@@ -100,15 +113,59 @@ export async function updateProductStorefront(id: string, data: ProductStorefron
     .input("IsFeatured", sql.Bit, data.isFeatured)
     .input("IsNewArrival", sql.Bit, data.isNewArrival)
     .input("IsDtfPrintable", sql.Bit, data.isDtfPrintable)
+    .input("BlankProductId", sql.UniqueIdentifier, blankId)
+    .input("DtfProfit", sql.Decimal(10, 2), data.dtfProfit ?? null)
+    .input("PrintOnDemand", sql.Bit, data.printOnDemand)
+    .input("SizeChartUrl", sql.NVarChar(500), data.sizeChartUrl || null)
     .input("SortOrder", sql.Int, data.sortOrder ?? 0)
     .query(`
       UPDATE Products
       SET Slug=@Slug, Description=@Description, CompareAtPrice=@CompareAtPrice,
           IsActive=@IsActive, IsFeatured=@IsFeatured, IsNewArrival=@IsNewArrival,
-          IsDtfPrintable=@IsDtfPrintable, SortOrder=@SortOrder
+          IsDtfPrintable=@IsDtfPrintable, BlankProductId=@BlankProductId,
+          DtfProfit=@DtfProfit, PrintOnDemand=@PrintOnDemand, SizeChartUrl=@SizeChartUrl,
+          SortOrder=@SortOrder
       WHERE Id=@Id
     `);
+
+  // When linked to a blank, mirror the blank's size/colour variants onto this
+  // product (Qty 0 — stock lives on the blank) so the storefront shows options.
+  if (blankId) {
+    await pool
+      .request()
+      .input("Id", sql.UniqueIdentifier, id)
+      .input("BlankId", sql.UniqueIdentifier, blankId)
+      .query(`
+        INSERT INTO ProductVariants (ProductId, SizeId, ColorId, Qty, CostPrice, SellingPrice)
+        SELECT @Id, b.SizeId, b.ColorId, 0,
+               (SELECT CostPrice FROM Products WHERE Id=@Id),
+               (SELECT SellingPrice FROM Products WHERE Id=@Id)
+        FROM ProductVariants b
+        WHERE b.ProductId = @BlankId
+          AND NOT EXISTS (
+            SELECT 1 FROM ProductVariants v
+            WHERE v.ProductId = @Id
+              AND ISNULL(CONVERT(NVARCHAR(36), v.SizeId), '') = ISNULL(CONVERT(NVARCHAR(36), b.SizeId), '')
+              AND ISNULL(CONVERT(NVARCHAR(36), v.ColorId), '') = ISNULL(CONVERT(NVARCHAR(36), b.ColorId), '')
+          )
+      `);
+  }
   return true;
+}
+
+/* Products eligible to be a stock-source blank for `selfId`:
+   active, not the product itself, and not already linked to a blank (no chains). */
+export async function getBlankCandidates(selfId: string) {
+  const pool = await getDb();
+  const res = await pool
+    .request()
+    .input("Self", sql.UniqueIdentifier, selfId)
+    .query(`
+      SELECT Id, Name FROM Products
+      WHERE Id <> @Self AND BlankProductId IS NULL
+      ORDER BY Name
+    `);
+  return res.recordset as { Id: string; Name: string }[];
 }
 
 // Quick toggles from the list view

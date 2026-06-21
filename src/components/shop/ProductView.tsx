@@ -52,14 +52,38 @@ export default function ProductView({
     return product.ImageUrl ? [product.ImageUrl] : [];
   }, [colorId, images, product.ImageUrl, hasColors]);
 
-  return (
-    <div className={stacked ? "flex flex-col gap-6" : "grid md:grid-cols-2 gap-8 lg:gap-12"}>
-      <ProductGallery images={activeImages} name={product.Name} />
-      <div>
-        {header}
-        <AddToCart product={product} variants={variants} colorId={colorId} setColorId={setColorId} />
-        {footer}
+  if (stacked) {
+    return (
+      <div className="flex flex-col gap-6">
+        <ProductGallery images={activeImages} name={product.Name} />
+        <div>
+          {header}
+          <AddToCart product={product} variants={variants} colorId={colorId} setColorId={setColorId} currentImage={activeImages[0] ?? product.ImageUrl} />
+          {footer}
+        </div>
       </div>
+    );
+  }
+
+  return (
+    <div className="grid md:grid-cols-2 gap-8 lg:gap-12 items-start">
+      {/* Gallery — left column, row 1 */}
+      <div className="md:col-start-1 md:row-start-1">
+        <ProductGallery images={activeImages} name={product.Name} />
+      </div>
+
+      {/* Product info — right column, row 1, sticky while the page scrolls
+          (top clears the fixed header). On mobile it flows right after the gallery. */}
+      <div
+        className="md:col-start-2 md:row-start-1 md:sticky self-start"
+        style={{ top: "calc(var(--header-h, 132px) + 1.5rem)" }}
+      >
+        {header}
+        <AddToCart product={product} variants={variants} colorId={colorId} setColorId={setColorId} currentImage={activeImages[0] ?? product.ImageUrl} />
+      </div>
+
+      {/* Description — left column under the gallery on desktop; last on mobile */}
+      {footer && <div className="md:col-start-1 md:row-start-2">{footer}</div>}
     </div>
   );
 }

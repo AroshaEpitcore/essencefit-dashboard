@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { getProductBySlug, getProductVariants, getRelatedProducts, getProductImagesByColor } from "@/lib/storefront";
 import ProductView from "@/components/shop/ProductView";
 import ProductCard from "@/components/shop/ProductCard";
+import SizeChartButton from "@/components/shop/SizeChartButton";
 import { money, discountPct } from "@/components/shop/format";
 import { ChevronRight } from "lucide-react";
 
@@ -68,7 +69,7 @@ export default async function ProductPage({
         images={images}
         initialColorId={color ?? null}
         header={
-          <>
+          <div>
             {product.CategoryName && <p className="text-xs uppercase tracking-wide text-gray-400 mb-1">{product.CategoryName}</p>}
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">{product.Name}</h1>
             {/* Server-rendered price (in HTML for SEO / instant paint) */}
@@ -81,7 +82,12 @@ export default async function ProductPage({
                 </>
               )}
             </div>
-          </>
+            {product.SizeChartUrl && (
+              <div className="mb-5">
+                <SizeChartButton url={product.SizeChartUrl} />
+              </div>
+            )}
+          </div>
         }
         footer={
           product.Description ? (

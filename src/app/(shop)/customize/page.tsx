@@ -1,16 +1,18 @@
 import { getDtfPrintableProducts } from "@/lib/storefront";
 import { getDtfPricingConfig } from "@/lib/dtfPricing";
 import { getDtfPageSettings } from "@/lib/dtfSettings";
+import { getCurrentCustomer } from "@/lib/customerAuth";
 import CustomizeForm from "./CustomizeForm";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Customize & DTF Print | EssenceFit" };
 
 export default async function CustomizePage() {
-  const [products, pricing, settings] = await Promise.all([
+  const [products, pricing, settings, account] = await Promise.all([
     getDtfPrintableProducts(),
     getDtfPricingConfig(),
     getDtfPageSettings(),
+    getCurrentCustomer(),
   ]);
 
   return (
@@ -24,7 +26,12 @@ export default async function CustomizePage() {
         )}
       </div>
 
-      <CustomizeForm products={products} pricing={pricing} settings={settings} />
+      <CustomizeForm
+        products={products}
+        pricing={pricing}
+        settings={settings}
+        account={account ? { name: account.Name, phone: account.Phone, email: account.Email } : null}
+      />
     </div>
   );
 }

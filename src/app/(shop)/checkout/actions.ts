@@ -3,13 +3,14 @@
 import bcrypt from "bcryptjs";
 import { getDb, sql } from "@/lib/db";
 import { getPublicStoreSettings } from "@/lib/storeSettings";
-import { setSessionCookie } from "@/lib/customerAuth";
+import { getCurrentCustomer, setSessionCookie } from "@/lib/customerAuth";
 
 const { UniqueIdentifier, NVarChar, Int, Decimal } = sql;
 
 export type CheckoutConfig = {
   deliveryFee: number;
   freeDeliveryOver: number;
+  deliveryProvinces: { name: string; fee: number }[];
   storeName: string;
   bank: { bank: string; accountName: string; accountNo: string; branch: string };
 };
@@ -19,6 +20,7 @@ export async function getCheckoutConfig(): Promise<CheckoutConfig> {
   return {
     deliveryFee: s.deliveryFee,
     freeDeliveryOver: s.freeDeliveryOver,
+    deliveryProvinces: s.deliveryProvinces,
     storeName: s.storeName,
     bank: s.bank,
   };
@@ -31,6 +33,7 @@ export type WebOrderPayload = {
   customerPhone: string;
   secondaryPhone?: string;
   address: string;
+  province?: string;
   email?: string;
   notes?: string;
   paymentMethod: "COD" | "BankTransfer";
@@ -53,6 +56,12 @@ export async function createWebOrder(payload: WebOrderPayload): Promise<{ orderI
     throw new Error("Please upload your bank transfer slip.");
   }
 
+  // Account required: must be logged in, or supply a password to create one.
+  const sessionCustomer = await getCurrentCustomer();
+  if (!sessionCustomer && (!payload.password || payload.password.trim().length < 6)) {
+    throw new Error("Please choose a password (at least 6 characters) to create your account, or log in.");
+  }
+
   const pool = await getDb();
   const config = await getCheckoutConfig();
   const tx = new sql.Transaction(pool);
@@ -69,7 +78,8 @@ export async function createWebOrder(payload: WebOrderPayload): Promise<{ orderI
       const r = await new sql.Request(tx)
         .input("vid", UniqueIdentifier, it.variantId)
         .query(`
-          SELECT v.Qty AS Stock, ISNULL(v.SellingPrice, p.SellingPrice) AS Price,
+          SELECT ISNULL((SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(v.Id)), 0) AS Stock,
+                 ISNULL(v.SellingPrice, p.SellingPrice) AS Price,
                  prod.Name AS ProductName
           FROM ProductVariants v
           JOIN Products prod ON prod.Id = v.ProductId
@@ -88,9 +98,14 @@ export async function createWebOrder(payload: WebOrderPayload): Promise<{ orderI
 
     if (!priced.length) throw new Error("Your cart is empty.");
 
-    // 2) Delivery fee
+    // 2) Delivery fee — by chosen province (server-side; falls back to the flat fee)
+    const province = payload.province?.trim() || null;
+    const provinceFee = province
+      ? config.deliveryProvinces.find((p) => p.name.toLowerCase() === province.toLowerCase())?.fee
+      : undefined;
+    const baseFee = provinceFee != null ? provinceFee : config.deliveryFee;
     const deliveryFee =
-      config.freeDeliveryOver > 0 && subtotal >= config.freeDeliveryOver ? 0 : config.deliveryFee;
+      config.freeDeliveryOver > 0 && subtotal >= config.freeDeliveryOver ? 0 : baseFee;
     const total = subtotal + deliveryFee;
 
     // 3) Upsert customer by phone (auto-creates the customer record / account)
@@ -98,42 +113,54 @@ export async function createWebOrder(payload: WebOrderPayload): Promise<{ orderI
     const name = payload.customer?.trim() || `Customer ${phone}`;
     const address = payload.address.trim();
     const email = payload.email?.trim() || null;
-    const wantsAccount = !!payload.password && payload.password.trim().length >= 6;
+    const wantsAccount = !sessionCustomer; // logged-out checkout always creates an account
     const newHash = wantsAccount ? await bcrypt.hash(payload.password!.trim(), 10) : null;
     let customerId: string;
     let accountReady = false; // set true when the customer can log in
 
-    const existing = await new sql.Request(tx)
-      .input("Phone", NVarChar(50), phone)
-      .query(`SELECT TOP 1 Id, PasswordHash FROM Customers WHERE Phone=@Phone`);
-
-    if (existing.recordset.length) {
-      customerId = existing.recordset[0].Id;
-      const hadAccount = !!existing.recordset[0].PasswordHash;
-      // Only set a password if they don't already have an account
-      const applyHash = !hadAccount && newHash ? newHash : null;
+    if (sessionCustomer) {
+      // Logged in — link to that account and refresh saved details.
+      customerId = sessionCustomer.Id;
       await new sql.Request(tx)
         .input("Id", UniqueIdentifier, customerId)
         .input("Name", NVarChar(200), name)
         .input("Address", NVarChar(500), address)
         .input("Email", NVarChar(200), email)
-        .input("Hash", NVarChar(200), applyHash)
-        .query(`UPDATE Customers SET Name=@Name, Address=@Address,
-                Email=COALESCE(@Email, Email),
-                PasswordHash=COALESCE(@Hash, PasswordHash) WHERE Id=@Id`);
-      accountReady = hadAccount || !!applyHash;
+        .query(`UPDATE Customers SET Name=@Name, Address=@Address, Email=COALESCE(@Email, Email) WHERE Id=@Id`);
+      accountReady = true;
     } else {
-      customerId = crypto.randomUUID();
-      await new sql.Request(tx)
-        .input("Id", UniqueIdentifier, customerId)
-        .input("Name", NVarChar(200), name)
+      const existing = await new sql.Request(tx)
         .input("Phone", NVarChar(50), phone)
-        .input("Address", NVarChar(500), address)
-        .input("Email", NVarChar(200), email)
-        .input("Hash", NVarChar(200), newHash)
-        .query(`INSERT INTO Customers (Id, Name, Phone, Address, Email, PasswordHash)
-                VALUES (@Id, @Name, @Phone, @Address, @Email, @Hash)`);
-      accountReady = !!newHash;
+        .query(`SELECT TOP 1 Id, PasswordHash FROM Customers WHERE Phone=@Phone`);
+
+      if (existing.recordset.length) {
+        customerId = existing.recordset[0].Id;
+        const hadAccount = !!existing.recordset[0].PasswordHash;
+        // Only set a password if they don't already have an account
+        const applyHash = !hadAccount && newHash ? newHash : null;
+        await new sql.Request(tx)
+          .input("Id", UniqueIdentifier, customerId)
+          .input("Name", NVarChar(200), name)
+          .input("Address", NVarChar(500), address)
+          .input("Email", NVarChar(200), email)
+          .input("Hash", NVarChar(200), applyHash)
+          .query(`UPDATE Customers SET Name=@Name, Address=@Address,
+                  Email=COALESCE(@Email, Email),
+                  PasswordHash=COALESCE(@Hash, PasswordHash) WHERE Id=@Id`);
+        accountReady = hadAccount || !!applyHash;
+      } else {
+        customerId = crypto.randomUUID();
+        await new sql.Request(tx)
+          .input("Id", UniqueIdentifier, customerId)
+          .input("Name", NVarChar(200), name)
+          .input("Phone", NVarChar(50), phone)
+          .input("Address", NVarChar(500), address)
+          .input("Email", NVarChar(200), email)
+          .input("Hash", NVarChar(200), newHash)
+          .query(`INSERT INTO Customers (Id, Name, Phone, Address, Email, PasswordHash)
+                  VALUES (@Id, @Name, @Phone, @Address, @Email, @Hash)`);
+        accountReady = !!newHash;
+      }
     }
 
     // 4) Insert order header (PaymentStatus Pending; verified later by admin)
@@ -145,6 +172,7 @@ export async function createWebOrder(payload: WebOrderPayload): Promise<{ orderI
       .input("CustomerPhone", NVarChar(20), phone)
       .input("SecondaryPhone", NVarChar(20), payload.secondaryPhone?.trim() || null)
       .input("Address", NVarChar(300), address)
+      .input("Province", NVarChar(50), province)
       .input("CustomerEmail", NVarChar(200), payload.email?.trim() || null)
       .input("Notes", NVarChar(500), payload.notes?.trim() || null)
       .input("CustomerId", UniqueIdentifier, customerId)
@@ -159,10 +187,10 @@ export async function createWebOrder(payload: WebOrderPayload): Promise<{ orderI
       .input("DeliveryFee", Decimal(18, 2), deliveryFee)
       .input("Total", Decimal(18, 2), total)
       .query(`
-        INSERT INTO Orders (Id, Customer, CustomerPhone, SecondaryPhone, Address, CustomerEmail,
+        INSERT INTO Orders (Id, Customer, CustomerPhone, SecondaryPhone, Address, Province, CustomerEmail,
           Notes, CustomerId, Source, PaymentMethod, PaymentSlipUrl, PaymentStatus, OrderDate,
           Subtotal, ManualDiscount, Discount, DeliveryFee, Total)
-        VALUES (@Id, @Customer, @CustomerPhone, @SecondaryPhone, @Address, @CustomerEmail,
+        VALUES (@Id, @Customer, @CustomerPhone, @SecondaryPhone, @Address, @Province, @CustomerEmail,
           @Notes, @CustomerId, @Source, @PaymentMethod, @PaymentSlipUrl, @PaymentStatus, @OrderDate,
           @Subtotal, @ManualDiscount, @Discount, @DeliveryFee, @Total)
       `);
@@ -181,7 +209,7 @@ export async function createWebOrder(payload: WebOrderPayload): Promise<{ orderI
       await new sql.Request(tx)
         .input("VariantId", UniqueIdentifier, it.variantId)
         .input("Qty", Int, it.qty)
-        .query(`UPDATE ProductVariants SET Qty = Qty - @Qty WHERE Id=@VariantId`);
+        .query(`UPDATE ProductVariants SET Qty = Qty - @Qty WHERE Id = dbo.fn_StockVariantId(@VariantId)`);
     }
 
     // 6) Status log

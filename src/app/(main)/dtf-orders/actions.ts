@@ -92,18 +92,21 @@ export async function confirmDtfOrder(id: string) {
     if (o.VariantId && !o.StockDeducted) {
       const vr = await new sql.Request(tx)
         .input("Vid", UniqueIdentifier, o.VariantId)
-        .query(`SELECT TOP 1 Qty, ISNULL(SellingPrice,0) AS SellingPrice FROM ProductVariants WHERE Id=@Vid`);
+        .query(`SELECT TOP 1 dbo.fn_StockVariantId(@Vid) AS StockVid,
+                       (SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(@Vid)) AS Qty,
+                       ISNULL((SELECT z.SellingPrice FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(@Vid)),0) AS SellingPrice`);
       const v = vr.recordset[0];
       const stock = v?.Qty ?? 0;
+      const stockVid = v?.StockVid;
       if (o.Qty > stock) throw new Error(`Not enough stock — only ${stock} of the chosen variant in stock.`);
 
       await new sql.Request(tx)
-        .input("Vid", UniqueIdentifier, o.VariantId)
+        .input("Vid", UniqueIdentifier, stockVid)
         .input("Qty", Int, o.Qty)
         .query(`UPDATE ProductVariants SET Qty = Qty - @Qty WHERE Id=@Vid`);
 
       await new sql.Request(tx)
-        .input("VariantId", UniqueIdentifier, o.VariantId)
+        .input("VariantId", UniqueIdentifier, stockVid)
         .input("ChangeQty", Int, -o.Qty)
         .input("PreviousQty", Int, stock)
         .input("NewQty", Int, stock - o.Qty)
@@ -143,16 +146,19 @@ export async function setDtfOrderStatus(id: string, status: DtfOrderStatus) {
     if (status === "Canceled" && o.StockDeducted && o.VariantId) {
       const vr = await new sql.Request(tx)
         .input("Vid", UniqueIdentifier, o.VariantId)
-        .query(`SELECT TOP 1 Qty, ISNULL(SellingPrice,0) AS SellingPrice FROM ProductVariants WHERE Id=@Vid`);
+        .query(`SELECT TOP 1 dbo.fn_StockVariantId(@Vid) AS StockVid,
+                       (SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(@Vid)) AS Qty,
+                       ISNULL((SELECT z.SellingPrice FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(@Vid)),0) AS SellingPrice`);
       const stock = vr.recordset[0]?.Qty ?? 0;
+      const stockVid = vr.recordset[0]?.StockVid;
 
       await new sql.Request(tx)
-        .input("Vid", UniqueIdentifier, o.VariantId)
+        .input("Vid", UniqueIdentifier, stockVid)
         .input("Qty", Int, o.Qty)
         .query(`UPDATE ProductVariants SET Qty = Qty + @Qty WHERE Id=@Vid`);
 
       await new sql.Request(tx)
-        .input("VariantId", UniqueIdentifier, o.VariantId)
+        .input("VariantId", UniqueIdentifier, stockVid)
         .input("ChangeQty", Int, o.Qty)
         .input("PreviousQty", Int, stock)
         .input("NewQty", Int, stock + o.Qty)

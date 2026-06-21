@@ -32,7 +32,7 @@ export default function ProductCard({ p }: { p: StoreProduct }) {
   const href = activeColor ? `/product/${p.Slug}?color=${activeColor}` : `/product/${p.Slug}`;
 
   return (
-    <div className="text-left">
+    <div className="text-left flex flex-col h-full">
       {/* Image — tall portrait; hovering ONLY this area reveals the secondary image */}
       <div className="group relative aspect-[2/3] bg-gray-100 overflow-hidden">
         <Link href={href} className="block w-full h-full">
@@ -81,7 +81,7 @@ export default function ProductCard({ p }: { p: StoreProduct }) {
       </div>
 
       {/* Info */}
-      <div className="pt-3">
+      <div className="pt-3 flex flex-col flex-1">
         <Link href={href} className="block">
           <h3 className="text-sm font-medium text-gray-900 line-clamp-1">{p.Name}</h3>
         </Link>
@@ -129,14 +129,16 @@ export default function ProductCard({ p }: { p: StoreProduct }) {
           </div>
         )}
 
-        <button
-          type="button"
-          onClick={() => openQuickView(p.Id)}
-          disabled={outOfStock}
-          className="mt-3 w-full border border-gray-900 bg-white text-gray-900 text-sm font-semibold py-2 flex items-center justify-center gap-2 hover:bg-gray-900 hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          <ShoppingCart className="w-4 h-4" /> Add to cart
-        </button>
+        <div className="mt-auto pt-3">
+          <button
+            type="button"
+            onClick={() => openQuickView(p.Id)}
+            disabled={outOfStock}
+            className="w-full border border-gray-900 bg-white text-gray-900 text-sm font-semibold py-2 flex items-center justify-center gap-2 hover:bg-gray-900 hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <ShoppingCart className="w-4 h-4" /> Add to cart
+          </button>
+        </div>
       </div>
     </div>
   );

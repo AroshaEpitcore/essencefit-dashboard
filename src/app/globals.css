@@ -7,6 +7,15 @@ body {
   @apply bg-gray-50 text-gray-900;
 }
 
+/* Tailwind preflight makes select/input/button inherit the page font but omits
+   <option>, so native dropdown items fall back to the browser UI font. Force
+   them to inherit too, so dropdown options match the rest of the site. */
+option,
+optgroup {
+  font-family: inherit;
+  font-size: inherit;
+}
+
 /* Dark mode */
 .dark body {
   @apply bg-gray-900 text-gray-100;

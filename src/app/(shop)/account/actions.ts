@@ -97,21 +97,111 @@ export async function getMyAccount(): Promise<CustomerSession | null> {
   return getCurrentCustomer();
 }
 
-export async function getMyOrders() {
+export type MyOrder = {
+  kind: "order" | "dtf";
+  id: string;
+  number: string; // display reference
+  date: string;
+  status: string;
+  total: number;
+  count: number; // line items / designs
+  label: string | null; // payment method / "Custom print"
+  href: string;
+};
+
+/* All of the customer's orders — regular web orders AND DTF custom orders —
+   matched by account id OR the same phone/email (so guest-placed orders surface
+   once they log in). Newest first. */
+export async function getMyOrders(): Promise<MyOrder[]> {
   const me = await getCurrentCustomer();
   if (!me) return [];
   const pool = await getDb();
-  const res = await pool
+
+  const bind = (r: ReturnType<Awaited<ReturnType<typeof getDb>>["request"]>) =>
+    r
+      .input("Cid", sql.UniqueIdentifier, me.Id)
+      .input("Phone", sql.NVarChar(50), me.Phone || null)
+      .input("Email", sql.NVarChar(200), me.Email || null);
+
+  const ordersRes = await bind(pool.request()).query(`
+    SELECT o.Id, o.OrderDate, o.PaymentStatus, o.PaymentMethod, o.Total,
+           (SELECT COUNT(*) FROM OrderItems oi WHERE oi.OrderId=o.Id) AS LineCount
+    FROM Orders o
+    WHERE o.CustomerId=@Cid
+       OR (@Phone IS NOT NULL AND o.CustomerPhone=@Phone)
+       OR (@Email IS NOT NULL AND o.CustomerEmail=@Email)
+    ORDER BY o.OrderDate DESC
+  `);
+
+  const dtfRes = await bind(pool.request()).query(`
+    SELECT d.Id, d.Ref, d.CreatedAt, d.Status,
+           COALESCE(d.FinalTotal, d.EstimatedTotal) AS Total,
+           (SELECT COUNT(*) FROM DtfOrderDesigns g WHERE g.DtfOrderId=d.Id) AS DesignCount
+    FROM DtfOrders d
+    WHERE d.CustomerId=@Cid
+       OR (@Phone IS NOT NULL AND d.CustomerPhone=@Phone)
+       OR (@Email IS NOT NULL AND d.Email=@Email)
+    ORDER BY d.CreatedAt DESC
+  `);
+
+  const orders: MyOrder[] = ordersRes.recordset.map((o: any) => ({
+    kind: "order",
+    id: o.Id,
+    number: String(o.Id).slice(0, 8).toUpperCase(),
+    date: o.OrderDate,
+    status: o.PaymentStatus,
+    total: Number(o.Total) || 0,
+    count: o.LineCount,
+    label: o.PaymentMethod || null,
+    href: `/order/${o.Id}`,
+  }));
+
+  const dtf: MyOrder[] = dtfRes.recordset.map((d: any) => ({
+    kind: "dtf",
+    id: d.Id,
+    number: d.Ref,
+    date: d.CreatedAt,
+    status: d.Status,
+    total: Number(d.Total) || 0,
+    count: d.DesignCount,
+    label: "Custom print",
+    href: `/dtf-order/${d.Id}`,
+  }));
+
+  return [...orders, ...dtf].sort((a, b) => +new Date(b.date) - +new Date(a.date));
+}
+
+/* A single DTF order for the owner (account id or matching phone/email), for the
+   customer tracking page. Returns null if it isn't theirs. */
+export async function getMyDtfOrder(id: string) {
+  const me = await getCurrentCustomer();
+  if (!me) return null;
+  const pool = await getDb();
+  const header = await pool
     .request()
+    .input("Id", sql.UniqueIdentifier, id)
     .input("Cid", sql.UniqueIdentifier, me.Id)
+    .input("Phone", sql.NVarChar(50), me.Phone || null)
+    .input("Email", sql.NVarChar(200), me.Email || null)
     .query(`
-      SELECT o.Id, o.OrderDate, o.PaymentStatus, o.PaymentMethod, o.Total,
-             (SELECT COUNT(*) FROM OrderItems oi WHERE oi.OrderId=o.Id) AS LineCount
-      FROM Orders o
-      WHERE o.CustomerId=@Cid
-      ORDER BY o.OrderDate DESC
+      SELECT TOP 1 d.*, p.Name AS ProductName, s.Name AS SizeName, c.Name AS ColorName
+      FROM DtfOrders d
+      LEFT JOIN Products p ON p.Id = d.ProductId
+      LEFT JOIN ProductVariants v ON v.Id = d.VariantId
+      LEFT JOIN Sizes s ON s.Id = v.SizeId
+      LEFT JOIN Colors c ON c.Id = v.ColorId
+      WHERE d.Id=@Id AND (
+        d.CustomerId=@Cid
+        OR (@Phone IS NOT NULL AND d.CustomerPhone=@Phone)
+        OR (@Email IS NOT NULL AND d.Email=@Email)
+      )
     `);
-  return res.recordset;
+  if (!header.recordset[0]) return null;
+  const designs = await pool
+    .request()
+    .input("Id", sql.UniqueIdentifier, id)
+    .query(`SELECT Id, Url, Kind, SortOrder FROM DtfOrderDesigns WHERE DtfOrderId=@Id ORDER BY SortOrder`);
+  return { order: header.recordset[0], designs: designs.recordset };
 }
 
 export async function updateMyProfile(input: { name: string; phone: string; address: string; password?: string }) {

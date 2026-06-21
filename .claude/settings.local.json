@@ -61,7 +61,23 @@
       "Bash(curl -s -o /dev/null \"http://localhost:3200/cart\")",
       "Bash(curl -s -o /dev/null \"http://localhost:3200/product/ck-sport-short-214DA50A\")",
       "PowerShell(try { Get-NetTCPConnection -LocalPort 3100 -State Listen -ErrorAction Stop | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue; \"stopped PID $_\" } } catch { \"no listener on 3100\" })",
-      "Bash(perl -i -pe 's/^- \\\\[ \\\\] App builds:/- [x] App builds:/' workflow/plans/2026-06-20-dtf-printing-module.md)"
+      "Bash(perl -i -pe 's/^- \\\\[ \\\\] App builds:/- [x] App builds:/' workflow/plans/2026-06-20-dtf-printing-module.md)",
+      "Bash(perl -0pi -e 's/- \\\\[ \\\\] Migration applies cleanly/- [x] Migration applies cleanly/' workflow/plans/2026-06-21-dtf-order-customer-tracking.md)",
+      "Bash(perl -pi -e 's/^- \\\\[ \\\\] App builds:/- [x] App builds:/' workflow/plans/2026-06-21-dtf-order-customer-tracking.md)",
+      "Bash(perl -0pi -e 's/- \\\\[ \\\\] Migration applies/- [x] Migration applies/' workflow/plans/2026-06-21-shared-stock-and-dtf-garment-pricing.md)",
+      "Bash(perl -pi -e 's/^- \\\\[ \\\\] App builds:/- [x] App builds:/' workflow/plans/2026-06-21-shared-stock-and-dtf-garment-pricing.md)",
+      "PowerShell(npx tsc --noEmit -p tsconfig.json 2>&1 | Select-Object -First 30)",
+      "PowerShell(npx tsc --noEmit -p tsconfig.json 2>&1 | Select-Object -First 20)",
+      "WebFetch(domain:foaclothing.com)",
+      "PowerShell(Start-Process -FilePath \"npm\" -ArgumentList \"start\" -NoNewWindow -RedirectStandardOutput \"C:\\\\Users\\\\MSI\\\\AppData\\\\Local\\\\Temp\\\\prodserver.log\" -RedirectStandardError \"C:\\\\Users\\\\MSI\\\\AppData\\\\Local\\\\Temp\\\\prodserver.err.log\"; Start-Sleep -Seconds 6; \"started\")",
+      "Bash(curl -s http://localhost:3000/shop)",
+      "Bash(curl -s http://localhost:3000/sitemap.xml)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/product/ck-sport-short-214da50a)",
+      "Bash(curl -s http://localhost:3000/product/ck-sport-short-214da50a)",
+      "Bash(PORT=3001 npm start *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3001/product/ck-sport-short-214da50a)",
+      "PowerShell($conns = Get-NetTCPConnection -LocalPort 3001 -State Listen -ErrorAction SilentlyContinue; foreach \\($c in $conns\\) { try { Stop-Process -Id $c.OwningProcess -Force -ErrorAction Stop; \"killed PID $\\($c.OwningProcess\\) on 3001\" } catch {} })",
+      "PowerShell(npx tsc --noEmit -p tsconfig.json 2>&1 | Select-Object -First 15)"
     ]
   }
 }

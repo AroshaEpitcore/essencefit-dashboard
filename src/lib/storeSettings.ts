@@ -28,6 +28,21 @@ export type SocialLinks = {
   tiktok: string;
 };
 
+export type DeliveryProvince = { name: string; fee: number };
+
+// Sri Lanka's 9 provinces with starting fees — all editable in Store Settings.
+export const DEFAULT_PROVINCES: DeliveryProvince[] = [
+  { name: "Western", fee: 400 },
+  { name: "Southern", fee: 400 },
+  { name: "Central", fee: 450 },
+  { name: "North Western", fee: 450 },
+  { name: "Sabaragamuwa", fee: 450 },
+  { name: "Uva", fee: 500 },
+  { name: "Eastern", fee: 500 },
+  { name: "Northern", fee: 500 },
+  { name: "North Central", fee: 500 },
+];
+
 export type StoreSettings = {
   storeName: string;
   logo: string; // legacy single logo (fallback)
@@ -38,6 +53,7 @@ export type StoreSettings = {
   bank: BankDetails;
   deliveryFee: number;
   freeDeliveryOver: number; // 0 = disabled
+  deliveryProvinces: DeliveryProvince[]; // per-province delivery fees (Sri Lanka)
   contactPhone: string;
   contactEmail: string;
   social: SocialLinks;
@@ -54,6 +70,7 @@ export const STORE_KEYS = {
   bank: "bank_details",
   deliveryFee: "delivery_fee",
   freeDeliveryOver: "free_delivery_over",
+  deliveryProvinces: "delivery_provinces",
   contactPhone: "contact_phone",
   contactEmail: "contact_email",
   social: "social",
@@ -69,6 +86,7 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
   bank: { bank: "", accountName: "", accountNo: "", branch: "" },
   deliveryFee: 400,
   freeDeliveryOver: 0,
+  deliveryProvinces: DEFAULT_PROVINCES,
   contactPhone: "",
   contactEmail: "",
   social: { facebook: "", instagram: "", whatsapp: "", tiktok: "" },
@@ -93,6 +111,15 @@ function normaliseSlides(raw: unknown): HeroSlide[] {
       };
     })
     .filter((s) => s.src);
+}
+
+// Keep stored province fees but fall back to the default list if unset/empty.
+function normaliseProvinces(raw: unknown): DeliveryProvince[] {
+  if (!Array.isArray(raw)) return DEFAULT_PROVINCES;
+  const list = raw
+    .map((p: Record<string, unknown>) => ({ name: String(p?.name ?? "").trim(), fee: Number(p?.fee) || 0 }))
+    .filter((p) => p.name);
+  return list.length ? list : DEFAULT_PROVINCES;
 }
 
 function parseJson<T>(value: string | null | undefined, fallback: T): T {
@@ -121,6 +148,7 @@ export async function getPublicStoreSettings(): Promise<StoreSettings> {
     bank: parseJson<BankDetails>(map[STORE_KEYS.bank], d.bank),
     deliveryFee: Number(map[STORE_KEYS.deliveryFee] ?? d.deliveryFee) || 0,
     freeDeliveryOver: Number(map[STORE_KEYS.freeDeliveryOver] ?? d.freeDeliveryOver) || 0,
+    deliveryProvinces: normaliseProvinces(parseJson<unknown>(map[STORE_KEYS.deliveryProvinces], null)),
     contactPhone: map[STORE_KEYS.contactPhone] || d.contactPhone,
     contactEmail: map[STORE_KEYS.contactEmail] || d.contactEmail,
     social: parseJson<SocialLinks>(map[STORE_KEYS.social], d.social),

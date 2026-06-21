@@ -221,6 +221,44 @@ export default function StoreSettingsPage() {
               <input type="number" value={s.freeDeliveryOver} onChange={(e) => set("freeDeliveryOver", Number(e.target.value) || 0)} className={input} />
             </div>
           </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium">Delivery fee by province</label>
+              <button
+                type="button"
+                onClick={() => set("deliveryProvinces", [...s.deliveryProvinces, { name: "", fee: s.deliveryFee }])}
+                className="text-sm text-primary font-medium flex items-center gap-1"
+              >
+                <Plus className="w-4 h-4" /> Add province
+              </button>
+            </div>
+            <p className="text-xs text-gray-400 mb-2">Customers pick their province at checkout; its fee is applied (the flat fee above is the fallback).</p>
+            <div className="space-y-2">
+              {s.deliveryProvinces.map((p, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <input
+                    value={p.name}
+                    onChange={(e) => set("deliveryProvinces", s.deliveryProvinces.map((x, k) => (k === i ? { ...x, name: e.target.value } : x)))}
+                    placeholder="Province"
+                    className={`${input} flex-1`}
+                  />
+                  <div className="flex items-center gap-1 shrink-0">
+                    <span className="text-sm text-gray-500">Rs</span>
+                    <input
+                      type="number"
+                      value={p.fee}
+                      onChange={(e) => set("deliveryProvinces", s.deliveryProvinces.map((x, k) => (k === i ? { ...x, fee: Number(e.target.value) || 0 } : x)))}
+                      className={`${input} w-28`}
+                    />
+                  </div>
+                  <button type="button" onClick={() => set("deliveryProvinces", s.deliveryProvinces.filter((_, k) => k !== i))} className="text-red-500 hover:text-red-600 p-2">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Bank */}

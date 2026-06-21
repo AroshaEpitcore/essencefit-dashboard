@@ -7,6 +7,7 @@ import {
   getProductForEdit,
   updateProductStorefront,
   toggleProductFlag,
+  getBlankCandidates,
   setProductImages,
   getCatalogCategories,
   updateCategoryStorefront,
@@ -276,6 +277,8 @@ function ProductsTable({ products, reload }: { products: CatalogProduct[]; reloa
                     <td className="p-3 font-medium">
                       {p.Name}
                       {onSale && <span className="ml-2 text-xs bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 px-2 py-0.5 rounded">SALE</span>}
+                      {p.BlankProductId && <span className="ml-2 text-xs bg-gray-100 text-gray-500 dark:bg-gray-700 px-2 py-0.5 rounded" title="Shares stock from this blank">↳ {p.BlankName}</span>}
+                      {p.PrintOnDemand && <span className="ml-2 text-xs bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-0.5 rounded">POD</span>}
                     </td>
                     <td className="p-3 text-gray-600 dark:text-gray-400">{p.CategoryName || "-"}</td>
                     <td className="p-3 text-right">
@@ -339,6 +342,12 @@ function ProductEditModal({ id, onClose, onSaved }: { id: string; onClose: () =>
   const [isFeatured, setIsFeatured] = useState(false);
   const [isNewArrival, setIsNewArrival] = useState(false);
   const [isDtfPrintable, setIsDtfPrintable] = useState(false);
+  const [blankProductId, setBlankProductId] = useState<string>("");
+  const [dtfProfit, setDtfProfit] = useState<string>("");
+  const [printOnDemand, setPrintOnDemand] = useState(false);
+  const [sizeChartUrl, setSizeChartUrl] = useState<string>("");
+  const [uploadingChart, setUploadingChart] = useState(false);
+  const [blankCandidates, setBlankCandidates] = useState<{ Id: string; Name: string }[]>([]);
   const [sortOrder, setSortOrder] = useState(0);
   const [images, setImages] = useState<ImgItem[]>([]);
   const [productColors, setProductColors] = useState<{ Id: string; Name: string; Hex: string | null }[]>([]);
@@ -358,6 +367,11 @@ function ProductEditModal({ id, onClose, onSaved }: { id: string; onClose: () =>
         setIsFeatured(!!product.IsFeatured);
         setIsNewArrival(!!product.IsNewArrival);
         setIsDtfPrintable(!!product.IsDtfPrintable);
+        setBlankProductId(product.BlankProductId || "");
+        setDtfProfit(product.DtfProfit != null ? String(product.DtfProfit) : "");
+        setPrintOnDemand(!!product.PrintOnDemand);
+        setSizeChartUrl(product.SizeChartUrl || "");
+        getBlankCandidates(id).then(setBlankCandidates).catch(() => {});
         setSortOrder(product.SortOrder || 0);
         const cols = colors || [];
         setProductColors(cols);
@@ -384,6 +398,24 @@ function ProductEditModal({ id, onClose, onSaved }: { id: string; onClose: () =>
       toast.error(err.message || "Upload failed");
     } finally {
       setUploadingGroup(null);
+    }
+  }
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  async function onUploadChart(file: File | null) {
+    if (!file) return;
+    setUploadingChart(true);
+    try {
+      setSizeChartUrl(await uploadFile(file, "products"));
+    } catch (err: any) {
+      toast.error(err.message || "Upload failed");
+    } finally {
+      setUploadingChart(false);
     }
   }
 
@@ -415,7 +447,12 @@ function ProductEditModal({ id, onClose, onSaved }: { id: string; onClose: () =>
       }
       await updateProductStorefront(id, {
         name, slug, description: description || null,
-        compareAtPrice: compareVal, isActive, isFeatured, isNewArrival, isDtfPrintable, sortOrder,
+        compareAtPrice: compareVal, isActive, isFeatured, isNewArrival, isDtfPrintable,
+        blankProductId: blankProductId || null,
+        dtfProfit: dtfProfit.trim() === "" ? null : Number(dtfProfit),
+        printOnDemand,
+        sizeChartUrl: sizeChartUrl || null,
+        sortOrder,
       });
       await setProductImages(id, images);
       toast.success("Product saved");
@@ -428,9 +465,9 @@ function ProductEditModal({ id, onClose, onSaved }: { id: string; onClose: () =>
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-gray-200 dark:border-gray-700">
-        <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[92vh] overflow-y-auto border border-gray-200 dark:border-gray-700" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10 bg-white dark:bg-gray-800">
           <h2 className="text-lg font-bold flex items-center gap-2"><Edit3 className="w-5 h-5 text-primary" /> Edit storefront product</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"><X className="w-5 h-5" /></button>
         </div>
@@ -474,6 +511,50 @@ function ProductEditModal({ id, onClose, onSaved }: { id: string; onClose: () =>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={isFeatured} onChange={(e) => setIsFeatured(e.target.checked)} /> Featured</label>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={isNewArrival} onChange={(e) => setIsNewArrival(e.target.checked)} /> New arrival</label>
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={isDtfPrintable} onChange={(e) => setIsDtfPrintable(e.target.checked)} /> DTF printable</label>
+              <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={printOnDemand} onChange={(e) => setPrintOnDemand(e.target.checked)} /> Print on demand</label>
+            </div>
+
+            {/* Shared stock + DTF profit */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Stock source (blank)</label>
+                <select
+                  value={blankProductId}
+                  onChange={(e) => setBlankProductId(e.target.value)}
+                  className="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-2.5"
+                >
+                  <option value="">— Own stock —</option>
+                  {blankCandidates.map((b) => (
+                    <option key={b.Id} value={b.Id}>{b.Name}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-400 mt-1">Link to a blank to share its stock (this product won&apos;t hold its own).</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">DTF profit (Rs)</label>
+                <input value={dtfProfit} onChange={(e) => setDtfProfit(e.target.value)} type="number" placeholder="global default" className="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-2.5" />
+                <p className="text-xs text-gray-400 mt-1">Added on the blank cost when DTF-printed. Empty = global default.</p>
+              </div>
+            </div>
+
+            {/* Size chart */}
+            <div>
+              <label className="block text-sm font-medium mb-1">Size chart</label>
+              <p className="text-xs text-gray-400 mb-2">Optional image shown on the product page — customers open it in a popup.</p>
+              <div className="flex items-center gap-3">
+                {sizeChartUrl ? (
+                  <div className="relative group">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={sizeChartUrl} alt="size chart" className="w-20 h-20 rounded-lg object-cover border border-gray-300 dark:border-gray-600" />
+                    <button onClick={() => setSizeChartUrl("")} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow"><Trash2 className="w-3 h-3" /></button>
+                  </div>
+                ) : (
+                  <label className="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center cursor-pointer hover:border-primary text-gray-400 hover:text-primary">
+                    {uploadingChart ? <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-primary" /> : <ImagePlus className="w-6 h-6" />}
+                    <input type="file" accept="image/*" hidden onChange={(e) => onUploadChart(e.target.files?.[0] || null)} />
+                  </label>
+                )}
+              </div>
             </div>
 
             {/* Images grouped by colour */}

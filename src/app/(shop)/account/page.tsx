@@ -14,6 +14,9 @@ const statusColor: Record<string, string> = {
   Paid: "bg-green-100 text-green-700",
   Completed: "bg-green-100 text-green-700",
   Partial: "bg-blue-100 text-blue-700",
+  Confirmed: "bg-blue-100 text-blue-700",
+  InProduction: "bg-purple-100 text-purple-700",
+  Ready: "bg-teal-100 text-teal-700",
   Canceled: "bg-red-100 text-red-700",
 };
 
@@ -53,15 +56,18 @@ export default async function AccountPage() {
         </div>
       ) : (
         <div className="bg-white border border-gray-200  divide-y divide-gray-100">
-          {orders.slice(0, 5).map((o: any) => (
-            <div key={o.Id} className="flex items-center gap-4 p-4">
+          {orders.slice(0, 5).map((o) => (
+            <Link key={o.id} href={o.href} className="flex items-center gap-4 p-4 hover:bg-gray-50">
               <div className="flex-1">
-                <p className="font-medium text-gray-900">#{String(o.Id).slice(0, 8).toUpperCase()}</p>
-                <p className="text-xs text-gray-500">{new Date(o.OrderDate).toLocaleDateString()} · {o.LineCount} item(s) · {o.PaymentMethod || "—"}</p>
+                <p className="font-medium text-gray-900 flex items-center gap-2">
+                  #{o.number}
+                  {o.kind === "dtf" && <span className="text-[10px] font-semibold uppercase tracking-wide bg-primary/10 text-primary px-1.5 py-0.5 rounded">Custom</span>}
+                </p>
+                <p className="text-xs text-gray-500">{new Date(o.date).toLocaleDateString()} · {o.count} {o.kind === "dtf" ? "design(s)" : "item(s)"} · {o.label || "—"}</p>
               </div>
-              <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${statusColor[o.PaymentStatus] || "bg-gray-100 text-gray-600"}`}>{o.PaymentStatus}</span>
-              <span className="font-semibold text-gray-900">{money(o.Total)}</span>
-            </div>
+              <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${statusColor[o.status] || "bg-gray-100 text-gray-600"}`}>{o.status}</span>
+              <span className="font-semibold text-gray-900">{money(o.total)}</span>
+            </Link>
           ))}
         </div>
       )}
