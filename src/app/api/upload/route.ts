@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
+
+// Object storage on Supabase (serverless filesystems are read-only, so we
+// can't write to public/uploads in production). Uploads go to a public bucket
+// via the Storage REST API and we return the public CDN URL.
+const SUPABASE_URL = (process.env.SUPABASE_URL || "").replace(/\/$/, "");
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const BUCKET = process.env.SUPABASE_STORAGE_BUCKET || "uploads";
 
 const EXT: Record<string, string> = {
   "image/jpeg": "jpg",
@@ -59,15 +64,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `File too large (max ${mb}).` }, { status: 413 });
     }
 
+    if (!SUPABASE_URL || !SERVICE_KEY) {
+      console.error("[upload] missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY env");
+      return NextResponse.json({ error: "Upload not configured." }, { status: 500 });
+    }
+
     const ext = EXT[blob.type] || "bin";
-    const name = `${crypto.randomUUID()}.${ext}`;
-    const dir = path.join(process.cwd(), "public", "uploads", folder);
-    await mkdir(dir, { recursive: true });
-
+    const objectPath = `${folder}/${crypto.randomUUID()}.${ext}`;
     const bytes = Buffer.from(await blob.arrayBuffer());
-    await writeFile(path.join(dir, name), bytes);
 
-    const url = `/uploads/${folder}/${name}`;
+    const put = await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}/${objectPath}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${SERVICE_KEY}`,
+        "Content-Type": blob.type || "application/octet-stream",
+        "x-upsert": "true",
+        "cache-control": "public, max-age=31536000, immutable",
+      },
+      body: bytes,
+    });
+    if (!put.ok) {
+      console.error("[upload] storage put failed:", put.status, await put.text().catch(() => ""));
+      return NextResponse.json({ error: "Upload failed." }, { status: 500 });
+    }
+
+    const url = `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${objectPath}`;
     const kind = isVideo ? "video" : isDoc ? "pdf" : "image";
     return NextResponse.json({ url, kind });
   } catch (err) {
