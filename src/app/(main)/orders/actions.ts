@@ -289,7 +289,7 @@ async function resolveStock(tx: Transaction, variantId: string) {
       SELECT dbo.fn_StockVariantId(@VariantId) AS StockVid,
              (SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(@VariantId)) AS Qty,
              COALESCE((SELECT z.SellingPrice FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(@VariantId)), 0) AS SellingPrice,
-             COALESCE((SELECT p.PrintOnDemand FROM ProductVariants v JOIN Products p ON p.Id = v.ProductId WHERE v.Id = @VariantId), 0) AS IsPOD
+             COALESCE((SELECT p.PrintOnDemand FROM ProductVariants v JOIN Products p ON p.Id = v.ProductId WHERE v.Id = @VariantId), false) AS IsPOD
     `);
   return r.recordset[0] as { StockVid: string | null; Qty: number | null; SellingPrice: number; IsPOD: boolean } | undefined;
 }
