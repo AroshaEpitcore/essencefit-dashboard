@@ -1,7 +1,7 @@
 "use server";
 
 import { getDb } from "@/lib/db";
-import sql from "mssql";
+import sql from "@/lib/sqlShim";
 
 /* ---------- Lookups ---------- */
 
@@ -27,15 +27,14 @@ export async function getProductsByCategory(categoryId: string) {
 export async function getOrdersForReturn() {
   const db = await getDb();
   const res = await db.request().query(`
-    SELECT TOP 50
-      Id,
+    SELECT Id,
       Customer,
       OrderDate,
       Total,
       PaymentStatus
     FROM Orders
     WHERE PaymentStatus NOT IN ('Completed', 'Canceled')
-    ORDER BY OrderDate DESC
+    ORDER BY OrderDate DESC LIMIT 50
   `);
   return res.recordset;
 }
@@ -79,9 +78,9 @@ export async function getVariant(productId: string, sizeId: string, colorId: str
     .input("sid", sql.UniqueIdentifier, sizeId)
     .input("cid", sql.UniqueIdentifier, colorId)
     .query(`
-      SELECT TOP 1 v.Id AS VariantId, v.Qty AS InStock
+      SELECT v.Id AS VariantId, v.Qty AS InStock
       FROM ProductVariants v
-      WHERE v.ProductId=@pid AND v.SizeId=@sid AND v.ColorId=@cid
+      WHERE v.ProductId=@pid AND v.SizeId=@sid AND v.ColorId=@cid LIMIT 1
     `);
   return res.recordset[0];
 }
@@ -106,7 +105,7 @@ export async function createSalesReturn(
     // validate order exists
     const check = await new sql.Request(tx)
       .input("OrderId", sql.UniqueIdentifier, orderId)
-      .query(`SELECT TOP 1 Id FROM Orders WHERE Id=@OrderId`);
+      .query(`SELECT Id FROM Orders WHERE Id=@OrderId LIMIT 1`);
 
     if (check.recordset.length === 0) {
       throw new Error("Invalid OrderId (order not found)");
@@ -118,8 +117,8 @@ export async function createSalesReturn(
       .input("Reason", sql.NVarChar(500), reason)
       .query(`
         INSERT INTO SalesReturns (OrderId, Reason)
-        OUTPUT INSERTED.Id
         VALUES (@OrderId, @Reason)
+        RETURNING Id
       `);
 
     const returnId = res.recordset[0].Id as string;
@@ -164,8 +163,7 @@ export async function getRecentReturns(limit: number = 10) {
     .request()
     .input("n", sql.Int, limit)
     .query(`
-      SELECT TOP (@n)
-        r.Id,
+      SELECT r.Id,
         r.OrderId,
         r.Reason,
         r.CreatedAt,
@@ -173,7 +171,7 @@ export async function getRecentReturns(limit: number = 10) {
       FROM SalesReturns r
       LEFT JOIN SalesReturnItems ri ON ri.ReturnId = r.Id
       GROUP BY r.Id, r.OrderId, r.Reason, r.CreatedAt
-      ORDER BY r.CreatedAt DESC
+      ORDER BY r.CreatedAt DESC LIMIT @n
     `);
   return res.recordset;
 }

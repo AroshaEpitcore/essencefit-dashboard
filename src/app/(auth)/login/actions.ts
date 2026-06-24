@@ -1,7 +1,7 @@
 "use server";
 
 import { getDb } from "@/lib/db";
-import sql from "mssql";
+import sql from "@/lib/sqlShim";
 import bcrypt from "bcryptjs";
 
 export async function loginUser(username: string, password: string) {
@@ -10,7 +10,7 @@ export async function loginUser(username: string, password: string) {
   const result = await pool
     .request()
     .input("Username", sql.NVarChar, username)
-    .query("SELECT TOP 1 * FROM Users WHERE Username=@Username");
+    .query("SELECT * FROM Users WHERE Username=@Username LIMIT 1");
 
   if (result.recordset.length === 0) throw new Error("User not found");
 

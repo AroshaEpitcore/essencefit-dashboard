@@ -39,10 +39,10 @@ const PRODUCT_SELECT = `
   SELECT
     p.Id, p.Name, p.Slug, p.ImageUrl, p.SellingPrice, p.CompareAtPrice,
     cat.Name AS CategoryName, cat.Slug AS CategorySlug,
-    ISNULL((SELECT SUM(b.Qty) FROM ProductVariants b WHERE b.ProductId = ISNULL(p.BlankProductId, p.Id)), 0) AS Stock,
-    (SELECT TOP 1 pi.Url FROM ProductImages pi
+    COALESCE((SELECT SUM(b.Qty) FROM ProductVariants b WHERE b.ProductId = COALESCE(p.BlankProductId, p.Id)), 0) AS Stock,
+    (SELECT pi.Url FROM ProductImages pi
        WHERE pi.ProductId = p.Id AND (p.ImageUrl IS NULL OR pi.Url <> p.ImageUrl)
-       ORDER BY CASE WHEN pi.ColorId IS NULL THEN 0 ELSE 1 END, pi.SortOrder) AS HoverImageUrl
+       ORDER BY CASE WHEN pi.ColorId IS NULL THEN 0 ELSE 1 END, pi.SortOrder LIMIT 1) AS HoverImageUrl
   FROM Products p
   LEFT JOIN Categories cat ON cat.Id = p.CategoryId
 `;
@@ -63,17 +63,17 @@ async function attachColors<T extends StoreProduct>(
   });
   const res = await req.query(`
     SELECT v.ProductId, c.Id, c.Name, c.Hex,
-      (SELECT TOP 1 pi.Url FROM ProductImages pi
-         WHERE pi.ProductId = v.ProductId AND pi.ColorId = c.Id ORDER BY pi.SortOrder) AS ImageUrl,
+      (SELECT pi.Url FROM ProductImages pi
+         WHERE pi.ProductId = v.ProductId AND pi.ColorId = c.Id ORDER BY pi.SortOrder LIMIT 1) AS ImageUrl,
       (SELECT pi.Url FROM ProductImages pi
          WHERE pi.ProductId = v.ProductId AND pi.ColorId = c.Id
-         ORDER BY pi.SortOrder OFFSET 1 ROWS FETCH NEXT 1 ROWS ONLY) AS ImageUrl2,
-      ISNULL((SELECT MIN(pi.SortOrder) FROM ProductImages pi
+         ORDER BY pi.SortOrder LIMIT 1 OFFSET 1) AS ImageUrl2,
+      COALESCE((SELECT MIN(pi.SortOrder) FROM ProductImages pi
          WHERE pi.ProductId = v.ProductId AND pi.ColorId = c.Id), 2147483647) AS ImgSort,
-      MAX(CASE WHEN ISNULL(sv.Qty, 0) > 0 THEN 1 ELSE 0 END) AS InStock
+      MAX(CASE WHEN COALESCE(sv.Qty, 0) > 0 THEN 1 ELSE 0 END) AS InStock
     FROM ProductVariants v
     JOIN Colors c ON c.Id = v.ColorId
-    OUTER APPLY (SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(v.Id)) sv
+    LEFT JOIN LATERAL (SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(v.Id)) sv ON true
     WHERE v.ColorId IS NOT NULL AND v.ProductId IN (${params.join(",")})
     GROUP BY v.ProductId, c.Id, c.Name, c.Hex
     ORDER BY ImgSort, c.Name
@@ -90,9 +90,9 @@ export async function getActiveCategories(): Promise<StoreCategory[]> {
   const pool = await getDb();
   const res = await pool.request().query(`
     SELECT c.Id, c.Name, c.Slug, c.ImageUrl, c.Description,
-           (SELECT COUNT(*) FROM Products p WHERE p.CategoryId = c.Id AND p.IsActive = 1) AS ProductCount
+           (SELECT COUNT(*) FROM Products p WHERE p.CategoryId = c.Id AND p.IsActive = true) AS ProductCount
     FROM Categories c
-    WHERE c.IsActive = 1
+    WHERE c.IsActive = true
     ORDER BY c.SortOrder, c.Name
   `);
   return res.recordset as StoreCategory[];
@@ -103,9 +103,9 @@ export async function getFeaturedProducts(limit = 8): Promise<StoreProduct[]> {
   const res = await pool
     .request()
     .input("n", sql.Int, limit)
-    .query(`${PRODUCT_SELECT} WHERE p.IsActive = 1 AND p.IsFeatured = 1
+    .query(`${PRODUCT_SELECT} WHERE p.IsActive = true AND p.IsFeatured = true
             ORDER BY p.SortOrder, p.Name
-            OFFSET 0 ROWS FETCH NEXT @n ROWS ONLY`);
+            LIMIT @n OFFSET 0`);
   return attachColors(pool, res.recordset as StoreProduct[]);
 }
 
@@ -115,9 +115,9 @@ export async function getDeals(limit = 8): Promise<StoreProduct[]> {
     .request()
     .input("n", sql.Int, limit)
     .query(`${PRODUCT_SELECT}
-            WHERE p.IsActive = 1 AND p.CompareAtPrice IS NOT NULL AND p.CompareAtPrice > p.SellingPrice
+            WHERE p.IsActive = true AND p.CompareAtPrice IS NOT NULL AND p.CompareAtPrice > p.SellingPrice
             ORDER BY (p.CompareAtPrice - p.SellingPrice) DESC
-            OFFSET 0 ROWS FETCH NEXT @n ROWS ONLY`);
+            LIMIT @n OFFSET 0`);
   return attachColors(pool, res.recordset as StoreProduct[]);
 }
 
@@ -128,9 +128,9 @@ export async function getNewArrivals(limit = 12): Promise<StoreProduct[]> {
   const res = await pool
     .request()
     .input("n", sql.Int, limit)
-    .query(`${PRODUCT_SELECT} WHERE p.IsActive = 1 AND p.IsNewArrival = 1
+    .query(`${PRODUCT_SELECT} WHERE p.IsActive = true AND p.IsNewArrival = true
             ORDER BY p.SortOrder, p.CreatedAt DESC
-            OFFSET 0 ROWS FETCH NEXT @n ROWS ONLY`);
+            LIMIT @n OFFSET 0`);
   return attachColors(pool, res.recordset as StoreProduct[]);
 }
 
@@ -139,9 +139,9 @@ export async function getNewProducts(limit = 8): Promise<StoreProduct[]> {
   const res = await pool
     .request()
     .input("n", sql.Int, limit)
-    .query(`${PRODUCT_SELECT} WHERE p.IsActive = 1
+    .query(`${PRODUCT_SELECT} WHERE p.IsActive = true
             ORDER BY p.CreatedAt DESC
-            OFFSET 0 ROWS FETCH NEXT @n ROWS ONLY`);
+            LIMIT @n OFFSET 0`);
   return attachColors(pool, res.recordset as StoreProduct[]);
 }
 
@@ -150,7 +150,7 @@ export async function getDtfPrintableProducts(): Promise<StoreProduct[]> {
   const pool = await getDb();
   const res = await pool
     .request()
-    .query(`${PRODUCT_SELECT} WHERE p.IsActive = 1 AND p.IsDtfPrintable = 1
+    .query(`${PRODUCT_SELECT} WHERE p.IsActive = true AND p.IsDtfPrintable = true
             ORDER BY p.SortOrder, p.Name`);
   return attachColors(pool, res.recordset as StoreProduct[]);
 }
@@ -168,7 +168,7 @@ export async function getDtfGarment(
     .request()
     .input("pid", sql.UniqueIdentifier, productId)
     .query(`${PRODUCT_SELECT.replace("FROM Products p", ", p.CostPrice AS BaseCost, p.DtfProfit AS DtfProfit FROM Products p")}
-            WHERE p.Id = @pid AND p.IsActive = 1 AND p.IsDtfPrintable = 1`);
+            WHERE p.Id = @pid AND p.IsActive = true AND p.IsDtfPrintable = true`);
   const row = res.recordset[0] as (StoreProduct & { BaseCost: number | null; DtfProfit: number | null }) | undefined;
   if (!row) return null;
   const rows = await attachColors(pool, [row] as StoreProduct[]);
@@ -188,9 +188,9 @@ export async function getCategoryBySlug(slug: string): Promise<StoreCategory | n
     .request()
     .input("slug", sql.NVarChar(150), slug)
     .query(`
-      SELECT TOP 1 c.Id, c.Name, c.Slug, c.ImageUrl, c.Description,
-             (SELECT COUNT(*) FROM Products p WHERE p.CategoryId = c.Id AND p.IsActive = 1) AS ProductCount
-      FROM Categories c WHERE c.Slug = @slug AND c.IsActive = 1
+      SELECT c.Id, c.Name, c.Slug, c.ImageUrl, c.Description,
+             (SELECT COUNT(*) FROM Products p WHERE p.CategoryId = c.Id AND p.IsActive = true) AS ProductCount
+      FROM Categories c WHERE c.Slug = @slug AND c.IsActive = true LIMIT 1
     `);
   return (res.recordset[0] as StoreCategory) || null;
 }
@@ -222,7 +222,7 @@ export type ProductQuery = {
 export async function searchProducts(params: ProductQuery): Promise<StoreProduct[]> {
   const pool = await getDb();
   const req = pool.request();
-  const where: string[] = ["p.IsActive = 1"];
+  const where: string[] = ["p.IsActive = true"];
 
   if (params.q) {
     req.input("q", sql.NVarChar(200), `%${params.q}%`);
@@ -311,7 +311,7 @@ export async function getProductBySlug(slug: string): Promise<StoreProductDetail
     .request()
     .input("slug", sql.NVarChar(250), slug)
     .query(`${PRODUCT_SELECT.replace("FROM Products p", ", p.Description, p.CategoryId, p.SizeChartUrl, p.SelectByImage FROM Products p")}
-            WHERE p.Slug = @slug AND p.IsActive = 1`);
+            WHERE p.Slug = @slug AND p.IsActive = true`);
   const row = res.recordset[0];
   if (!row) return null;
 
@@ -335,8 +335,8 @@ export async function getProductDesigns(productId: string): Promise<StoreDesign[
     .input("pid", sql.UniqueIdentifier, productId)
     .query(`
       SELECT v.Id AS VariantId, pi.Url AS Image,
-             ISNULL((SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(v.Id)), 0) AS Qty,
-             ISNULL(v.SellingPrice, p.SellingPrice) AS Price
+             COALESCE((SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(v.Id)), 0) AS Qty,
+             COALESCE(v.SellingPrice, p.SellingPrice) AS Price
       FROM ProductImages pi
       JOIN ProductVariants v ON v.Id = pi.VariantId
       JOIN Products p ON p.Id = v.ProductId
@@ -354,9 +354,9 @@ export async function getProductVariants(productId: string): Promise<StoreVarian
     .query(`
       SELECT v.Id AS VariantId, v.SizeId, s.Name AS SizeName,
              v.ColorId, c.Name AS ColorName, c.Hex AS ColorHex,
-             ISNULL((SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(v.Id)), 0) AS Qty,
-             ISNULL(v.SellingPrice, p.SellingPrice) AS SellingPrice,
-             ISNULL((SELECT z.CostPrice FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(v.Id)), ISNULL(v.CostPrice, p.CostPrice)) AS CostPrice
+             COALESCE((SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(v.Id)), 0) AS Qty,
+             COALESCE(v.SellingPrice, p.SellingPrice) AS SellingPrice,
+             COALESCE((SELECT z.CostPrice FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(v.Id)), COALESCE(v.CostPrice, p.CostPrice)) AS CostPrice
       FROM ProductVariants v
       JOIN Products p ON p.Id = v.ProductId
       LEFT JOIN Sizes s ON s.Id = v.SizeId
@@ -388,11 +388,11 @@ export async function getQuickView(productId: string): Promise<QuickView | null>
     .request()
     .input("pid", sql.UniqueIdentifier, productId)
     .query(`
-      SELECT TOP 1 p.Id, p.Name, p.Slug, p.ImageUrl, p.SellingPrice, p.CompareAtPrice,
+      SELECT p.Id, p.Name, p.Slug, p.ImageUrl, p.SellingPrice, p.CompareAtPrice,
              p.Description, cat.Name AS CategoryName
       FROM Products p
       LEFT JOIN Categories cat ON cat.Id = p.CategoryId
-      WHERE p.Id = @pid AND p.IsActive = 1
+      WHERE p.Id = @pid AND p.IsActive = true LIMIT 1
     `);
   const product = res.recordset[0];
   if (!product) return null;
@@ -414,8 +414,8 @@ export async function getRelatedProducts(categoryId: string, excludeId: string, 
     .input("ex", sql.UniqueIdentifier, excludeId)
     .input("n", sql.Int, limit)
     .query(`${PRODUCT_SELECT}
-            WHERE p.IsActive = 1 AND p.CategoryId = @cat AND p.Id <> @ex
-            ORDER BY NEWID()
-            OFFSET 0 ROWS FETCH NEXT @n ROWS ONLY`);
+            WHERE p.IsActive = true AND p.CategoryId = @cat AND p.Id <> @ex
+            ORDER BY gen_random_uuid()
+            LIMIT @n OFFSET 0`);
   return attachColors(pool, res.recordset as StoreProduct[]);
 }

@@ -133,7 +133,7 @@ function parseJson<T>(value: string | null | undefined, fallback: T): T {
 
 export async function getPublicStoreSettings(): Promise<StoreSettings> {
   const pool = await getDb();
-  const res = await pool.request().query(`SELECT [Key], [Value] FROM Settings`);
+  const res = await pool.request().query(`SELECT key, value FROM Settings`);
   const map: Record<string, string> = {};
   for (const row of res.recordset) map[row.Key] = row.Value;
 

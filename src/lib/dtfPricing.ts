@@ -22,7 +22,7 @@ async function getActivePriceItems(): Promise<PriceRow[]> {
   const pool = await getDb();
   const res = await pool
     .request()
-    .query(`SELECT Id, Category, Name, Amount, IsActive FROM DtfPriceItems WHERE IsActive = 1 ORDER BY SortOrder, Name`);
+    .query(`SELECT Id, Category, Name, Amount, IsActive FROM DtfPriceItems WHERE IsActive = true ORDER BY SortOrder, Name`);
   return res.recordset as PriceRow[];
 }
 

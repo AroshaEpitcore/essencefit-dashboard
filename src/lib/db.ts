@@ -1,23 +1,20 @@
-import sql from "mssql";
+import sql, { getPool, makeRequest } from "@/lib/sqlShim";
 
-const config: sql.config = {
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  server: process.env.DB_SERVER || "localhost",
-  database: process.env.DB_NAME,
-  options: {
-    encrypt: false,
-    trustServerCertificate: true,
-  },
-};
-
-let pool: sql.ConnectionPool | null = null;
-
+/*
+ * mssql-compatible pool facade. Callers do:
+ *   const db = await getDb();
+ *   const res = await db.request().input("X", sql.Int, 1).query("... @X");
+ *   res.recordset
+ * Backed by `pg` via the shim (see src/lib/sqlShim.ts).
+ */
 export async function getDb() {
-  if (!pool) {
-    pool = await sql.connect(config);
-  }
-  return pool;
+  const pool = getPool();
+  return {
+    request: () => makeRequest((t, v) => pool.query(t, v)),
+    _pool: pool,
+  };
 }
-export { sql };
 
+// Re-export the `sql` namespace so `import { getDb, sql } from "@/lib/db"`
+// keeps working across the data layer.
+export { sql };

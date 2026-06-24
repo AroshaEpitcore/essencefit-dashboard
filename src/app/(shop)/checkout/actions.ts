@@ -78,13 +78,13 @@ export async function createWebOrder(payload: WebOrderPayload): Promise<{ orderI
       const r = await new sql.Request(tx)
         .input("vid", UniqueIdentifier, it.variantId)
         .query(`
-          SELECT ISNULL((SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(v.Id)), 0) AS Stock,
-                 ISNULL(v.SellingPrice, p.SellingPrice) AS Price,
+          SELECT COALESCE((SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(v.Id)), 0) AS Stock,
+                 COALESCE(v.SellingPrice, p.SellingPrice) AS Price,
                  prod.Name AS ProductName
           FROM ProductVariants v
           JOIN Products prod ON prod.Id = v.ProductId
           JOIN Products p ON p.Id = v.ProductId
-          WHERE v.Id = @vid AND prod.IsActive = 1
+          WHERE v.Id = @vid AND prod.IsActive = true
         `);
       const row = r.recordset[0];
       if (!row) throw new Error("An item in your cart is no longer available.");
@@ -131,7 +131,7 @@ export async function createWebOrder(payload: WebOrderPayload): Promise<{ orderI
     } else {
       const existing = await new sql.Request(tx)
         .input("Phone", NVarChar(50), phone)
-        .query(`SELECT TOP 1 Id, PasswordHash FROM Customers WHERE Phone=@Phone`);
+        .query(`SELECT Id, PasswordHash FROM Customers WHERE Phone=@Phone LIMIT 1`);
 
       if (existing.recordset.length) {
         customerId = existing.recordset[0].Id;
@@ -212,7 +212,7 @@ export async function createWebOrder(payload: WebOrderPayload): Promise<{ orderI
         .query(`
           SELECT dbo.fn_StockVariantId(@VariantId) AS StockVid,
                  (SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(@VariantId)) AS Qty,
-                 ISNULL((SELECT z.SellingPrice FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(@VariantId)), 0) AS SellingPrice
+                 COALESCE((SELECT z.SellingPrice FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(@VariantId)), 0) AS SellingPrice
         `);
       const sv = vr.recordset[0];
       const prev = sv?.Qty ?? 0;
@@ -227,7 +227,7 @@ export async function createWebOrder(payload: WebOrderPayload): Promise<{ orderI
         .input("NewQty", Int, prev - it.qty)
         .input("Price", Decimal(18, 2), sv?.SellingPrice ?? 0)
         .query(`INSERT INTO StockHistory (VariantId, ChangeQty, Reason, PreviousQty, NewQty, PriceAtChange, CreatedAt)
-                VALUES (@VariantId, @ChangeQty, 'order-sale', @PreviousQty, @NewQty, @Price, GETDATE())`);
+                VALUES (@VariantId, @ChangeQty, 'order-sale', @PreviousQty, @NewQty, @Price, now())`);
     }
 
     // 6) Status log

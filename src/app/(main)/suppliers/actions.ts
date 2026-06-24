@@ -1,7 +1,7 @@
 "use server";
 
 import { getDb } from "@/lib/db";
-import sql from "mssql";
+import sql from "@/lib/sqlShim";
 
 // ✅ Get all suppliers
 export async function getSuppliers() {

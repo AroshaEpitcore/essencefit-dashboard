@@ -16,8 +16,7 @@ export async function getNotifications(): Promise<NotificationItem[]> {
 
   // 1. Out of stock (qty = 0)
   const outOfStock = await pool.request().query(`
-    SELECT TOP 10
-      p.Name AS Product,
+    SELECT p.Name AS Product,
       s.Name AS Size,
       c.Name AS Color
     FROM ProductVariants v
@@ -25,7 +24,7 @@ export async function getNotifications(): Promise<NotificationItem[]> {
     LEFT JOIN Sizes s ON s.Id = v.SizeId
     LEFT JOIN Colors c ON c.Id = v.ColorId
     WHERE v.Qty = 0
-    ORDER BY p.Name
+    ORDER BY p.Name LIMIT 10
   `);
   for (const row of outOfStock.recordset) {
     items.push({
@@ -39,8 +38,7 @@ export async function getNotifications(): Promise<NotificationItem[]> {
 
   // 2. Low stock (qty 1–5)
   const lowStock = await pool.request().query(`
-    SELECT TOP 10
-      p.Name AS Product,
+    SELECT p.Name AS Product,
       s.Name AS Size,
       c.Name AS Color,
       v.Qty
@@ -49,7 +47,7 @@ export async function getNotifications(): Promise<NotificationItem[]> {
     LEFT JOIN Sizes s ON s.Id = v.SizeId
     LEFT JOIN Colors c ON c.Id = v.ColorId
     WHERE v.Qty BETWEEN 1 AND 5
-    ORDER BY v.Qty ASC
+    ORDER BY v.Qty ASC LIMIT 10
   `);
   for (const row of lowStock.recordset) {
     items.push({
@@ -63,14 +61,13 @@ export async function getNotifications(): Promise<NotificationItem[]> {
 
   // 3. Stale pending orders (>24h)
   const stalePending = await pool.request().query(`
-    SELECT TOP 10
-      Id,
-      ISNULL(Customer, 'Unknown') AS Customer,
+    SELECT Id,
+      COALESCE(Customer, 'Unknown') AS Customer,
       OrderDate
     FROM Orders
     WHERE PaymentStatus = 'Pending'
-      AND OrderDate < DATEADD(HOUR, -24, GETDATE())
-    ORDER BY OrderDate ASC
+      AND OrderDate < (now() + interval '-24 hours')
+    ORDER BY OrderDate ASC LIMIT 10
   `);
   for (const row of stalePending.recordset) {
     const hrs = Math.floor(
@@ -87,16 +84,15 @@ export async function getNotifications(): Promise<NotificationItem[]> {
 
   // 4. Recent returns (last 24h)
   const recentReturns = await pool.request().query(`
-    SELECT TOP 5
-      r.Id,
+    SELECT r.Id,
       r.Reason,
       r.CreatedAt,
       COUNT(ri.Id) AS ItemCount
     FROM SalesReturns r
     LEFT JOIN SalesReturnItems ri ON ri.ReturnId = r.Id
-    WHERE r.CreatedAt >= DATEADD(HOUR, -24, GETDATE())
+    WHERE r.CreatedAt >= (now() + interval '-24 hours')
     GROUP BY r.Id, r.Reason, r.CreatedAt
-    ORDER BY r.CreatedAt DESC
+    ORDER BY r.CreatedAt DESC LIMIT 5
   `);
   for (const row of recentReturns.recordset) {
     items.push({

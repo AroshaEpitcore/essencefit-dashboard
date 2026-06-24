@@ -1,7 +1,7 @@
 "use server";
 
 import { getDb } from "@/lib/db";
-import sql, { NVarChar, UniqueIdentifier } from "mssql";
+import sql, { NVarChar, UniqueIdentifier } from "@/lib/sqlShim";
 
 /* ---------- Sync all pending orders (with waybill) into DispatchMessages ---------- */
 
@@ -38,8 +38,8 @@ export async function syncPendingToDispatch() {
     SET dm.WaybillId = o.WaybillId
     FROM DispatchMessages dm
     INNER JOIN Orders o ON o.Id = dm.OrderId
-    WHERE ISNULL(o.WaybillId, '') <> ''
-      AND ISNULL(dm.WaybillId, '') <> ISNULL(o.WaybillId, '')
+    WHERE COALESCE(o.WaybillId, '') <> ''
+      AND COALESCE(dm.WaybillId, '') <> COALESCE(o.WaybillId, '')
   `);
 }
 
@@ -50,18 +50,18 @@ export async function getDispatchMessages() {
 
   // Auto-delete messages older than 7 days
   await pool.request().query(`
-    DELETE FROM DispatchMessages WHERE CreatedAt < DATEADD(DAY, -7, GETDATE())
+    DELETE FROM DispatchMessages WHERE CreatedAt < (now() + interval '-7 days')
   `);
 
   const res = await pool.request().query(`
     SELECT
       dm.Id,
       dm.OrderId,
-      ISNULL(NULLIF(o.WaybillId, ''), NULLIF(dm.WaybillId, '')) AS WaybillId,
+      COALESCE(NULLIF(o.WaybillId, ''), NULLIF(dm.WaybillId, '')) AS WaybillId,
       dm.CustomerName,
       dm.CustomerPhone,
       dm.CreatedAt,
-      ISNULL(o.PaymentStatus, 'Unknown') AS OrderStatus
+      COALESCE(o.PaymentStatus, 'Unknown') AS OrderStatus
     FROM DispatchMessages dm
     LEFT JOIN Orders o ON o.Id = dm.OrderId
     ORDER BY dm.CreatedAt DESC

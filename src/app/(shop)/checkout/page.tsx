@@ -9,7 +9,7 @@ import { useCart } from "@/components/shop/CartContext";
 import Select from "@/components/shop/Select";
 import { money } from "@/components/shop/format";
 import { getCheckoutConfig, createWebOrder, type CheckoutConfig } from "./actions";
-import { getMyAccount } from "../account/actions";
+import { getMyAccount, logoutCustomer } from "../account/actions";
 
 async function uploadSlip(file: File): Promise<string> {
   const fd = new FormData();
@@ -34,6 +34,7 @@ export default function CheckoutPage() {
   const [uploading, setUploading] = useState(false);
   const [placing, setPlacing] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
+  const [meName, setMeName] = useState("");
   const [password, setPassword] = useState("");
 
   useEffect(() => { getCheckoutConfig().then(setConfig).catch(() => {}); }, []);
@@ -43,6 +44,7 @@ export default function CheckoutPage() {
     getMyAccount().then((me) => {
       if (me) {
         setLoggedIn(true);
+        setMeName(me.Name || "");
         setF((prev) => ({
           ...prev,
           customer: prev.customer || me.Name || "",
@@ -63,6 +65,15 @@ export default function CheckoutPage() {
   const freeApplies = !!config && config.freeDeliveryOver > 0 && subtotal >= config.freeDeliveryOver;
   const deliveryFee = freeApplies ? 0 : baseFee;
   const total = subtotal + deliveryFee;
+
+  async function switchAccount() {
+    await logoutCustomer();
+    setLoggedIn(false);
+    setMeName("");
+    setF({ customer: "", customerPhone: "", secondaryPhone: "", address: "", province: "", email: "", notes: "" });
+    router.refresh(); // update the navbar account control
+    toast.success("Logged out — you can checkout as a new customer.");
+  }
 
   async function onSlip(file: File | null) {
     if (!file) return;
@@ -98,6 +109,7 @@ export default function CheckoutPage() {
       });
       clear();
       router.push(`/order/${orderId}?placed=1`);
+      router.refresh(); // re-render the (shop) layout so the navbar reflects the new session
     } catch (e: any) {
       toast.error(e.message || "Could not place order");
       setPlacing(false);
@@ -133,6 +145,17 @@ export default function CheckoutPage() {
               <textarea className={`${input} sm:col-span-2 resize-none`} rows={2} placeholder="Order notes (optional)" value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} />
             </div>
           </section>
+
+          {loggedIn && (
+            <section className="bg-primary/5 border border-primary/20 p-4 flex items-center justify-between gap-3">
+              <p className="text-sm text-gray-700">
+                Signed in as <b className="text-gray-900">{meName}</b>. This order will be saved to your account.
+              </p>
+              <button onClick={switchAccount} className="text-sm font-medium text-primary hover:underline shrink-0">
+                Not you? Log out
+              </button>
+            </section>
+          )}
 
           {!loggedIn && (
             <section className="bg-white border border-gray-200  p-5">

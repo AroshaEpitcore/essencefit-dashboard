@@ -16,7 +16,7 @@ export default async function CustomizePage() {
   ]);
 
   return (
-    <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-10">
+    <div className="max-w-[1920px] mx-auto px-4 sm:px-6 py-10">
       <div className="mb-6">
         <h1 className="text-2xl md:text-3xl font-bold uppercase tracking-wide text-gray-900 inline-block border-b-2 border-primary pb-1">
           Customize &amp; DTF Print

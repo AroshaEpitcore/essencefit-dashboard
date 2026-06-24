@@ -21,7 +21,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
   const products = await searchProducts({ categorySlug: slug });
 
   return (
-    <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-6">
+    <div className="max-w-[1920px] mx-auto px-4 sm:px-6 py-6">
       <nav className="flex items-center gap-1 text-sm text-gray-500 mb-4">
         <Link href="/" className="hover:text-primary">Home</Link>
         <ChevronRight className="w-4 h-4" />
@@ -37,7 +37,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
       {products.length === 0 ? (
         <div className="text-center py-20 text-gray-500">No products in this category yet.</div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
           {products.map((p) => <ProductCard key={p.Id} p={p} />)}
         </div>
       )}

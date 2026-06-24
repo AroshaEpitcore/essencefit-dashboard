@@ -1,7 +1,7 @@
 "use server";
 
 import { getDb } from "@/lib/db";
-import sql, { UniqueIdentifier, NVarChar, Int } from "mssql";
+import sql, { UniqueIdentifier, NVarChar, Int, Transaction } from "@/lib/sqlShim";
 
 export type OrderLog = {
   Id: string;
@@ -54,7 +54,7 @@ export async function getOrderLogs(options: {
 
   if (orderId) {
     req.input("orderId", NVarChar(100), `%${orderId}%`);
-    whereClause += " AND CAST(l.OrderId AS NVARCHAR(100)) LIKE @orderId";
+    whereClause += " AND CAST(l.OrderId AS text) LIKE @orderId";
   }
 
   const result = await req.query(`
@@ -72,7 +72,7 @@ export async function getOrderLogs(options: {
     LEFT JOIN Orders o ON o.Id = l.OrderId
     ${whereClause}
     ORDER BY l.ChangedAt DESC
-    OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
+    LIMIT @limit OFFSET @offset
   `);
 
   // Get total count for pagination
@@ -124,7 +124,7 @@ export async function getOrderLogStats(fromDate?: string, toDate?: string) {
  * Log an order status change (called from orders actions)
  */
 export async function logOrderStatusChange(
-  tx: sql.Transaction,
+  tx: Transaction,
   orderId: string,
   oldStatus: string | null,
   newStatus: string,

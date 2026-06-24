@@ -1,7 +1,7 @@
 "use server";
 
 import { getDb } from "@/lib/db";
-import sql from "mssql";
+import sql from "@/lib/sqlShim";
 import bcrypt from "bcryptjs";
 
 export async function registerUser(username: string, email: string, password: string, role: string) {
@@ -27,7 +27,7 @@ export async function registerUser(username: string, email: string, password: st
     .input("Role", sql.NVarChar, role)
     .query(`
       INSERT INTO Users (Id, Username, Email, PasswordHash, Role, CreatedAt)
-      VALUES (NEWID(), @Username, @Email, @PasswordHash, @Role, GETDATE())
+      VALUES (gen_random_uuid(), @Username, @Email, @PasswordHash, @Role, now())
     `);
 
   return { success: true, username, role };

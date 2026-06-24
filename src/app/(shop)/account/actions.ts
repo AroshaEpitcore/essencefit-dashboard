@@ -29,7 +29,7 @@ export async function registerCustomer(input: {
   const emailTaken = await pool
     .request()
     .input("Email", sql.NVarChar(200), email)
-    .query(`SELECT TOP 1 Id FROM Customers WHERE Email=@Email AND PasswordHash IS NOT NULL`);
+    .query(`SELECT Id FROM Customers WHERE Email=@Email AND PasswordHash IS NOT NULL LIMIT 1`);
   if (emailTaken.recordset.length) throw new Error("An account with this email already exists.");
 
   const hash = await bcrypt.hash(password, 10);
@@ -38,7 +38,7 @@ export async function registerCustomer(input: {
   const guest = await pool
     .request()
     .input("Phone", sql.NVarChar(50), phone)
-    .query(`SELECT TOP 1 Id FROM Customers WHERE Phone=@Phone AND PasswordHash IS NULL`);
+    .query(`SELECT Id FROM Customers WHERE Phone=@Phone AND PasswordHash IS NULL LIMIT 1`);
 
   let id: string;
   if (guest.recordset.length) {
@@ -76,8 +76,8 @@ export async function loginCustomer(input: { identifier: string; password: strin
     .request()
     .input("Id", sql.NVarChar(200), identifier.toLowerCase())
     .input("Phone", sql.NVarChar(50), identifier)
-    .query(`SELECT TOP 1 Id, PasswordHash FROM Customers
-            WHERE (LOWER(Email)=@Id OR Phone=@Phone) AND PasswordHash IS NOT NULL`);
+    .query(`SELECT Id, PasswordHash FROM Customers
+            WHERE (LOWER(Email)=@Id OR Phone=@Phone) AND PasswordHash IS NOT NULL LIMIT 1`);
 
   const row = res.recordset[0];
   if (!row) throw new Error("Invalid credentials.");
@@ -131,11 +131,11 @@ export async function getMyOrders(): Promise<MyOrder[]> {
     SELECT o.Id, o.OrderDate, o.PaymentStatus, o.PaymentMethod, o.Total,
            (SELECT COUNT(*) FROM OrderItems oi WHERE oi.OrderId=o.Id) AS LineCount,
            (SELECT STRING_AGG(t.Url, '|') FROM (
-              SELECT TOP 4 ISNULL((SELECT TOP 1 Url FROM ProductImages WHERE VariantId = oi.VariantId), p.ImageUrl) AS Url
+              SELECT COALESCE((SELECT Url FROM ProductImages WHERE VariantId = oi.VariantId LIMIT 1), p.ImageUrl) AS Url
               FROM OrderItems oi
               JOIN ProductVariants v ON v.Id = oi.VariantId
               JOIN Products p ON p.Id = v.ProductId
-              WHERE oi.OrderId = o.Id
+              WHERE oi.OrderId = o.Id LIMIT 4
             ) t) AS Thumbs
     FROM Orders o
     WHERE o.Source='web' AND (o.CustomerId=@Cid
@@ -149,8 +149,8 @@ export async function getMyOrders(): Promise<MyOrder[]> {
            COALESCE(d.FinalTotal, d.EstimatedTotal) AS Total,
            (SELECT COUNT(*) FROM DtfOrderDesigns g WHERE g.DtfOrderId=d.Id) AS DesignCount,
            (SELECT STRING_AGG(t.Url, '|') FROM (
-              SELECT TOP 4 Url FROM DtfOrderDesigns
-              WHERE DtfOrderId = d.Id AND Kind = 'image' ORDER BY SortOrder
+              SELECT Url FROM DtfOrderDesigns
+              WHERE DtfOrderId = d.Id AND Kind = 'image' ORDER BY SortOrder LIMIT 4
             ) t) AS Thumbs
     FROM DtfOrders d
     WHERE d.CustomerId=@Cid
@@ -201,7 +201,7 @@ export async function getMyDtfOrder(id: string) {
     .input("Phone", sql.NVarChar(50), me.Phone || null)
     .input("Email", sql.NVarChar(200), me.Email || null)
     .query(`
-      SELECT TOP 1 d.*, p.Name AS ProductName, s.Name AS SizeName, c.Name AS ColorName
+      SELECT d.*, p.Name AS ProductName, s.Name AS SizeName, c.Name AS ColorName
       FROM DtfOrders d
       LEFT JOIN Products p ON p.Id = d.ProductId
       LEFT JOIN ProductVariants v ON v.Id = d.VariantId
@@ -211,7 +211,7 @@ export async function getMyDtfOrder(id: string) {
         d.CustomerId=@Cid
         OR (@Phone IS NOT NULL AND d.CustomerPhone=@Phone)
         OR (@Email IS NOT NULL AND d.Email=@Email)
-      )
+      ) LIMIT 1
     `);
   if (!header.recordset[0]) return null;
   const designs = await pool
@@ -251,7 +251,7 @@ export async function getMyOrder(id: string) {
     .input("Phone", sql.NVarChar(50), me.Phone || null)
     .input("Email", sql.NVarChar(200), me.Email || null)
     .query(`
-      SELECT TOP 1 o.Id, o.Customer, o.CustomerPhone, o.SecondaryPhone, o.Address, o.Province,
+      SELECT o.Id, o.Customer, o.CustomerPhone, o.SecondaryPhone, o.Address, o.Province,
              o.CustomerEmail, o.Notes, o.PaymentMethod, o.PaymentSlipUrl, o.PaymentStatus,
              o.PaymentVerified, o.OrderDate, o.Subtotal, o.ManualDiscount, o.Discount,
              o.DeliveryFee, o.Total
@@ -260,7 +260,7 @@ export async function getMyOrder(id: string) {
         o.CustomerId=@Cid
         OR (@Phone IS NOT NULL AND o.CustomerPhone=@Phone)
         OR (@Email IS NOT NULL AND o.CustomerEmail=@Email)
-      )
+      ) LIMIT 1
     `);
   if (!header.recordset[0]) return null;
 
@@ -269,7 +269,7 @@ export async function getMyOrder(id: string) {
     .input("Id", sql.UniqueIdentifier, id)
     .query(`
       SELECT oi.Qty, oi.SellingPrice, p.Name AS ProductName, p.Slug,
-             ISNULL((SELECT TOP 1 Url FROM ProductImages WHERE VariantId = oi.VariantId), p.ImageUrl) AS ImageUrl,
+             COALESCE((SELECT Url FROM ProductImages WHERE VariantId = oi.VariantId LIMIT 1), p.ImageUrl) AS ImageUrl,
              s.Name AS SizeName, c.Name AS ColorName
       FROM OrderItems oi
       JOIN ProductVariants v ON v.Id = oi.VariantId

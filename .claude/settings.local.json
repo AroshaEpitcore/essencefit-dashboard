@@ -78,7 +78,25 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3001/product/ck-sport-short-214da50a)",
       "PowerShell($conns = Get-NetTCPConnection -LocalPort 3001 -State Listen -ErrorAction SilentlyContinue; foreach \\($c in $conns\\) { try { Stop-Process -Id $c.OwningProcess -Force -ErrorAction Stop; \"killed PID $\\($c.OwningProcess\\) on 3001\" } catch {} })",
       "PowerShell(npx tsc --noEmit -p tsconfig.json 2>&1 | Select-Object -First 15)",
-      "Bash(npx eslint *)"
+      "Bash(npx eslint *)",
+      "Bash(rm -f scripts/caps-inspect.mjs scripts/caps-fk.mjs scripts/caps-delete.mjs)",
+      "Bash(rmdir scripts *)",
+      "Bash(ls scripts *)",
+      "Bash(rm -f scripts/caps-orders-inspect.mjs scripts/caps-orders-fix.mjs)",
+      "Bash(nslookup -type=ns essencefits.com)",
+      "Bash(nslookup -type=soa essencefits.com)",
+      "Bash(npm install *)",
+      "WebFetch(domain:rdap.verisign.com)",
+      "Bash(npm run *)",
+      "Bash(npx playwright *)",
+      "Bash(pnpm --version)",
+      "Bash(corepack --version)",
+      "Bash(pnpm install *)",
+      "Bash(pnpm run *)",
+      "Bash(./node_modules/.bin/next build *)",
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(npm uninstall *)",
+      "Bash(pnpm add *)"
     ]
   }
 }

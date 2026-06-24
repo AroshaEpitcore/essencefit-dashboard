@@ -74,7 +74,7 @@ export async function createDtfOrder(payload: DtfOrderPayload): Promise<{ id: st
 
   // Next ref like DTF-O-1001
   const refRes = await pool.request().query(`
-    SELECT ISNULL(MAX(TRY_CONVERT(INT, REPLACE(Ref, 'DTF-O-', ''))), 1000) AS LastNum FROM DtfOrders
+    SELECT COALESCE(MAX(NULLIF(regexp_replace(Ref, '[^0-9]', '', 'g'), '')::int), 1000) AS LastNum FROM DtfOrders
   `);
   const ref = `DTF-O-${(refRes.recordset[0]?.LastNum || 1000) + 1}`;
 
@@ -92,7 +92,7 @@ export async function createDtfOrder(payload: DtfOrderPayload): Promise<{ id: st
       const hash = await bcrypt.hash(payload.password!.trim(), 10);
       const existing = await new sql.Request(tx)
         .input("Phone", NVarChar(50), phone)
-        .query(`SELECT TOP 1 Id, PasswordHash FROM Customers WHERE Phone=@Phone`);
+        .query(`SELECT Id, PasswordHash FROM Customers WHERE Phone=@Phone LIMIT 1`);
       if (existing.recordset.length) {
         customerId = existing.recordset[0].Id;
         const applyHash = existing.recordset[0].PasswordHash ? null : hash;

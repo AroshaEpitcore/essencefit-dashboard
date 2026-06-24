@@ -31,7 +31,7 @@ export default async function HomePage() {
       {latest.length > 0 && <ProductSlider title="Just In" href="/shop?sort=new" products={latest} />}
 
       {featured.length === 0 && deals.length === 0 && latest.length === 0 && (
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-20 text-center text-gray-500">
+        <div className="max-w-[1920px] mx-auto px-4 sm:px-6 py-20 text-center text-gray-500">
           <p className="text-lg">No products published yet.</p>
           <p className="text-sm mt-1">Mark products as active in the admin Storefront Catalog.</p>
         </div>

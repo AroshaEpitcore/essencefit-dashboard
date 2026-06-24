@@ -57,7 +57,7 @@ export async function getCurrentCustomer(): Promise<CustomerSession | null> {
   const res = await pool
     .request()
     .input("Id", sql.UniqueIdentifier, cid)
-    .query(`SELECT TOP 1 Id, Name, Email, Phone, Address FROM Customers WHERE Id=@Id AND PasswordHash IS NOT NULL`);
+    .query(`SELECT Id, Name, Email, Phone, Address FROM Customers WHERE Id=@Id AND PasswordHash IS NOT NULL LIMIT 1`);
   return (res.recordset[0] as CustomerSession) || null;
 }
 

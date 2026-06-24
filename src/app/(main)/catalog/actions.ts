@@ -44,7 +44,7 @@ export async function getCatalogProducts(): Promise<CatalogProduct[]> {
       p.CostPrice, p.SellingPrice, p.CompareAtPrice,
       p.Description, p.ImageUrl, p.IsActive, p.IsFeatured, p.IsNewArrival, p.IsDtfPrintable,
       p.BlankProductId, blank.Name AS BlankName, p.DtfProfit, p.PrintOnDemand, p.SelectByImage, p.SortOrder,
-      ISNULL((SELECT SUM(b.Qty) FROM ProductVariants b WHERE b.ProductId = ISNULL(p.BlankProductId, p.Id)), 0) AS Stock,
+      COALESCE((SELECT SUM(b.Qty) FROM ProductVariants b WHERE b.ProductId = COALESCE(p.BlankProductId, p.Id)), 0) AS Stock,
       (SELECT COUNT(*) FROM ProductImages pi WHERE pi.ProductId = p.Id) AS ImageCount
     FROM Products p
     LEFT JOIN Categories cat ON cat.Id = p.CategoryId
@@ -148,8 +148,8 @@ export async function updateProductStorefront(id: string, data: ProductStorefron
           AND NOT EXISTS (
             SELECT 1 FROM ProductVariants v
             WHERE v.ProductId = @Id
-              AND ISNULL(CONVERT(NVARCHAR(36), v.SizeId), '') = ISNULL(CONVERT(NVARCHAR(36), b.SizeId), '')
-              AND ISNULL(CONVERT(NVARCHAR(36), v.ColorId), '') = ISNULL(CONVERT(NVARCHAR(36), b.ColorId), '')
+              AND COALESCE((v.SizeId)::text, '') = COALESCE((b.SizeId)::text, '')
+              AND COALESCE((v.ColorId)::text, '') = COALESCE((b.ColorId)::text, '')
           )
       `);
   }
@@ -261,7 +261,7 @@ export async function saveDesigns(productId: string, designs: DesignInput[]) {
 
     const prod = await new sql.Request(tx)
       .input("Id", sql.UniqueIdentifier, productId)
-      .query(`SELECT TOP 1 CostPrice, SellingPrice FROM Products WHERE Id=@Id`);
+      .query(`SELECT CostPrice, SellingPrice FROM Products WHERE Id=@Id LIMIT 1`);
     const cost = prod.recordset[0]?.CostPrice ?? 0;
     const sell = prod.recordset[0]?.SellingPrice ?? 0;
 
@@ -284,7 +284,7 @@ export async function saveDesigns(productId: string, designs: DesignInput[]) {
         let prevQty = 0;
         if (variantId) {
           const vr = await new sql.Request(tx).input("Id", sql.UniqueIdentifier, variantId)
-            .query(`SELECT TOP 1 Qty FROM ProductVariants WHERE Id=@Id`);
+            .query(`SELECT Qty FROM ProductVariants WHERE Id=@Id LIMIT 1`);
           prevQty = vr.recordset[0]?.Qty ?? 0;
           await new sql.Request(tx).input("Id", sql.UniqueIdentifier, variantId).input("Qty", sql.Int, q)
             .query(`UPDATE ProductVariants SET Qty=@Qty WHERE Id=@Id`);
@@ -292,7 +292,7 @@ export async function saveDesigns(productId: string, designs: DesignInput[]) {
           const vIns = await new sql.Request(tx)
             .input("Pid", sql.UniqueIdentifier, productId).input("Qty", sql.Int, q)
             .input("Cost", sql.Decimal(18, 2), cost).input("Sell", sql.Decimal(18, 2), sell)
-            .query(`INSERT INTO ProductVariants (ProductId, SizeId, ColorId, Qty, CostPrice, SellingPrice) OUTPUT Inserted.Id VALUES (@Pid, NULL, NULL, @Qty, @Cost, @Sell)`);
+            .query(`INSERT INTO ProductVariants (ProductId, SizeId, ColorId, Qty, CostPrice, SellingPrice) VALUES (@Pid, NULL, NULL, @Qty, @Cost, @Sell) RETURNING Id`);
           variantId = vIns.recordset[0].Id;
         }
         await new sql.Request(tx)
@@ -304,13 +304,13 @@ export async function saveDesigns(productId: string, designs: DesignInput[]) {
             .input("VariantId", sql.UniqueIdentifier, variantId).input("ChangeQty", sql.Int, q - prevQty)
             .input("Prev", sql.Int, prevQty).input("New", sql.Int, q).input("Price", sql.Decimal(18, 2), sell)
             .query(`INSERT INTO StockHistory (VariantId, ChangeQty, Reason, PreviousQty, NewQty, PriceAtChange, CreatedAt)
-                    VALUES (@VariantId, @ChangeQty, 'design-stock', @Prev, @New, @Price, GETDATE())`);
+                    VALUES (@VariantId, @ChangeQty, 'design-stock', @Prev, @New, @Price, now())`);
         }
       } else {
         const vIns = await new sql.Request(tx)
           .input("Pid", sql.UniqueIdentifier, productId).input("Qty", sql.Int, q)
           .input("Cost", sql.Decimal(18, 2), cost).input("Sell", sql.Decimal(18, 2), sell)
-          .query(`INSERT INTO ProductVariants (ProductId, SizeId, ColorId, Qty, CostPrice, SellingPrice) OUTPUT Inserted.Id VALUES (@Pid, NULL, NULL, @Qty, @Cost, @Sell)`);
+          .query(`INSERT INTO ProductVariants (ProductId, SizeId, ColorId, Qty, CostPrice, SellingPrice) VALUES (@Pid, NULL, NULL, @Qty, @Cost, @Sell) RETURNING Id`);
         const variantId = vIns.recordset[0].Id;
         await new sql.Request(tx)
           .input("Pid", sql.UniqueIdentifier, productId).input("Url", sql.NVarChar(500), d.url)
@@ -321,7 +321,7 @@ export async function saveDesigns(productId: string, designs: DesignInput[]) {
             .input("VariantId", sql.UniqueIdentifier, variantId).input("ChangeQty", sql.Int, q)
             .input("Prev", sql.Int, 0).input("New", sql.Int, q).input("Price", sql.Decimal(18, 2), sell)
             .query(`INSERT INTO StockHistory (VariantId, ChangeQty, Reason, PreviousQty, NewQty, PriceAtChange, CreatedAt)
-                    VALUES (@VariantId, @ChangeQty, 'design-stock', @Prev, @New, @Price, GETDATE())`);
+                    VALUES (@VariantId, @ChangeQty, 'design-stock', @Prev, @New, @Price, now())`);
         }
       }
       sort++;
@@ -335,7 +335,7 @@ export async function saveDesigns(productId: string, designs: DesignInput[]) {
         .query(`DELETE FROM ProductImages WHERE Id=@Id`);
       if (row.VariantId) {
         const used = await new sql.Request(tx).input("Vid", sql.UniqueIdentifier, row.VariantId)
-          .query(`SELECT TOP 1 1 AS X FROM OrderItems WHERE VariantId=@Vid`);
+          .query(`SELECT 1 AS X FROM OrderItems WHERE VariantId=@Vid LIMIT 1`);
         if (used.recordset.length) {
           await new sql.Request(tx).input("Vid", sql.UniqueIdentifier, row.VariantId)
             .query(`UPDATE ProductVariants SET Qty=0 WHERE Id=@Vid`);
@@ -348,7 +348,7 @@ export async function saveDesigns(productId: string, designs: DesignInput[]) {
 
     // Ensure the product has a primary image (first design) for cards/listing.
     await new sql.Request(tx).input("pid", sql.UniqueIdentifier, productId)
-      .query(`UPDATE Products SET ImageUrl = COALESCE(ImageUrl, (SELECT TOP 1 Url FROM ProductImages WHERE ProductId=@pid AND ColorId IS NULL ORDER BY SortOrder)) WHERE Id=@pid`);
+      .query(`UPDATE Products SET ImageUrl = COALESCE(ImageUrl, (SELECT Url FROM ProductImages WHERE ProductId=@pid AND ColorId IS NULL ORDER BY SortOrder LIMIT 1)) WHERE Id=@pid`);
 
     await tx.commit();
     return true;

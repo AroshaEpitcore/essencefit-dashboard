@@ -1,6 +1,6 @@
 "use server";
 import { getDb } from "@/lib/db";
-import sql from "mssql";
+import sql from "@/lib/sqlShim";
 
 /* ---------- Stock History with details ---------- */
 export async function getStockHistory(filters?: {

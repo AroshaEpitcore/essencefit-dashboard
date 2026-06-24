@@ -101,7 +101,7 @@ export async function getProductQuantities(categoryId: string) {
         p.Id,
         p.Name,
         p.SKU,
-        ISNULL(SUM(v.Qty), 0) AS TotalQty
+        COALESCE(SUM(v.Qty), 0) AS TotalQty
       FROM Products p
       LEFT JOIN ProductVariants v ON v.ProductId = p.Id
       WHERE p.CategoryId = @catId

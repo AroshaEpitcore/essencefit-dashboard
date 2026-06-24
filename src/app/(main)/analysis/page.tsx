@@ -222,7 +222,7 @@ export default function AnalysisPage() {
                         <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(v: number) => [`${v} pcs`, "Sold"]} />
+                    <Tooltip formatter={(v: number | undefined) => [`${v} pcs`, "Sold"]} />
                   </PieChart>
                 </ResponsiveContainer>
               )}
@@ -248,7 +248,7 @@ export default function AnalysisPage() {
                         <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(v: number) => [`${v} pcs`, "Sold"]} />
+                    <Tooltip formatter={(v: number | undefined) => [`${v} pcs`, "Sold"]} />
                   </PieChart>
                 </ResponsiveContainer>
               )}
@@ -274,7 +274,7 @@ export default function AnalysisPage() {
                         <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(v: number) => [`Rs ${Number(v).toFixed(2)}`, "Revenue"]} />
+                    <Tooltip formatter={(v: number | undefined) => [`Rs ${Number(v).toFixed(2)}`, "Revenue"]} />
                   </PieChart>
                 </ResponsiveContainer>
               )}
@@ -291,7 +291,7 @@ export default function AnalysisPage() {
                     <XAxis type="number" />
                     <YAxis dataKey="name" type="category" width={110} tick={{ fontSize: 11 }} />
                     <Tooltip
-                      formatter={(v: number, name: string) => [
+                      formatter={(v: number | undefined, name: string | undefined) => [
                         name === "qty" ? `${v} pcs` : `Rs ${Number(v).toFixed(2)}`,
                         name === "qty" ? "Qty Sold" : "Revenue",
                       ]}
@@ -313,7 +313,7 @@ export default function AnalysisPage() {
                     <YAxis yAxisId="left" orientation="left" />
                     <YAxis yAxisId="right" orientation="right" />
                     <Tooltip
-                      formatter={(v: number, name: string) => [
+                      formatter={(v: number | undefined, name: string | undefined) => [
                         name === "qty" ? `${v} pcs` : `Rs ${Number(v).toFixed(2)}`,
                         name === "qty" ? "Units" : "Revenue",
                       ]}
@@ -336,7 +336,7 @@ export default function AnalysisPage() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                     <YAxis />
-                    <Tooltip formatter={(v: number) => [`Rs ${Number(v).toFixed(2)}`]} />
+                    <Tooltip formatter={(v: number | undefined) => [`Rs ${Number(v).toFixed(2)}`]} />
                     <Legend />
                     <Line type="monotone" dataKey="grossSales" stroke="#f59e0b" name="Gross Sales" strokeWidth={2} />
                     <Line type="monotone" dataKey="netSales" stroke="#3b82f6" name="Net Sales" strokeWidth={2} />
@@ -353,7 +353,7 @@ export default function AnalysisPage() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="date" tick={{ fontSize: 10 }} />
                     <YAxis />
-                    <Tooltip formatter={(v: number) => [`Rs ${Number(v).toFixed(2)}`, "Sales"]} />
+                    <Tooltip formatter={(v: number | undefined) => [`Rs ${Number(v).toFixed(2)}`, "Sales"]} />
                     <Area type="monotone" dataKey="sales" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.15} strokeWidth={2} />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -370,7 +370,7 @@ export default function AnalysisPage() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                     <YAxis />
-                    <Tooltip formatter={(v: number) => [`Rs ${Number(v).toFixed(2)}`]} />
+                    <Tooltip formatter={(v: number | undefined) => [`Rs ${Number(v).toFixed(2)}`]} />
                     <Legend />
                     <Bar dataKey="revenue" fill="#22c55e" name="Revenue" radius={[4, 4, 0, 0]} />
                     <Bar dataKey="expenses" fill="#ef4444" name="Expenses" radius={[4, 4, 0, 0]} />
@@ -388,7 +388,7 @@ export default function AnalysisPage() {
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                     <YAxis />
                     <Tooltip
-                      formatter={(v: number, name: string) => [
+                      formatter={(v: number | undefined, name: string | undefined) => [
                         name === "orders" ? v : `Rs ${Number(v).toFixed(2)}`,
                         name === "orders" ? "Orders" : "AOV",
                       ]}
@@ -414,7 +414,7 @@ export default function AnalysisPage() {
                       <XAxis type="number" />
                       <YAxis dataKey="name" type="category" width={90} />
                       <Tooltip
-                        formatter={(v: number, name: string) => [
+                        formatter={(v: number | undefined, name: string | undefined) => [
                           name === "count" ? `${v} orders` : `Rs ${Number(v).toFixed(2)}`,
                           name === "count" ? "Orders" : "Total",
                         ]}

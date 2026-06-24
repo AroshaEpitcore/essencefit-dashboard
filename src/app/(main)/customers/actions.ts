@@ -1,7 +1,7 @@
 "use server";
 
 import { getDb } from "@/lib/db";
-import sql from "mssql";
+import sql from "@/lib/sqlShim";
 
 /**
  * 🔹 Create or update a customer automatically when an order is saved
@@ -19,7 +19,7 @@ export async function upsertCustomer(
   const existing = await db
     .request()
     .input("Phone", sql.NVarChar(50), phone ?? null)
-    .query("SELECT TOP 1 * FROM Customers WHERE Phone=@Phone");
+    .query("SELECT * FROM Customers WHERE Phone=@Phone LIMIT 1");
 
   if (existing.recordset.length > 0) {
     const existingCustomer = existing.recordset[0];
@@ -42,8 +42,8 @@ export async function upsertCustomer(
     .input("Address", sql.NVarChar(500), address ?? null)
     .query(`
       INSERT INTO Customers (Id, Name, Phone, Address)
-      OUTPUT INSERTED.Id
       VALUES (@Id, @Name, @Phone, @Address)
+      RETURNING Id
     `);
 
   return res.recordset[0].Id;
@@ -65,7 +65,7 @@ export async function getCustomers() {
       CAST(CASE WHEN c.PasswordHash IS NOT NULL THEN 1 ELSE 0 END AS BIT) AS HasAccount,
       COUNT(o.Id) AS OrderCount,
       SUM(CASE WHEN o.Source = 'web' THEN 1 ELSE 0 END) AS WebOrderCount,
-      ISNULL(SUM(o.Total), 0) AS TotalSpent
+      COALESCE(SUM(o.Total), 0) AS TotalSpent
     FROM Customers c
     LEFT JOIN Orders o ON o.CustomerId = c.Id
     GROUP BY c.Id, c.Name, c.Phone, c.Email, c.Address, c.CreatedAt, c.PasswordHash
@@ -83,18 +83,17 @@ export async function getCustomerById(customerId: string) {
     .request()
     .input("Id", sql.UniqueIdentifier, customerId)
     .query(`
-      SELECT TOP 1
-        c.Id,
+      SELECT c.Id,
         c.Name,
         c.Phone,
         c.Address,
         c.CreatedAt,
         COUNT(o.Id) AS OrderCount,
-        ISNULL(SUM(o.Total), 0) AS TotalSpent
+        COALESCE(SUM(o.Total), 0) AS TotalSpent
       FROM Customers c
       LEFT JOIN Orders o ON o.CustomerId = c.Id
       WHERE c.Id=@Id
-      GROUP BY c.Id, c.Name, c.Phone, c.Address, c.CreatedAt
+      GROUP BY c.Id, c.Name, c.Phone, c.Address, c.CreatedAt LIMIT 1
     `);
 
   return res.recordset[0] || null;

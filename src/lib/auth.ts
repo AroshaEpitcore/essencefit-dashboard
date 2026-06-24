@@ -1,5 +1,5 @@
 "use server";
-import sql from "mssql";
+import sql from "@/lib/sqlShim";
 
 import { getDb } from "./db";
 import bcrypt from "bcryptjs";
@@ -28,7 +28,7 @@ export async function loginUser(username: string, password: string) {
 
   const user = await db.request()
     .input("Username", sql.NVarChar(100), username)
-    .query(`SELECT TOP 1 * FROM Users WHERE Username = @Username`);
+    .query(`SELECT * FROM Users WHERE Username = @Username LIMIT 1`);
 
   if (user.recordset.length === 0) return null;
 

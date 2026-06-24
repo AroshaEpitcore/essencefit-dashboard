@@ -1,7 +1,7 @@
 "use server";
 
 import { getDb } from "@/lib/db";
-import sql from "mssql";
+import sql from "@/lib/sqlShim";
 import {
   STORE_KEYS,
   getPublicStoreSettings,
@@ -12,8 +12,8 @@ import {
 export async function getSettings() {
   const pool = await getDb();
   const res = await pool.request().query(`
-    SELECT Id, [Key], [Value], UpdatedAt 
-    FROM Settings ORDER BY [Key]
+    SELECT Id, key, value, UpdatedAt 
+    FROM Settings ORDER BY key
   `);
   return res.recordset;
 }
@@ -24,7 +24,7 @@ export async function getSetting(key: string) {
   const res = await pool
     .request()
     .input("Key", sql.NVarChar(100), key)
-    .query(`SELECT TOP 1 * FROM Settings WHERE [Key]=@Key`);
+    .query(`SELECT * FROM Settings WHERE key=@Key LIMIT 1`);
   return res.recordset[0] || null;
 }
 
@@ -37,14 +37,9 @@ export async function saveSetting(key: string, value: string | null) {
     .input("Key", sql.NVarChar(100), key)
     .input("Value", sql.NVarChar(sql.MAX), value)
     .query(`
-      MERGE Settings AS target
-      USING (SELECT @Key AS [Key]) AS src
-      ON target.[Key] = src.[Key]
-      WHEN MATCHED THEN
-        UPDATE SET [Value]=@Value, UpdatedAt=SYSUTCDATETIME()
-      WHEN NOT MATCHED THEN
-        INSERT (Id, [Key], [Value], UpdatedAt)
-        VALUES (NEWID(), @Key, @Value, SYSUTCDATETIME());
+      INSERT INTO Settings (Id, key, value, UpdatedAt)
+      VALUES (gen_random_uuid(), @Key, @Value, now())
+      ON CONFLICT (key) DO UPDATE SET value = @Value, UpdatedAt = now();
     `);
 
   return true;

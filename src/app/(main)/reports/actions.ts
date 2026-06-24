@@ -102,10 +102,8 @@ export async function runSalesReport(filters: any) {
     .input("From", filters.from || null)
     .input("To", filters.to || null)
     .query(`
-      DECLARE @FromDate DATE = TRY_CAST(@From AS DATE);
-      DECLARE @ToDate   DATE = TRY_CAST(@To AS DATE);
 
-      ;WITH SalesByProdDay AS (
+      WITH SalesByProdDay AS (
         SELECT
           CAST(S.SaleDate AS DATE) AS D,
           P.Id AS ProductId,
@@ -117,8 +115,8 @@ export async function runSalesReport(filters: any) {
         JOIN Products P ON V.ProductId = P.Id
         WHERE (@CategoryId IS NULL OR P.CategoryId = @CategoryId)
           AND (@ProductId IS NULL OR P.Id = @ProductId)
-          AND (@FromDate IS NULL OR CAST(S.SaleDate AS DATE) >= @FromDate)
-          AND (@ToDate IS NULL OR CAST(S.SaleDate AS DATE) <= @ToDate)
+          AND ((@From)::date IS NULL OR CAST(S.SaleDate AS DATE) >= (@From)::date)
+          AND ((@To)::date IS NULL OR CAST(S.SaleDate AS DATE) <= (@To)::date)
         GROUP BY CAST(S.SaleDate AS DATE), P.Id, P.Name
       ),
       DayGross AS (
@@ -129,21 +127,21 @@ export async function runSalesReport(filters: any) {
       OrdersByDay AS (
         SELECT
           CAST(O.OrderDate AS DATE) AS D,
-          SUM(ISNULL(O.Discount,0)) AS DayDiscount,
-          SUM(ISNULL(O.DeliveryFee,0)) AS DayDeliveryFee
+          SUM(COALESCE(O.Discount,0)) AS DayDiscount,
+          SUM(COALESCE(O.DeliveryFee,0)) AS DayDeliveryFee
         FROM Orders O
         WHERE O.PaymentStatus IN ('Paid', 'Completed')
-          AND (@FromDate IS NULL OR CAST(O.OrderDate AS DATE) >= @FromDate)
-          AND (@ToDate IS NULL OR CAST(O.OrderDate AS DATE) <= @ToDate)
+          AND ((@From)::date IS NULL OR CAST(O.OrderDate AS DATE) >= (@From)::date)
+          AND ((@To)::date IS NULL OR CAST(O.OrderDate AS DATE) <= (@To)::date)
         GROUP BY CAST(O.OrderDate AS DATE)
       ),
       DayAdjust AS (
         SELECT
           COALESCE(G.D, O.D) AS D,
-          ISNULL(G.DayGrossRevenue,0) AS DayGrossRevenue,
-          ISNULL(O.DayDiscount,0) AS DayDiscount,
-          ISNULL(O.DayDeliveryFee,0) AS DayDeliveryFee,
-          (0 - ISNULL(O.DayDiscount,0) + ISNULL(O.DayDeliveryFee,0)) AS DayAdjustment
+          COALESCE(G.DayGrossRevenue,0) AS DayGrossRevenue,
+          COALESCE(O.DayDiscount,0) AS DayDiscount,
+          COALESCE(O.DayDeliveryFee,0) AS DayDeliveryFee,
+          (0 - COALESCE(O.DayDiscount,0) + COALESCE(O.DayDeliveryFee,0)) AS DayAdjustment
         FROM DayGross G
         FULL OUTER JOIN OrdersByDay O ON G.D = O.D
       ),
@@ -155,8 +153,8 @@ export async function runSalesReport(filters: any) {
           CAST(
             S.GrossRevenue
             + CASE 
-                WHEN ISNULL(D.DayGrossRevenue,0) = 0 THEN 0
-                ELSE (S.GrossRevenue / D.DayGrossRevenue) * ISNULL(D.DayAdjustment,0)
+                WHEN COALESCE(D.DayGrossRevenue,0) = 0 THEN 0
+                ELSE (S.GrossRevenue / D.DayGrossRevenue) * COALESCE(D.DayAdjustment,0)
               END
           AS DECIMAL(18,2)) AS NetRevenue
         FROM SalesByProdDay S
@@ -184,13 +182,11 @@ export async function runExpensesReport(filters: any) {
     .input("From", filters.from || null)
     .input("To", filters.to || null)
     .query(`
-      DECLARE @FromDate DATE = TRY_CAST(@From AS DATE);
-      DECLARE @ToDate   DATE = TRY_CAST(@To AS DATE);
 
       SELECT Category, Description, Amount, ExpenseDate
       FROM Expenses
-      WHERE (@FromDate IS NULL OR CAST(ExpenseDate AS DATE) >= @FromDate)
-        AND (@ToDate IS NULL OR CAST(ExpenseDate AS DATE) <= @ToDate)
+      WHERE ((@From)::date IS NULL OR CAST(ExpenseDate AS DATE) >= (@From)::date)
+        AND ((@To)::date IS NULL OR CAST(ExpenseDate AS DATE) <= (@To)::date)
       ORDER BY ExpenseDate DESC
     `);
   return result.recordset;
@@ -209,10 +205,8 @@ export async function runPnLReport(from?: string, to?: string) {
     .input("From", from || null)
     .input("To", to || null)
     .query(`
-      DECLARE @FromDate DATE = TRY_CAST(@From AS DATE);
-      DECLARE @ToDate   DATE = TRY_CAST(@To AS DATE);
 
-      ;WITH SalesAgg AS (
+      WITH SalesAgg AS (
         SELECT
           CAST(S.SaleDate AS DATE) AS D,
           SUM(S.Qty * S.SellingPrice) AS GrossSales,
@@ -220,36 +214,36 @@ export async function runPnLReport(from?: string, to?: string) {
         FROM Sales S
         JOIN ProductVariants V ON S.VariantId = V.Id
         JOIN Products P ON V.ProductId = P.Id
-        WHERE (@FromDate IS NULL OR CAST(S.SaleDate AS DATE) >= @FromDate)
-          AND (@ToDate IS NULL OR CAST(S.SaleDate AS DATE) <= @ToDate)
+        WHERE ((@From)::date IS NULL OR CAST(S.SaleDate AS DATE) >= (@From)::date)
+          AND ((@To)::date IS NULL OR CAST(S.SaleDate AS DATE) <= (@To)::date)
         GROUP BY CAST(S.SaleDate AS DATE)
       ),
       OrdersAgg AS (
         SELECT
           CAST(O.OrderDate AS DATE) AS D,
-          SUM(ISNULL(O.Discount,0)) AS OrderDiscount,
-          SUM(ISNULL(O.DeliveryFee,0)) AS DeliveryFee
+          SUM(COALESCE(O.Discount,0)) AS OrderDiscount,
+          SUM(COALESCE(O.DeliveryFee,0)) AS DeliveryFee
         FROM Orders O
         WHERE O.PaymentStatus IN ('Paid', 'Completed')
-          AND (@FromDate IS NULL OR CAST(O.OrderDate AS DATE) >= @FromDate)
-          AND (@ToDate IS NULL OR CAST(O.OrderDate AS DATE) <= @ToDate)
+          AND ((@From)::date IS NULL OR CAST(O.OrderDate AS DATE) >= (@From)::date)
+          AND ((@To)::date IS NULL OR CAST(O.OrderDate AS DATE) <= (@To)::date)
         GROUP BY CAST(O.OrderDate AS DATE)
       ),
       DayJoin AS (
         SELECT
           COALESCE(SA.D, OA.D) AS D,
-          ISNULL(SA.GrossSales,0) AS GrossSales,
-          ISNULL(SA.COGS,0) AS COGS,
-          ISNULL(OA.OrderDiscount,0) AS OrderDiscount,
-          ISNULL(OA.DeliveryFee,0) AS DeliveryFee
+          COALESCE(SA.GrossSales,0) AS GrossSales,
+          COALESCE(SA.COGS,0) AS COGS,
+          COALESCE(OA.OrderDiscount,0) AS OrderDiscount,
+          COALESCE(OA.DeliveryFee,0) AS DeliveryFee
         FROM SalesAgg SA
         FULL OUTER JOIN OrdersAgg OA ON SA.D = OA.D
       )
       SELECT
-        CAST(ISNULL(SUM(GrossSales - OrderDiscount + DeliveryFee),0) AS DECIMAL(18,2)) AS Revenue,
-        CAST(ISNULL(SUM(COGS),0) AS DECIMAL(18,2)) AS COGS,
+        CAST(COALESCE(SUM(GrossSales - OrderDiscount + DeliveryFee),0) AS DECIMAL(18,2)) AS Revenue,
+        CAST(COALESCE(SUM(COGS),0) AS DECIMAL(18,2)) AS COGS,
         CAST(
-          ISNULL(SUM(GrossSales - OrderDiscount + DeliveryFee),0) - ISNULL(SUM(COGS),0)
+          COALESCE(SUM(GrossSales - OrderDiscount + DeliveryFee),0) - COALESCE(SUM(COGS),0)
         AS DECIMAL(18,2)) AS GrossProfit
       FROM DayJoin
     `);
@@ -289,13 +283,11 @@ export async function runTopColorsReport(filters: any) {
     .input("From", filters.from || null)
     .input("To", filters.to || null)
     .query(`
-      DECLARE @FromDate DATE = TRY_CAST(@From AS DATE);
-      DECLARE @ToDate   DATE = TRY_CAST(@To AS DATE);
 
-      ;WITH SalesByColorDay AS (
+      WITH SalesByColorDay AS (
         SELECT
           CAST(S.SaleDate AS DATE) AS D,
-          ISNULL(Cl.Name, 'No Color') AS Color,
+          COALESCE(Cl.Name, 'No Color') AS Color,
           SUM(S.Qty) AS Qty,
           SUM(S.Qty * S.SellingPrice) AS GrossRevenue
         FROM Sales S
@@ -304,9 +296,9 @@ export async function runTopColorsReport(filters: any) {
         LEFT JOIN Colors Cl ON V.ColorId = Cl.Id
         WHERE (@CategoryId IS NULL OR P.CategoryId = @CategoryId)
           AND (@ProductId IS NULL OR P.Id = @ProductId)
-          AND (@FromDate IS NULL OR CAST(S.SaleDate AS DATE) >= @FromDate)
-          AND (@ToDate IS NULL OR CAST(S.SaleDate AS DATE) <= @ToDate)
-        GROUP BY CAST(S.SaleDate AS DATE), ISNULL(Cl.Name, 'No Color')
+          AND ((@From)::date IS NULL OR CAST(S.SaleDate AS DATE) >= (@From)::date)
+          AND ((@To)::date IS NULL OR CAST(S.SaleDate AS DATE) <= (@To)::date)
+        GROUP BY CAST(S.SaleDate AS DATE), COALESCE(Cl.Name, 'No Color')
       ),
       DayGross AS (
         SELECT D, SUM(GrossRevenue) AS DayGrossRevenue
@@ -316,21 +308,21 @@ export async function runTopColorsReport(filters: any) {
       OrdersByDay AS (
         SELECT
           CAST(O.OrderDate AS DATE) AS D,
-          SUM(ISNULL(O.Discount,0)) AS DayDiscount,
-          SUM(ISNULL(O.DeliveryFee,0)) AS DayDeliveryFee
+          SUM(COALESCE(O.Discount,0)) AS DayDiscount,
+          SUM(COALESCE(O.DeliveryFee,0)) AS DayDeliveryFee
         FROM Orders O
         WHERE O.PaymentStatus IN ('Paid', 'Completed')
-          AND (@FromDate IS NULL OR CAST(O.OrderDate AS DATE) >= @FromDate)
-          AND (@ToDate IS NULL OR CAST(O.OrderDate AS DATE) <= @ToDate)
+          AND ((@From)::date IS NULL OR CAST(O.OrderDate AS DATE) >= (@From)::date)
+          AND ((@To)::date IS NULL OR CAST(O.OrderDate AS DATE) <= (@To)::date)
         GROUP BY CAST(O.OrderDate AS DATE)
       ),
       DayAdjust AS (
         SELECT
           COALESCE(G.D, O.D) AS D,
-          ISNULL(G.DayGrossRevenue,0) AS DayGrossRevenue,
-          ISNULL(O.DayDiscount,0) AS DayDiscount,
-          ISNULL(O.DayDeliveryFee,0) AS DayDeliveryFee,
-          (0 - ISNULL(O.DayDiscount,0) + ISNULL(O.DayDeliveryFee,0)) AS DayAdjustment
+          COALESCE(G.DayGrossRevenue,0) AS DayGrossRevenue,
+          COALESCE(O.DayDiscount,0) AS DayDiscount,
+          COALESCE(O.DayDeliveryFee,0) AS DayDeliveryFee,
+          (0 - COALESCE(O.DayDiscount,0) + COALESCE(O.DayDeliveryFee,0)) AS DayAdjustment
         FROM DayGross G
         FULL OUTER JOIN OrdersByDay O ON G.D = O.D
       ),
@@ -341,20 +333,19 @@ export async function runTopColorsReport(filters: any) {
           CAST(
             S.GrossRevenue
             + CASE 
-                WHEN ISNULL(D.DayGrossRevenue,0) = 0 THEN 0
-                ELSE (S.GrossRevenue / D.DayGrossRevenue) * ISNULL(D.DayAdjustment,0)
+                WHEN COALESCE(D.DayGrossRevenue,0) = 0 THEN 0
+                ELSE (S.GrossRevenue / D.DayGrossRevenue) * COALESCE(D.DayAdjustment,0)
               END
           AS DECIMAL(18,2)) AS NetRevenue
         FROM SalesByColorDay S
         LEFT JOIN DayAdjust D ON D.D = S.D
       )
-      SELECT TOP 10
-        Color,
+      SELECT Color,
         SUM(Qty) AS Qty,
         CAST(SUM(NetRevenue) AS DECIMAL(18,2)) AS Revenue
       FROM SalesNetAllocated
       GROUP BY Color
-      ORDER BY SUM(Qty) DESC
+      ORDER BY SUM(Qty) DESC LIMIT 10
     `);
 
   return result.recordset;

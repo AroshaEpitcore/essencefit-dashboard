@@ -1,7 +1,7 @@
 "use server";
 
 import { getDb } from "@/lib/db";
-import sql from "mssql";
+import sql from "@/lib/sqlShim";
 
 export async function getLookups() {
   const pool = await getDb();
@@ -41,7 +41,7 @@ export async function getVariantsByProductAndSize(productId: string, sizeId: str
     .input("sid", sql.UniqueIdentifier, sizeId)
     .query(`
       SELECT v.Id, c.Name AS Color, s.Name AS Size, v.Qty, 
-             ISNULL(v.SellingPrice, p.SellingPrice) AS SellingPrice
+             COALESCE(v.SellingPrice, p.SellingPrice) AS SellingPrice
       FROM ProductVariants v
       JOIN Colors c ON c.Id = v.ColorId
       JOIN Sizes s ON s.Id = v.SizeId
@@ -106,11 +106,11 @@ export async function recordBackfill(
 
   // ensure hidden variant exists
   const hidden = await pool.request().input("pid", sql.UniqueIdentifier, productId).query(`
-    SELECT TOP 1 v.Id
+    SELECT v.Id
     FROM ProductVariants v
     WHERE v.ProductId=@pid
       AND v.SizeId IS NULL
-      AND v.ColorId IS NULL
+      AND v.ColorId IS NULL LIMIT 1
   `);
 
   let variantId = hidden.recordset[0]?.Id;
@@ -118,8 +118,7 @@ export async function recordBackfill(
     const ins = await pool
       .request()
       .input("pid", sql.UniqueIdentifier, productId)
-      .query(`INSERT INTO ProductVariants (ProductId, SizeId, ColorId, Qty) VALUES (@pid, NULL, NULL, 0);
-              SELECT SCOPE_IDENTITY() as Id;`);
+      .query(`INSERT INTO ProductVariants (ProductId, SizeId, ColorId, Qty) VALUES (@pid, NULL, NULL, 0) RETURNING Id`);
     variantId = ins.recordset[0].Id;
   }
 

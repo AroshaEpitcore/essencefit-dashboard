@@ -24,11 +24,11 @@ export default function WishlistPage() {
   }
 
   return (
-    <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-8">
+    <div className="max-w-[1920px] mx-auto px-4 sm:px-6 py-8">
       <h1 className="text-2xl font-bold text-gray-900 mb-1">My wishlist</h1>
       <p className="text-sm text-gray-500 mb-6">{items.length} item{items.length !== 1 ? "s" : ""}</p>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
         {items.map((it) => {
           const pct = discountPct(it.price, it.compareAt);
           return (

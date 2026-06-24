@@ -15,8 +15,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   try {
     const pool = await getDb();
     const [products, categories] = await Promise.all([
-      pool.request().query(`SELECT Slug FROM Products WHERE IsActive = 1 AND Slug IS NOT NULL`),
-      pool.request().query(`SELECT Slug FROM Categories WHERE IsActive = 1 AND Slug IS NOT NULL`),
+      pool.request().query(`SELECT Slug FROM Products WHERE IsActive = true AND Slug IS NOT NULL`),
+      pool.request().query(`SELECT Slug FROM Categories WHERE IsActive = true AND Slug IS NOT NULL`),
     ]);
     for (const c of categories.recordset) staticUrls.push({ url: `${BASE}/category/${c.Slug}`, priority: 0.7 });
     for (const p of products.recordset) staticUrls.push({ url: `${BASE}/product/${p.Slug}`, priority: 0.6 });

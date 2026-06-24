@@ -80,7 +80,7 @@ export default async function ProductPage({
   ) : null;
 
   return (
-    <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-6">
+    <div className="max-w-[1920px] mx-auto px-4 sm:px-6 py-6">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-1 text-sm text-gray-500 mb-6 flex-wrap">
         <Link href="/" className="hover:text-primary">Home</Link>
@@ -110,7 +110,7 @@ export default async function ProductPage({
       {related.length > 0 && (
         <section className="mt-14">
           <h2 className="text-xl font-bold text-gray-900 mb-5">You may also like</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
             {related.map((p) => <ProductCard key={p.Id} p={p} />)}
           </div>
         </section>

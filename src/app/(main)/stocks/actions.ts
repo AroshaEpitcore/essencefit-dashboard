@@ -81,14 +81,14 @@ export async function addOneOffStock(productId: string, qty: number) {
   const prod = await pool
     .request()
     .input("Id", productId)
-    .query("SELECT TOP 1 CostPrice, SellingPrice FROM Products WHERE Id=@Id");
+    .query("SELECT CostPrice, SellingPrice FROM Products WHERE Id=@Id LIMIT 1");
   const cost = prod.recordset[0]?.CostPrice ?? 0;
   const sell = prod.recordset[0]?.SellingPrice ?? 0;
 
   const existing = await pool
     .request()
     .input("Pid", productId)
-    .query("SELECT TOP 1 Id, Qty FROM ProductVariants WHERE ProductId=@Pid AND SizeId IS NULL AND ColorId IS NULL");
+    .query("SELECT Id, Qty FROM ProductVariants WHERE ProductId=@Pid AND SizeId IS NULL AND ColorId IS NULL LIMIT 1");
 
   let variantId: string;
   let prev: number;
@@ -105,7 +105,7 @@ export async function addOneOffStock(productId: string, qty: number) {
       .input("Qty", q)
       .input("Cost", cost)
       .input("Sell", sell)
-      .query("INSERT INTO ProductVariants (ProductId, SizeId, ColorId, Qty, CostPrice, SellingPrice) OUTPUT Inserted.Id VALUES (@Pid, NULL, NULL, @Qty, @Cost, @Sell)");
+      .query("INSERT INTO ProductVariants (ProductId, SizeId, ColorId, Qty, CostPrice, SellingPrice) VALUES (@Pid, NULL, NULL, @Qty, @Cost, @Sell) RETURNING Id");
     variantId = ins.recordset[0].Id;
   }
 
@@ -116,7 +116,7 @@ export async function addOneOffStock(productId: string, qty: number) {
     .input("PreviousQty", prev)
     .input("NewQty", prev + q)
     .input("Sell", sell)
-    .query("INSERT INTO StockHistory (VariantId, ChangeQty, Reason, PreviousQty, NewQty, PriceAtChange, CreatedAt) VALUES (@VariantId, @ChangeQty, 'stock-add', @PreviousQty, @NewQty, @Sell, GETDATE())");
+    .query("INSERT INTO StockHistory (VariantId, ChangeQty, Reason, PreviousQty, NewQty, PriceAtChange, CreatedAt) VALUES (@VariantId, @ChangeQty, 'stock-add', @PreviousQty, @NewQty, @Sell, now())");
 }
 export async function addProduct(
   categoryId: string,
@@ -135,7 +135,7 @@ export async function addProduct(
     .input("SKU", sku)
     .input("Cost", cost)
     .input("Sell", sell)
-    .query("INSERT INTO Products (CategoryId, Name, SKU, CostPrice, SellingPrice) OUTPUT Inserted.Id VALUES (@CategoryId,@Name,@SKU,@Cost,@Sell)");
+    .query("INSERT INTO Products (CategoryId, Name, SKU, CostPrice, SellingPrice) VALUES (@CategoryId,@Name,@SKU,@Cost,@Sell) RETURNING Id");
 
   // One-off / single item: create a single attribute-less variant (no size/colour)
   // with the starting quantity so it's immediately sellable, and log the stock-in.
@@ -148,7 +148,7 @@ export async function addProduct(
       .input("Cost", cost)
       .input("Sell", sell)
       .input("Qty", q)
-      .query("INSERT INTO ProductVariants (ProductId, SizeId, ColorId, Qty, CostPrice, SellingPrice) OUTPUT Inserted.Id VALUES (@ProductId, NULL, NULL, @Qty, @Cost, @Sell)");
+      .query("INSERT INTO ProductVariants (ProductId, SizeId, ColorId, Qty, CostPrice, SellingPrice) VALUES (@ProductId, NULL, NULL, @Qty, @Cost, @Sell) RETURNING Id");
     if (q > 0) {
       await pool
         .request()
@@ -157,7 +157,7 @@ export async function addProduct(
         .input("PreviousQty", 0)
         .input("NewQty", q)
         .input("SellingPrice", sell)
-        .query("INSERT INTO StockHistory (VariantId, ChangeQty, Reason, PreviousQty, NewQty, PriceAtChange, CreatedAt) VALUES (@VariantId, @ChangeQty, 'stock-add', @PreviousQty, @NewQty, @SellingPrice, GETDATE())");
+        .query("INSERT INTO StockHistory (VariantId, ChangeQty, Reason, PreviousQty, NewQty, PriceAtChange, CreatedAt) VALUES (@VariantId, @ChangeQty, 'stock-add', @PreviousQty, @NewQty, @SellingPrice, now())");
     }
   }
 }
@@ -207,7 +207,7 @@ export async function quickStock(
     .input("SizeId", sizeId)
     .input("ColorId", colorId)
     .query(
-      "SELECT TOP 1 Id, Qty, CostPrice, SellingPrice FROM ProductVariants WHERE ProductId=@ProductId AND SizeId=@SizeId AND ColorId=@ColorId"
+      "SELECT Id, Qty, CostPrice, SellingPrice FROM ProductVariants WHERE ProductId=@ProductId AND SizeId=@SizeId AND ColorId=@ColorId LIMIT 1"
     );
 
   let variant = check.recordset[0];
@@ -224,7 +224,7 @@ export async function quickStock(
       .input("CostPrice", costPrice)
       .input("SellingPrice", sellingPrice)
       .query(
-        "INSERT INTO ProductVariants (ProductId, SizeId, ColorId, Qty, CostPrice, SellingPrice) OUTPUT Inserted.Id VALUES (@ProductId, @SizeId, @ColorId, 0, @CostPrice, @SellingPrice)"
+        "INSERT INTO ProductVariants (ProductId, SizeId, ColorId, Qty, CostPrice, SellingPrice) VALUES (@ProductId, @SizeId, @ColorId, 0, @CostPrice, @SellingPrice) RETURNING Id"
       );
     variantId = ins.recordset[0].Id;
     prevQty = 0;
@@ -267,7 +267,7 @@ export async function quickStock(
     .query(`
       INSERT INTO StockHistory 
       (VariantId, ChangeQty, Reason, PreviousQty, NewQty, PriceAtChange, CreatedAt)
-      VALUES (@VariantId, @ChangeQty, @Reason, @PreviousQty, @NewQty, @SellingPrice, GETDATE())
+      VALUES (@VariantId, @ChangeQty, @Reason, @PreviousQty, @NewQty, @SellingPrice, now())
     `);
 }
 
@@ -284,8 +284,8 @@ export async function getStockItems() {
       pv.CostPrice,
       pv.SellingPrice,
       p.Name AS ProductName,
-      ISNULL(s.Name, '—') AS SizeName,
-      ISNULL(c.Name, '—') AS ColorName,
+      COALESCE(s.Name, '—') AS SizeName,
+      COALESCE(c.Name, '—') AS ColorName,
       cat.Name AS CategoryName
     FROM ProductVariants pv
     INNER JOIN Products p ON pv.ProductId = p.Id
@@ -319,7 +319,7 @@ export async function transferStock(
     .input("SizeId", sizeId)
     .input("ColorId", colorId)
     .query(
-      "SELECT TOP 1 Id, Qty, CostPrice, SellingPrice FROM ProductVariants WHERE ProductId=@ProductId AND SizeId=@SizeId AND ColorId=@ColorId"
+      "SELECT Id, Qty, CostPrice, SellingPrice FROM ProductVariants WHERE ProductId=@ProductId AND SizeId=@SizeId AND ColorId=@ColorId LIMIT 1"
     );
 
   const fromVariant = fromCheck.recordset[0];
@@ -358,7 +358,7 @@ export async function transferStock(
     .input("NewQty", newFromQty)
     .input("SellingPrice", fromSellPrice)
     .query(
-      "INSERT INTO StockHistory (VariantId, ChangeQty, Reason, PreviousQty, NewQty, PriceAtChange, CreatedAt) VALUES (@VariantId, @ChangeQty, 'transfer-out', @PreviousQty, @NewQty, @SellingPrice, GETDATE())"
+      "INSERT INTO StockHistory (VariantId, ChangeQty, Reason, PreviousQty, NewQty, PriceAtChange, CreatedAt) VALUES (@VariantId, @ChangeQty, 'transfer-out', @PreviousQty, @NewQty, @SellingPrice, now())"
     );
 
   // Find or create destination variant
@@ -368,7 +368,7 @@ export async function transferStock(
     .input("SizeId", sizeId)
     .input("ColorId", colorId)
     .query(
-      "SELECT TOP 1 Id, Qty FROM ProductVariants WHERE ProductId=@ProductId AND SizeId=@SizeId AND ColorId=@ColorId"
+      "SELECT Id, Qty FROM ProductVariants WHERE ProductId=@ProductId AND SizeId=@SizeId AND ColorId=@ColorId LIMIT 1"
     );
 
   let toVariantId = toCheck.recordset[0]?.Id;
@@ -383,7 +383,7 @@ export async function transferStock(
       .input("CostPrice", toCostPrice)
       .input("SellingPrice", toSellPrice)
       .query(
-        "INSERT INTO ProductVariants (ProductId, SizeId, ColorId, Qty, CostPrice, SellingPrice) OUTPUT Inserted.Id VALUES (@ProductId, @SizeId, @ColorId, 0, @CostPrice, @SellingPrice)"
+        "INSERT INTO ProductVariants (ProductId, SizeId, ColorId, Qty, CostPrice, SellingPrice) VALUES (@ProductId, @SizeId, @ColorId, 0, @CostPrice, @SellingPrice) RETURNING Id"
       );
     toVariantId = ins.recordset[0].Id;
   }
@@ -414,7 +414,7 @@ export async function transferStock(
     .input("NewQty", newToQty)
     .input("SellingPrice", toSellPrice)
     .query(
-      "INSERT INTO StockHistory (VariantId, ChangeQty, Reason, PreviousQty, NewQty, PriceAtChange, CreatedAt) VALUES (@VariantId, @ChangeQty, 'transfer-in', @PreviousQty, @NewQty, @SellingPrice, GETDATE())"
+      "INSERT INTO StockHistory (VariantId, ChangeQty, Reason, PreviousQty, NewQty, PriceAtChange, CreatedAt) VALUES (@VariantId, @ChangeQty, 'transfer-in', @PreviousQty, @NewQty, @SellingPrice, now())"
     );
 }
 

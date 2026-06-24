@@ -35,8 +35,7 @@ export async function getDtfOrderDetails(id: string) {
     .request()
     .input("Id", UniqueIdentifier, id)
     .query(`
-      SELECT TOP 1
-        o.*, p.Name AS ProductName,
+      SELECT o.*, p.Name AS ProductName,
         s.Name AS SizeName, c.Name AS ColorName,
         v.Qty AS VariantStock
       FROM DtfOrders o
@@ -44,7 +43,7 @@ export async function getDtfOrderDetails(id: string) {
       LEFT JOIN ProductVariants v ON v.Id = o.VariantId
       LEFT JOIN Sizes s ON s.Id = v.SizeId
       LEFT JOIN Colors c ON c.Id = v.ColorId
-      WHERE o.Id = @Id
+      WHERE o.Id = @Id LIMIT 1
     `);
   if (!header.recordset[0]) throw new Error("DTF order not found");
 
@@ -83,7 +82,7 @@ export async function confirmDtfOrder(id: string) {
 
     const r = await new sql.Request(tx)
       .input("Id", UniqueIdentifier, id)
-      .query(`SELECT TOP 1 Status, StockDeducted, VariantId, Qty FROM DtfOrders WITH (UPDLOCK) WHERE Id=@Id`);
+      .query(`SELECT Status, StockDeducted, VariantId, Qty FROM DtfOrders WHERE Id=@Id LIMIT 1 FOR UPDATE`);
     const o = r.recordset[0];
     if (!o) throw new Error("DTF order not found");
     if (o.Status === "Canceled") throw new Error("This order is canceled.");
@@ -92,9 +91,9 @@ export async function confirmDtfOrder(id: string) {
     if (o.VariantId && !o.StockDeducted) {
       const vr = await new sql.Request(tx)
         .input("Vid", UniqueIdentifier, o.VariantId)
-        .query(`SELECT TOP 1 dbo.fn_StockVariantId(@Vid) AS StockVid,
+        .query(`SELECT dbo.fn_StockVariantId(@Vid) AS StockVid,
                        (SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(@Vid)) AS Qty,
-                       ISNULL((SELECT z.SellingPrice FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(@Vid)),0) AS SellingPrice`);
+                       COALESCE((SELECT z.SellingPrice FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(@Vid)),0) AS SellingPrice LIMIT 1`);
       const v = vr.recordset[0];
       const stock = v?.Qty ?? 0;
       const stockVid = v?.StockVid;
@@ -112,14 +111,14 @@ export async function confirmDtfOrder(id: string) {
         .input("NewQty", Int, stock - o.Qty)
         .input("SellingPrice", Decimal(18, 2), v?.SellingPrice ?? 0)
         .query(`INSERT INTO StockHistory (VariantId, ChangeQty, Reason, PreviousQty, NewQty, PriceAtChange, CreatedAt)
-                VALUES (@VariantId, @ChangeQty, 'dtf-order', @PreviousQty, @NewQty, @SellingPrice, GETDATE())`);
+                VALUES (@VariantId, @ChangeQty, 'dtf-order', @PreviousQty, @NewQty, @SellingPrice, now())`);
     }
 
     await new sql.Request(tx)
       .input("Id", UniqueIdentifier, id)
       .input("Deducted", sql.Bit, o.VariantId ? 1 : o.StockDeducted)
       .query(`UPDATE DtfOrders SET Status='Confirmed', StockDeducted=@Deducted,
-              ConfirmedAt=COALESCE(ConfirmedAt, SYSUTCDATETIME()) WHERE Id=@Id`);
+              ConfirmedAt=COALESCE(ConfirmedAt, now()) WHERE Id=@Id`);
 
     await tx.commit();
     return true;
@@ -138,7 +137,7 @@ export async function setDtfOrderStatus(id: string, status: DtfOrderStatus) {
 
     const r = await new sql.Request(tx)
       .input("Id", UniqueIdentifier, id)
-      .query(`SELECT TOP 1 Status, StockDeducted, VariantId, Qty FROM DtfOrders WITH (UPDLOCK) WHERE Id=@Id`);
+      .query(`SELECT Status, StockDeducted, VariantId, Qty FROM DtfOrders WHERE Id=@Id LIMIT 1 FOR UPDATE`);
     const o = r.recordset[0];
     if (!o) throw new Error("DTF order not found");
 
@@ -146,9 +145,9 @@ export async function setDtfOrderStatus(id: string, status: DtfOrderStatus) {
     if (status === "Canceled" && o.StockDeducted && o.VariantId) {
       const vr = await new sql.Request(tx)
         .input("Vid", UniqueIdentifier, o.VariantId)
-        .query(`SELECT TOP 1 dbo.fn_StockVariantId(@Vid) AS StockVid,
+        .query(`SELECT dbo.fn_StockVariantId(@Vid) AS StockVid,
                        (SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(@Vid)) AS Qty,
-                       ISNULL((SELECT z.SellingPrice FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(@Vid)),0) AS SellingPrice`);
+                       COALESCE((SELECT z.SellingPrice FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(@Vid)),0) AS SellingPrice LIMIT 1`);
       const stock = vr.recordset[0]?.Qty ?? 0;
       const stockVid = vr.recordset[0]?.StockVid;
 
@@ -164,11 +163,11 @@ export async function setDtfOrderStatus(id: string, status: DtfOrderStatus) {
         .input("NewQty", Int, stock + o.Qty)
         .input("SellingPrice", Decimal(18, 2), vr.recordset[0]?.SellingPrice ?? 0)
         .query(`INSERT INTO StockHistory (VariantId, ChangeQty, Reason, PreviousQty, NewQty, PriceAtChange, CreatedAt)
-                VALUES (@VariantId, @ChangeQty, 'dtf-cancel', @PreviousQty, @NewQty, @SellingPrice, GETDATE())`);
+                VALUES (@VariantId, @ChangeQty, 'dtf-cancel', @PreviousQty, @NewQty, @SellingPrice, now())`);
 
       await new sql.Request(tx)
         .input("Id", UniqueIdentifier, id)
-        .query(`UPDATE DtfOrders SET Status='Canceled', StockDeducted=0 WHERE Id=@Id`);
+        .query(`UPDATE DtfOrders SET Status='Canceled', StockDeducted = false WHERE Id=@Id`);
     } else {
       await new sql.Request(tx)
         .input("Id", UniqueIdentifier, id)

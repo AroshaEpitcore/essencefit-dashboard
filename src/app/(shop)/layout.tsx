@@ -6,12 +6,14 @@ import HeaderOffset from "@/components/shop/HeaderOffset";
 import StoreFooter from "@/components/shop/StoreFooter";
 import { getActiveCategories } from "@/lib/storefront";
 import { getPublicStoreSettings } from "@/lib/storeSettings";
+import { getCurrentCustomer } from "@/lib/customerAuth";
 import { displayFont, headingFont } from "@/lib/fonts";
 
 export default async function ShopLayout({ children }: { children: React.ReactNode }) {
-  const [settings, categories] = await Promise.all([
+  const [settings, categories, customer] = await Promise.all([
     getPublicStoreSettings(),
     getActiveCategories(),
+    getCurrentCustomer(),
   ]);
 
   return (
@@ -22,7 +24,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
             className={`${displayFont.className} ${headingFont.variable} store-headings min-h-screen flex flex-col bg-white text-gray-900`}
             style={{ "--header-h": settings.announcement ? "132px" : "96px" } as React.CSSProperties}
           >
-            <StoreHeader settings={settings} categories={categories} />
+            <StoreHeader settings={settings} categories={categories} customer={customer} />
             <main className="flex-1">
               <HeaderOffset hasPromo={!!settings.announcement} />
               {children}

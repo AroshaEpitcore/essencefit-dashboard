@@ -1,7 +1,7 @@
 "use server";
 
 import { getDb } from "@/lib/db";
-import sql, { NVarChar, UniqueIdentifier, Int, Decimal } from "mssql";
+import sql, { NVarChar, UniqueIdentifier, Int, Decimal, Transaction } from "@/lib/sqlShim";
 
 type OrderStatus = "Pending" | "Paid" | "Partial" | "Completed" | "Canceled";
 export type OrderRange = "today" | "yesterday" | "last7" | "last30" | "all";
@@ -39,8 +39,8 @@ export async function getDesignsByProduct(productId: string) {
     .input("pid", UniqueIdentifier, productId)
     .query(`
       SELECT pi.VariantId, pi.Url, pi.SortOrder,
-             ISNULL((SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(pi.VariantId)), 0) AS Qty,
-             ISNULL(v.SellingPrice, p.SellingPrice) AS SellingPrice
+             COALESCE((SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(pi.VariantId)), 0) AS Qty,
+             COALESCE(v.SellingPrice, p.SellingPrice) AS SellingPrice
       FROM ProductImages pi
       JOIN ProductVariants v ON v.Id = pi.VariantId
       JOIN Products p ON p.Id = v.ProductId
@@ -89,13 +89,12 @@ export async function getVariant(productId: string, sizeId: string, colorId: str
     .input("sid", UniqueIdentifier, sizeId)
     .input("cid", UniqueIdentifier, colorId)
     .query(`
-      SELECT TOP 1
-        v.Id AS VariantId,
-        ISNULL((SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(v.Id)), 0) AS InStock,
-        ISNULL(v.SellingPrice, p.SellingPrice) AS SellingPrice
+      SELECT v.Id AS VariantId,
+        COALESCE((SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(v.Id)), 0) AS InStock,
+        COALESCE(v.SellingPrice, p.SellingPrice) AS SellingPrice
       FROM ProductVariants v
       JOIN Products p ON p.Id = v.ProductId
-      WHERE v.ProductId=@pid AND v.SizeId=@sid AND v.ColorId=@cid
+      WHERE v.ProductId=@pid AND v.SizeId=@sid AND v.ColorId=@cid LIMIT 1
     `);
 
   return res.recordset[0] as
@@ -114,7 +113,7 @@ export async function getVariantStockByProductAndSize(
     .input("sid", UniqueIdentifier, sizeId)
     .query(`
       SELECT v.ColorId,
-             ISNULL((SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(v.Id)), 0) AS Qty
+             COALESCE((SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(v.Id)), 0) AS Qty
       FROM ProductVariants v
       WHERE v.ProductId=@pid AND v.SizeId=@sid
     `);
@@ -133,9 +132,9 @@ export async function getProductInfo(productId: string) {
     .request()
     .input("pid", UniqueIdentifier, productId)
     .query(`
-      SELECT TOP 1 Id, CategoryId
+      SELECT Id, CategoryId
       FROM Products
-      WHERE Id=@pid
+      WHERE Id=@pid LIMIT 1
     `);
 
   return res.recordset[0] as { Id: string; CategoryId: string } | undefined;
@@ -199,8 +198,7 @@ export async function getRecentOrders(limit: number = 20, range: OrderRange = "a
   req.input("to", sql.DateTime2, to);
 
   const res = await req.query(`
-    SELECT TOP (@n)
-      o.Id,
+    SELECT o.Id,
       o.Customer,
       o.CustomerPhone,
       o.SecondaryPhone,
@@ -216,7 +214,7 @@ export async function getRecentOrders(limit: number = 20, range: OrderRange = "a
       o.DeliveryFee,
       o.Total,
       (SELECT COUNT(*) FROM OrderItems oi WHERE oi.OrderId = o.Id) AS LineCount,
-      (SELECT ISNULL(SUM(oi.Qty * ISNULL((SELECT z.CostPrice FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(oi.VariantId)), ISNULL(p2.CostPrice, 0))), 0)
+      (SELECT COALESCE(SUM(oi.Qty * COALESCE((SELECT z.CostPrice FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(oi.VariantId)), COALESCE(p2.CostPrice, 0))), 0)
        FROM OrderItems oi
        JOIN ProductVariants pv ON pv.Id = oi.VariantId
        JOIN Products p2 ON p2.Id = pv.ProductId
@@ -224,7 +222,7 @@ export async function getRecentOrders(limit: number = 20, range: OrderRange = "a
     FROM Orders o
     WHERE (@from IS NULL OR o.OrderDate >= @from)
       AND (@to IS NULL OR o.OrderDate < @to)
-    ORDER BY o.OrderDate DESC
+    ORDER BY o.OrderDate DESC LIMIT @n
   `);
 
   return res.recordset;
@@ -239,12 +237,11 @@ export async function getOrderDetails(orderId: string) {
     .request()
     .input("Id", UniqueIdentifier, orderId)
     .query(`
-      SELECT TOP 1
-        Id, Customer, CustomerPhone, SecondaryPhone, Address, WaybillId, PackagePrintPrice, Notes,
+      SELECT Id, Customer, CustomerPhone, SecondaryPhone, Address, WaybillId, PackagePrintPrice, Notes,
         PaymentStatus, OrderDate,
         Subtotal, ManualDiscount, Discount, DeliveryFee, Total
       FROM Orders
-      WHERE Id=@Id
+      WHERE Id=@Id LIMIT 1
     `);
 
   if (!header.recordset[0]) throw new Error("Order not found");
@@ -258,7 +255,7 @@ export async function getOrderDetails(orderId: string) {
         oi.VariantId,
         oi.Qty,
         oi.SellingPrice,
-        ISNULL((SELECT z.CostPrice FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(oi.VariantId)), ISNULL(p.CostPrice, 0)) AS CostPrice,
+        COALESCE((SELECT z.CostPrice FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(oi.VariantId)), COALESCE(p.CostPrice, 0)) AS CostPrice,
         (SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(oi.VariantId)) AS CurrentStock,
         p.Id          AS ProductId,
         p.CategoryId  AS CategoryId,
@@ -266,7 +263,7 @@ export async function getOrderDetails(orderId: string) {
         v.ColorId     AS ColorId,
 
         p.Name AS ProductName,
-        ISNULL((SELECT TOP 1 Url FROM ProductImages WHERE VariantId = oi.VariantId), p.ImageUrl) AS LineImage,
+        COALESCE((SELECT Url FROM ProductImages WHERE VariantId = oi.VariantId LIMIT 1), p.ImageUrl) AS LineImage,
         s.Name AS SizeName,
         c.Name AS ColorName
       FROM OrderItems oi
@@ -285,20 +282,20 @@ export async function getOrderDetails(orderId: string) {
 
 // Reads the resolved (blank-aware) variant id, its current Qty and selling price
 // for an ordered variant — used for both the stock write and the history row.
-async function resolveStock(tx: sql.Transaction, variantId: string) {
+async function resolveStock(tx: Transaction, variantId: string) {
   const r = await new sql.Request(tx)
     .input("VariantId", UniqueIdentifier, variantId)
     .query(`
       SELECT dbo.fn_StockVariantId(@VariantId) AS StockVid,
              (SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(@VariantId)) AS Qty,
-             ISNULL((SELECT z.SellingPrice FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(@VariantId)), 0) AS SellingPrice,
-             ISNULL((SELECT p.PrintOnDemand FROM ProductVariants v JOIN Products p ON p.Id = v.ProductId WHERE v.Id = @VariantId), 0) AS IsPOD
+             COALESCE((SELECT z.SellingPrice FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(@VariantId)), 0) AS SellingPrice,
+             COALESCE((SELECT p.PrintOnDemand FROM ProductVariants v JOIN Products p ON p.Id = v.ProductId WHERE v.Id = @VariantId), 0) AS IsPOD
     `);
   return r.recordset[0] as { StockVid: string | null; Qty: number | null; SellingPrice: number; IsPOD: boolean } | undefined;
 }
 
 async function logStock(
-  tx: sql.Transaction,
+  tx: Transaction,
   variantId: string,
   changeQty: number,
   reason: string,
@@ -313,11 +310,11 @@ async function logStock(
     .input("NewQty", Int, prevQty + changeQty)
     .input("Price", Decimal(18, 2), price)
     .query(`INSERT INTO StockHistory (VariantId, ChangeQty, Reason, PreviousQty, NewQty, PriceAtChange, CreatedAt)
-            VALUES (@VariantId, @ChangeQty, @Reason, @PreviousQty, @NewQty, @Price, GETDATE())`);
+            VALUES (@VariantId, @ChangeQty, @Reason, @PreviousQty, @NewQty, @Price, now())`);
 }
 
 async function validateAndReduceStock(
-  tx: sql.Transaction,
+  tx: Transaction,
   items: OrderItemInput[],
   reason: string = "order-sale"
 ) {
@@ -341,7 +338,7 @@ async function validateAndReduceStock(
 }
 
 async function restoreStockFromOrder(
-  tx: sql.Transaction,
+  tx: Transaction,
   orderId: string,
   reason: string = "order-return"
 ) {
@@ -364,32 +361,32 @@ async function restoreStockFromOrder(
 // Reconcile stock with the order's status: a non-Canceled order should hold stock;
 // a Canceled one should not. Idempotent via Orders.StockDeducted.
 async function reconcileOrderStock(
-  tx: sql.Transaction,
+  tx: Transaction,
   orderId: string,
   newStatus: OrderStatus,
   items: OrderItemInput[]
 ) {
   const r = await new sql.Request(tx)
     .input("Id", UniqueIdentifier, orderId)
-    .query(`SELECT TOP 1 StockDeducted FROM Orders WHERE Id=@Id`);
+    .query(`SELECT StockDeducted FROM Orders WHERE Id=@Id LIMIT 1`);
   const deducted = !!r.recordset[0]?.StockDeducted;
   const shouldDeduct = newStatus !== "Canceled";
 
   if (shouldDeduct && !deducted) {
     await validateAndReduceStock(tx, items, "order-sale");
     await new sql.Request(tx).input("Id", UniqueIdentifier, orderId)
-      .query(`UPDATE Orders SET StockDeducted=1 WHERE Id=@Id`);
+      .query(`UPDATE Orders SET StockDeducted = true WHERE Id=@Id`);
   } else if (!shouldDeduct && deducted) {
     await restoreStockFromOrder(tx, orderId, "order-cancel");
     await new sql.Request(tx).input("Id", UniqueIdentifier, orderId)
-      .query(`UPDATE Orders SET StockDeducted=0 WHERE Id=@Id`);
+      .query(`UPDATE Orders SET StockDeducted = false WHERE Id=@Id`);
   }
 }
 
 /* ---------- Customer upsert inside TX ---------- */
 
 async function upsertCustomerTx(
-  tx: sql.Transaction,
+  tx: Transaction,
   name?: string | null,
   phone?: string | null,
   address?: string | null
@@ -403,7 +400,7 @@ async function upsertCustomerTx(
   if (p) {
     const existing = await new sql.Request(tx)
       .input("Phone", NVarChar(50), p)
-      .query(`SELECT TOP 1 Id FROM Customers WHERE Phone=@Phone`);
+      .query(`SELECT Id FROM Customers WHERE Phone=@Phone LIMIT 1`);
 
     if (existing.recordset.length) {
       const id = existing.recordset[0].Id as string;
@@ -441,7 +438,7 @@ function shouldCreateSales(status: OrderStatus) {
 }
 
 async function insertSalesRows(
-  tx: sql.Transaction,
+  tx: Transaction,
   orderId: string,
   status: OrderStatus,
   orderDate: Date,
@@ -464,7 +461,7 @@ async function insertSalesRows(
   }
 }
 
-async function deleteSalesForOrder(tx: sql.Transaction, orderId: string) {
+async function deleteSalesForOrder(tx: Transaction, orderId: string) {
   await new sql.Request(tx)
     .input("OrderId", UniqueIdentifier, orderId)
     .query(`DELETE FROM Sales WHERE OrderId=@OrderId`);
@@ -476,7 +473,7 @@ export async function createOrder(payload: OrderPayload) {
   if (!payload.Items?.length) throw new Error("No items in order.");
 
   const pool = await getDb();
-  const tx = new sql.Transaction(pool);
+  const tx = new Transaction(pool);
 
   try {
     await tx.begin();
@@ -581,7 +578,7 @@ export async function createOrder(payload: OrderPayload) {
 
 export async function updateOrderStatus(orderId: string, newStatus: OrderStatus) {
   const pool = await getDb();
-  const tx = new sql.Transaction(pool);
+  const tx = new Transaction(pool);
 
   try {
     await tx.begin();
@@ -589,7 +586,7 @@ export async function updateOrderStatus(orderId: string, newStatus: OrderStatus)
     // Get old status first for logging
     const oldStatusResult = await new sql.Request(tx)
       .input("Id", UniqueIdentifier, orderId)
-      .query(`SELECT TOP 1 PaymentStatus FROM Orders WHERE Id=@Id`);
+      .query(`SELECT PaymentStatus FROM Orders WHERE Id=@Id LIMIT 1`);
     const oldStatus = oldStatusResult.recordset[0]?.PaymentStatus || null;
 
     // update order status + set CompletedAt if Paid/Completed
@@ -654,7 +651,7 @@ export async function updateOrder(orderId: string, payload: OrderPayload) {
   if (!payload.Items?.length) throw new Error("No items in order.");
 
   const pool = await getDb();
-  const tx = new sql.Transaction(pool);
+  const tx = new Transaction(pool);
 
   try {
     await tx.begin();
@@ -663,7 +660,7 @@ export async function updateOrder(orderId: string, payload: OrderPayload) {
     // order has already been restored — don't double-restore)
     const dedRes = await new sql.Request(tx)
       .input("Id", UniqueIdentifier, orderId)
-      .query(`SELECT TOP 1 StockDeducted FROM Orders WHERE Id=@Id`);
+      .query(`SELECT StockDeducted FROM Orders WHERE Id=@Id LIMIT 1`);
     if (dedRes.recordset[0]?.StockDeducted) await restoreStockFromOrder(tx, orderId, "order-return");
 
     // remove old items and sales
@@ -758,7 +755,7 @@ export async function updateOrder(orderId: string, payload: OrderPayload) {
 
 export async function deleteOrder(orderId: string) {
   const pool = await getDb();
-  const tx = new sql.Transaction(pool);
+  const tx = new Transaction(pool);
 
   try {
     await tx.begin();
@@ -766,7 +763,7 @@ export async function deleteOrder(orderId: string) {
     // only return stock if this order currently holds it (Canceled already restored)
     const delDed = await new sql.Request(tx)
       .input("Id", UniqueIdentifier, orderId)
-      .query(`SELECT TOP 1 StockDeducted FROM Orders WHERE Id=@Id`);
+      .query(`SELECT StockDeducted FROM Orders WHERE Id=@Id LIMIT 1`);
     if (delDed.recordset[0]?.StockDeducted) await restoreStockFromOrder(tx, orderId, "order-return");
 
     await new sql.Request(tx).input("OrderId", UniqueIdentifier, orderId)

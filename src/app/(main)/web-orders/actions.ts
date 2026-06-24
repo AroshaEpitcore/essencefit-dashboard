@@ -15,7 +15,7 @@ export async function getWebOrders() {
         SELECT 1 FROM OrderItems oi
         JOIN ProductVariants v ON v.Id = oi.VariantId
         JOIN Products p ON p.Id = v.ProductId
-        WHERE oi.OrderId = o.Id AND p.PrintOnDemand = 1
+        WHERE oi.OrderId = o.Id AND p.PrintOnDemand = true
       ) THEN 1 ELSE 0 END AS BIT) AS HasPrintOnDemand
     FROM Orders o
     WHERE o.Source = 'web'
@@ -31,7 +31,7 @@ export async function verifyWebPayment(orderId: string) {
   await pool
     .request()
     .input("Id", sql.UniqueIdentifier, orderId)
-    .query(`UPDATE Orders SET PaymentVerified = 1 WHERE Id=@Id`);
+    .query(`UPDATE Orders SET PaymentVerified = true WHERE Id=@Id`);
   await updateOrderStatus(orderId, "Paid");
   return true;
 }

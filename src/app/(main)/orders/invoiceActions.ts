@@ -1,7 +1,7 @@
 "use server";
 
 import { getDb } from "@/lib/db";
-import { UniqueIdentifier } from "mssql";
+import { UniqueIdentifier } from "@/lib/sqlShim";
 
 export async function generateInvoicePDF(orderId: string) {
   const pool = await getDb();
@@ -11,11 +11,10 @@ export async function generateInvoicePDF(orderId: string) {
     .request()
     .input("Id", UniqueIdentifier, orderId)
     .query(`
-      SELECT TOP 1
-        Id, Customer, CustomerPhone, Address, PaymentStatus, OrderDate,
+      SELECT Id, Customer, CustomerPhone, Address, PaymentStatus, OrderDate,
         Subtotal, Discount, DeliveryFee, Total
       FROM Orders
-      WHERE Id=@Id
+      WHERE Id=@Id LIMIT 1
     `);
 
   if (!orderRes.recordset[0]) throw new Error("Order not found");
@@ -85,10 +84,9 @@ export async function getWhatsAppMessage(orderId: string) {
     .request()
     .input("Id", UniqueIdentifier, orderId)
     .query(`
-      SELECT TOP 1
-        Customer, CustomerPhone, OrderDate, Total, PaymentStatus, Subtotal, Discount, DeliveryFee
+      SELECT Customer, CustomerPhone, OrderDate, Total, PaymentStatus, Subtotal, Discount, DeliveryFee
       FROM Orders
-      WHERE Id=@Id
+      WHERE Id=@Id LIMIT 1
     `);
 
   if (!orderRes.recordset[0]) throw new Error("Order not found");

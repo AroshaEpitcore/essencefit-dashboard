@@ -63,7 +63,7 @@ export async function updatePriceItem(id: string, item: PriceItemInput) {
     .query(`
       UPDATE DtfPriceItems
       SET Category=@Category, Name=@Name, Amount=@Amount, Unit=@Unit,
-          IsActive=@IsActive, UpdatedAt=SYSUTCDATETIME()
+          IsActive=@IsActive, UpdatedAt=now()
       WHERE Id=@Id
     `);
   return true;
@@ -106,13 +106,12 @@ export type QuoteInput = {
 export async function getQuotes() {
   const pool = await getDb();
   const res = await pool.request().query(`
-    SELECT TOP 100
-      Id, QuoteRef, CustomerName, CustomerPhone, GarmentName, PrintNames,
+    SELECT Id, QuoteRef, CustomerName, CustomerPhone, GarmentName, PrintNames,
       Quantity, GarmentCost, PrintCost, Packaging, Utilities, Profit,
       UnitPrice, Total, Extra, FinalTotal, AdvancePct, AdvanceAmount,
       Notes, BreakdownJson, CreatedAt
     FROM DtfQuotes
-    ORDER BY CreatedAt DESC
+    ORDER BY CreatedAt DESC LIMIT 100
   `);
   return res.recordset;
 }
@@ -122,7 +121,7 @@ export async function saveQuote(q: QuoteInput) {
 
   // Generate next ref like DTF-1001
   const refRes = await pool.request().query(`
-    SELECT ISNULL(MAX(TRY_CONVERT(INT, REPLACE(QuoteRef, 'DTF-', ''))), 1000) AS LastNum
+    SELECT COALESCE(MAX(NULLIF(regexp_replace(QuoteRef, '[^0-9]', '', 'g'), '')::int), 1000) AS LastNum
     FROM DtfQuotes
   `);
   const nextNum = (refRes.recordset[0]?.LastNum || 1000) + 1;
@@ -222,7 +221,7 @@ export async function updateTemplate(id: string, t: TemplateInput) {
     .query(`
       UPDATE DtfTemplates
       SET Title=@Title, Content=@Content, Category=@Category,
-          Language=@Language, UpdatedAt=SYSUTCDATETIME()
+          Language=@Language, UpdatedAt=now()
       WHERE Id=@Id
     `);
   return true;
@@ -259,12 +258,9 @@ export async function saveDtfPageSettings(introNote: string, suggestions: string
       .input("Key", sql.NVarChar(100), key)
       .input("Value", sql.NVarChar(sql.MAX), value)
       .query(`
-        MERGE Settings AS target
-        USING (SELECT @Key AS [Key]) AS src
-        ON target.[Key] = src.[Key]
-        WHEN MATCHED THEN UPDATE SET [Value]=@Value, UpdatedAt=SYSUTCDATETIME()
-        WHEN NOT MATCHED THEN INSERT (Id, [Key], [Value], UpdatedAt)
-          VALUES (NEWID(), @Key, @Value, SYSUTCDATETIME());
+        INSERT INTO Settings (Id, key, value, UpdatedAt)
+        VALUES (gen_random_uuid(), @Key, @Value, now())
+        ON CONFLICT (key) DO UPDATE SET value = @Value, UpdatedAt = now();
       `);
   }
   return true;

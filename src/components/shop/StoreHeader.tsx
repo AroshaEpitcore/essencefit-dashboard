@@ -3,18 +3,21 @@
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ShoppingCart, Search, Menu, X, User, Heart } from "lucide-react";
+import { ShoppingCart, Search, Menu, X, Heart } from "lucide-react";
 import { useCart } from "./CartContext";
 import { useWishlist } from "./WishlistContext";
+import AccountMenu, { type NavCustomer } from "./AccountMenu";
 import type { StoreCategory } from "@/lib/storefront";
 import type { StoreSettings } from "@/lib/storeSettings";
 
 export default function StoreHeader({
   settings,
   categories,
+  customer,
 }: {
   settings: StoreSettings;
   categories: StoreCategory[];
+  customer: NavCustomer;
 }) {
   const { count } = useCart();
   const { count: wishCount } = useWishlist();
@@ -61,7 +64,7 @@ export default function StoreHeader({
 
       {/* Nav bar (transparent over hero, solid on scroll) */}
       <div className={`transition-colors duration-300 ${solid ? "bg-white shadow-sm" : "bg-transparent"}`}>
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 flex items-center gap-4 h-16 md:h-24">
+        <div className="max-w-[1920px] mx-auto px-4 sm:px-6 flex items-center gap-4 h-16 md:h-24">
           <button className={`md:hidden ${iconCls}`} onClick={() => setMenuOpen((v) => !v)} aria-label="Menu">
             {menuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
@@ -101,7 +104,7 @@ export default function StoreHeader({
           </form>
 
           <div className="flex items-center gap-4 ml-auto lg:ml-3">
-            <Link href="/account" className={iconCls} aria-label="Account"><User className="w-6 h-6" /></Link>
+            <AccountMenu customer={customer} iconCls={iconCls} />
             <Link href="/wishlist" className={`relative ${iconCls}`} aria-label="Wishlist">
               <Heart className="w-6 h-6" />
               {wishCount > 0 && <span className="absolute -top-2 -right-2 bg-primary text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center">{wishCount}</span>}

@@ -11,7 +11,7 @@ export async function getFinanceSummary() {
   const pool = await getDb();
 
   const res = await pool.request().query(`
-    ;WITH SalesAgg AS (
+    WITH SalesAgg AS (
       SELECT
         CAST(S.SaleDate AS DATE) AS D,
         SUM(S.Qty * S.SellingPrice) AS GrossSales
@@ -21,33 +21,33 @@ export async function getFinanceSummary() {
     OrdersAgg AS (
       SELECT
         CAST(O.OrderDate AS DATE) AS D,
-        SUM(ISNULL(O.Discount,0)) AS OrderDiscount,
-        SUM(ISNULL(O.DeliveryFee,0)) AS DeliveryFee
+        SUM(COALESCE(O.Discount,0)) AS OrderDiscount,
+        SUM(COALESCE(O.DeliveryFee,0)) AS DeliveryFee
       FROM Orders O
       GROUP BY CAST(O.OrderDate AS DATE)
     ),
     DayJoin AS (
       SELECT
         COALESCE(SA.D, OA.D) AS D,
-        ISNULL(SA.GrossSales,0) AS GrossSales,
-        ISNULL(OA.OrderDiscount,0) AS OrderDiscount,
-        ISNULL(OA.DeliveryFee,0) AS DeliveryFee
+        COALESCE(SA.GrossSales,0) AS GrossSales,
+        COALESCE(OA.OrderDiscount,0) AS OrderDiscount,
+        COALESCE(OA.DeliveryFee,0) AS DeliveryFee
       FROM SalesAgg SA
       FULL OUTER JOIN OrdersAgg OA ON SA.D = OA.D
     )
     SELECT
       /* ✅ Same as dashboard AllTimeSales */
-      CAST(ISNULL(SUM(GrossSales - OrderDiscount + DeliveryFee), 0) AS DECIMAL(18,2)) AS TotalSales,
+      CAST(COALESCE(SUM(GrossSales - OrderDiscount + DeliveryFee), 0) AS DECIMAL(18,2)) AS TotalSales,
 
       /* Handovers & Cash Usage */
-      CAST(ISNULL((SELECT SUM(Amount) FROM Handovers), 0) AS DECIMAL(18,2)) AS HandedOver,
-      CAST(ISNULL((SELECT SUM(Amount) FROM CashUsage), 0) AS DECIMAL(18,2)) AS CashUsed,
+      CAST(COALESCE((SELECT SUM(Amount) FROM Handovers), 0) AS DECIMAL(18,2)) AS HandedOver,
+      CAST(COALESCE((SELECT SUM(Amount) FROM CashUsage), 0) AS DECIMAL(18,2)) AS CashUsed,
 
       /* ✅ Remaining Balance */
       CAST(
-        ISNULL(SUM(GrossSales - OrderDiscount + DeliveryFee), 0)
-        - ISNULL((SELECT SUM(Amount) FROM Handovers), 0)
-        - ISNULL((SELECT SUM(Amount) FROM CashUsage), 0)
+        COALESCE(SUM(GrossSales - OrderDiscount + DeliveryFee), 0)
+        - COALESCE((SELECT SUM(Amount) FROM Handovers), 0)
+        - COALESCE((SELECT SUM(Amount) FROM CashUsage), 0)
       AS DECIMAL(18,2)) AS Remaining
     FROM DayJoin
   `);
@@ -88,8 +88,8 @@ export async function recordHandover(userId: string, amount: number) {
     .input("amount", amount)
     .query(`
       INSERT INTO Handovers (UserId, Amount)
-      OUTPUT INSERTED.Id, INSERTED.Amount, INSERTED.HandoverDate
       VALUES (@userId, @amount)
+      RETURNING Id, Amount, HandoverDate
     `);
   return result.recordset[0];
 }
@@ -102,8 +102,8 @@ export async function recordCashUsage(reason: string, amount: number) {
     .input("amount", amount)
     .query(`
       INSERT INTO CashUsage (Description, Amount)
-      OUTPUT INSERTED.Id, INSERTED.Description, INSERTED.Amount, INSERTED.UsageDate
       VALUES (@desc, @amount)
+      RETURNING Id, Description, Amount, UsageDate
     `);
   return result.recordset[0];
 }
@@ -112,14 +112,13 @@ export async function recordCashUsage(reason: string, amount: number) {
 export async function getRecentHandovers() {
   const pool = await getDb();
   const result = await pool.request().query(`
-    SELECT TOP 10 
-      Id, 
+    SELECT Id, 
       Amount, 
       HandoverDate, 
       UserId,
       UserId AS ManagerName
     FROM Handovers
-    ORDER BY HandoverDate DESC
+    ORDER BY HandoverDate DESC LIMIT 10
   `);
   return result.recordset;
 }
@@ -127,9 +126,9 @@ export async function getRecentHandovers() {
 export async function getRecentCashUsages() {
   const pool = await getDb();
   const result = await pool.request().query(`
-    SELECT TOP 10 Id, Description, Amount, UsageDate
+    SELECT Id, Description, Amount, UsageDate
     FROM CashUsage
-    ORDER BY UsageDate DESC
+    ORDER BY UsageDate DESC LIMIT 10
   `);
   return result.recordset;
 }
