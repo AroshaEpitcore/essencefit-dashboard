@@ -10,6 +10,17 @@ import { useWishlist } from "./WishlistContext";
 import { useQuickView } from "./QuickView";
 import QuickViewButton from "./QuickViewButton";
 
+// Warm the browser cache for colour images so switching swatches is instant
+// instead of waiting on a network fetch. De-duped via a module-level set.
+const preloaded = new Set<string>();
+function preloadImg(url?: string | null) {
+  if (!url || preloaded.has(url) || typeof window === "undefined") return;
+  preloaded.add(url);
+  const img = new window.Image();
+  img.decoding = "async";
+  img.src = url;
+}
+
 export default function ProductCard({ p }: { p: StoreProduct }) {
   const pct = discountPct(p.SellingPrice, p.CompareAtPrice);
   const outOfStock = p.Stock <= 0;
@@ -31,8 +42,17 @@ export default function ProductCard({ p }: { p: StoreProduct }) {
   const hoverImage = hoverCandidate && hoverCandidate !== baseImage ? hoverCandidate : null;
   const href = activeColor ? `/product/${p.Slug}?color=${activeColor}` : `/product/${p.Slug}`;
 
+  // Preload every colour's photos when the user shows interest in the card.
+  const preloadColors = () => {
+    for (const c of p.Colors) {
+      preloadImg(c.ImageUrl);
+      preloadImg(c.ImageUrl2);
+    }
+    preloadImg(p.HoverImageUrl);
+  };
+
   return (
-    <div className="text-left flex flex-col h-full">
+    <div className="text-left flex flex-col h-full" onMouseEnter={preloadColors}>
       {/* Image — tall portrait; hovering ONLY this area reveals the secondary image */}
       <div className="group relative aspect-[2/3] bg-gray-100 overflow-hidden">
         <Link href={href} className="block w-full h-full">
@@ -103,6 +123,8 @@ export default function ProductCard({ p }: { p: StoreProduct }) {
                   type="button"
                   title={c.Name + (c.InStock ? "" : " — sold out")}
                   aria-label={c.Name}
+                  onMouseEnter={() => { preloadImg(c.ImageUrl); preloadImg(c.ImageUrl2); }}
+                  onTouchStart={() => { preloadImg(c.ImageUrl); preloadImg(c.ImageUrl2); }}
                   onClick={() => setActiveColor((cur) => (cur === c.Id ? null : c.Id))}
                   className={`relative w-7 h-7 rounded-sm overflow-hidden border ${selected ? "border-gray-900 ring-1 ring-gray-900" : "border-gray-300"} hover:border-gray-500`}
                 >
