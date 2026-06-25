@@ -64,12 +64,29 @@ export default function StoreHeader({
 
       {/* Nav bar (transparent over hero, solid on scroll) */}
       <div className={`transition-colors duration-300 ${solid ? "bg-white shadow-sm" : "bg-transparent"}`}>
-        <div className="max-w-[1920px] mx-auto px-4 sm:px-6 flex items-center gap-4 h-16 md:h-24">
-          <button className={`md:hidden ${iconCls}`} onClick={() => setMenuOpen((v) => !v)} aria-label="Menu">
-            {menuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
+        <div className="max-w-[1920px] mx-auto px-4 sm:px-6 relative flex items-center h-16 md:h-24">
+          {/* Left: mobile menu toggle + desktop nav */}
+          <div className="flex items-center gap-4 md:gap-6">
+            <button className={`md:hidden ${iconCls}`} onClick={() => setMenuOpen((v) => !v)} aria-label="Menu">
+              {menuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
 
-          <Link href="/" className="flex items-center gap-2 shrink-0" onClick={() => setMenuOpen(false)}>
+            <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
+              <Link href="/shop" className={linkCls}>All</Link>
+              {categories.slice(0, 5).map((c) => (
+                <Link key={c.Id} href={`/category/${c.Slug}`} className={`${linkCls} whitespace-nowrap`}>{c.Name}</Link>
+              ))}
+              <Link href="/deals" className={onDark ? "text-white font-semibold" : "text-primary font-semibold"}>Deals</Link>
+              <Link href="/customize" className={`${linkCls} whitespace-nowrap`}>Customize</Link>
+            </nav>
+          </div>
+
+          {/* Center: logo */}
+          <Link
+            href="/"
+            className="absolute left-1/2 -translate-x-1/2 flex items-center"
+            onClick={() => setMenuOpen(false)}
+          >
             {logoSrc ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={logoSrc} alt={settings.storeName} className="h-7 md:h-12 object-contain" />
@@ -78,32 +95,24 @@ export default function StoreHeader({
             )}
           </Link>
 
-          <nav className="hidden md:flex items-center gap-6 ml-6 text-sm font-medium">
-            <Link href="/shop" className={linkCls}>All</Link>
-            {categories.slice(0, 5).map((c) => (
-              <Link key={c.Id} href={`/category/${c.Slug}`} className={`${linkCls} whitespace-nowrap`}>{c.Name}</Link>
-            ))}
-            <Link href="/deals" className={onDark ? "text-white font-semibold" : "text-primary font-semibold"}>Deals</Link>
-            <Link href="/customize" className={`${linkCls} whitespace-nowrap`}>Customize</Link>
-          </nav>
+          {/* Right: search + icons */}
+          <div className="flex items-center gap-4 ml-auto">
+            <form onSubmit={submitSearch} className="hidden lg:flex w-44 xl:w-56 relative">
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Search products..."
+                className={`w-full rounded-full pl-4 pr-10 py-2 text-sm focus:outline-none transition-colors ${
+                  onDark
+                    ? "bg-white/15 text-white placeholder-white/70 border border-white/30 focus:bg-white/25"
+                    : "bg-gray-100 text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-primary/30"
+                }`}
+              />
+              <button type="submit" className={`absolute right-3 top-1/2 -translate-y-1/2 ${onDark ? "text-white/80" : "text-gray-400"}`}>
+                <Search className="w-4 h-4" />
+              </button>
+            </form>
 
-          <form onSubmit={submitSearch} className="hidden lg:flex flex-1 max-w-xs ml-auto relative">
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search products..."
-              className={`w-full rounded-full pl-4 pr-10 py-2 text-sm focus:outline-none transition-colors ${
-                onDark
-                  ? "bg-white/15 text-white placeholder-white/70 border border-white/30 focus:bg-white/25"
-                  : "bg-gray-100 text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-primary/30"
-              }`}
-            />
-            <button type="submit" className={`absolute right-3 top-1/2 -translate-y-1/2 ${onDark ? "text-white/80" : "text-gray-400"}`}>
-              <Search className="w-4 h-4" />
-            </button>
-          </form>
-
-          <div className="flex items-center gap-4 ml-auto lg:ml-3">
             <AccountMenu customer={customer} iconCls={iconCls} />
             <Link href="/wishlist" className={`relative ${iconCls}`} aria-label="Wishlist">
               <Heart className="w-6 h-6" />
