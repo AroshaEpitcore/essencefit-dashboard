@@ -37,6 +37,7 @@ export default function StoreHeader({
   const [menuOpen, setMenuOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<null | "shop" | "customize">(null);
   const [activeCat, setActiveCat] = useState<string | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -78,24 +79,35 @@ export default function StoreHeader({
     }
   }, [openMenu, categoryProducts, featured]);
 
-  const solid = scrolled || menuOpen;
+  const solid = scrolled || menuOpen || openMenu !== null;
   const onDark = !solid;
 
   const closeMenus = () => {
     setOpenMenu(null);
     setMenuOpen(false);
+    setSearchOpen(false);
   };
 
   function submitSearch(e: React.FormEvent) {
     e.preventDefault();
+    if (!q.trim()) return;
     router.push(`/shop?q=${encodeURIComponent(q.trim())}`);
     closeMenus();
   }
 
-  const logoSrc = solid ? settings.logoDark || settings.logo : settings.logoLight || "";
+  const goSearch = (term: string) => {
+    setQ(term);
+    router.push(`/shop?q=${encodeURIComponent(term)}`);
+    closeMenus();
+  };
+  const trendingTags = categories.map((c) => c.Name);
+
   const logoMark = settings.logoDark || settings.logo || "";
-  const iconCls = onDark ? "text-white hover:text-white/70" : "text-gray-800 hover:text-primary";
-  const linkCls = onDark ? "text-white/90 hover:text-white" : "text-gray-700 hover:text-primary";
+  const lightLogo = settings.logoLight || "";
+  const darkLogo = settings.logoDark || settings.logo || "";
+  const hasBothLogos = !!(lightLogo && darkLogo);
+  const iconCls = `transition-colors duration-300 ${onDark ? "text-white hover:text-white/70" : "text-gray-800 hover:text-primary"}`;
+  const linkCls = `transition-colors duration-300 ${onDark ? "text-white/90 hover:text-white" : "text-gray-700 hover:text-primary"}`;
 
   // Imagery for the mega-menu right panels: featured products, falling back to
   // category tiles when no products are flagged featured.
@@ -162,7 +174,7 @@ export default function StoreHeader({
               <Link
                 href="/deals"
                 onMouseEnter={() => setOpenMenu(null)}
-                className={onDark ? "text-white font-semibold" : "text-primary font-semibold"}
+                className={`transition-colors duration-300 ${onDark ? "text-white font-semibold" : "text-primary font-semibold"}`}
               >
                 Deals
               </Link>
@@ -176,31 +188,31 @@ export default function StoreHeader({
             className="absolute left-1/2 -translate-x-1/2 flex items-center"
             onClick={closeMenus}
           >
-            {logoSrc ? (
+            {hasBothLogos ? (
+              <span className="relative inline-block h-7 md:h-12">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={lightLogo} alt={settings.storeName} className={`h-full w-auto object-contain transition-opacity duration-300 ${solid ? "opacity-0" : "opacity-100"}`} />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={darkLogo} alt="" aria-hidden className={`absolute left-0 top-0 h-full w-auto object-contain transition-opacity duration-300 ${solid ? "opacity-100" : "opacity-0"}`} />
+              </span>
+            ) : lightLogo || darkLogo ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={logoSrc} alt={settings.storeName} className="h-7 md:h-12 object-contain" />
+              <img src={solid ? darkLogo || lightLogo : lightLogo || darkLogo} alt={settings.storeName} className="h-7 md:h-12 object-contain" />
             ) : (
-              <span className={`text-xl font-extrabold ${onDark ? "text-white" : "text-gray-900"}`}>{settings.storeName}</span>
+              <span className={`text-xl font-extrabold transition-colors duration-300 ${onDark ? "text-white" : "text-gray-900"}`}>{settings.storeName}</span>
             )}
           </Link>
 
           {/* Right: search + icons */}
           <div className="flex items-center gap-4 ml-auto" onMouseEnter={() => setOpenMenu(null)}>
-            <form onSubmit={submitSearch} className="hidden lg:flex w-44 xl:w-56 relative">
-              <input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Search products..."
-                className={`w-full rounded-full pl-4 pr-10 py-2 text-sm focus:outline-none transition-colors ${
-                  onDark
-                    ? "bg-white/15 text-white placeholder-white/70 border border-white/30 focus:bg-white/25"
-                    : "bg-gray-100 text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-primary/30"
-                }`}
-              />
-              <button type="submit" className={`absolute right-3 top-1/2 -translate-y-1/2 ${onDark ? "text-white/80" : "text-gray-400"}`}>
-                <Search className="w-4 h-4" />
-              </button>
-            </form>
+            <button
+              type="button"
+              onClick={() => { setSearchOpen(true); setOpenMenu(null); }}
+              className={iconCls}
+              aria-label="Search"
+            >
+              <Search className="w-6 h-6" />
+            </button>
 
             <AccountMenu customer={customer} iconCls={iconCls} />
             <Link href="/wishlist" className={`relative ${iconCls}`} aria-label="Wishlist">
@@ -414,6 +426,68 @@ export default function StoreHeader({
         </div>
       )}
       </header>
+
+      {/* Search drawer (slides down from the top) */}
+      <AnimatePresence>
+        {searchOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-[55] bg-black/40"
+              onClick={() => setSearchOpen(false)}
+              aria-hidden
+            />
+            <motion.div
+              initial={{ y: "-100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "-100%" }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+              className="fixed top-0 inset-x-0 z-[60] bg-white shadow-2xl"
+            >
+              <div className="max-w-3xl mx-auto px-5 py-7">
+                <form onSubmit={submitSearch} className="relative border-b-2 border-gray-900">
+                  <Search className="absolute left-0 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    autoFocus
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                    placeholder="Search products..."
+                    className="w-full bg-transparent pl-8 pr-10 py-3 text-lg text-gray-900 placeholder-gray-400 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setSearchOpen(false)}
+                    aria-label="Close search"
+                    className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-900"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </form>
+                {trendingTags.length > 0 && (
+                  <div className="mt-6">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-3">Trending searches</p>
+                    <div className="flex flex-wrap gap-2">
+                      {trendingTags.map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => goSearch(t)}
+                          className="px-3.5 py-1.5 rounded-full border border-gray-300 text-sm text-gray-700 hover:border-gray-900 hover:text-gray-900 transition-colors"
+                        >
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </>
   );
 }
