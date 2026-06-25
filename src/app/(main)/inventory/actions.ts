@@ -198,7 +198,7 @@ export async function searchColorQuantities(colorName: string) {
       INNER JOIN Sizes s ON s.Id = v.SizeId
       INNER JOIN Products p ON p.Id = v.ProductId
       INNER JOIN Categories cat ON cat.Id = p.CategoryId
-      WHERE c.Name LIKE @colorName
+      WHERE c.Name ILIKE @colorName
       GROUP BY c.Name, s.Name, p.Name, cat.Name
       ORDER BY c.Name, cat.Name, p.Name, s.Name
     `);

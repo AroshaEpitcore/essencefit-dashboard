@@ -10,7 +10,8 @@ import { useWishlist } from "./WishlistContext";
 import { useQuickView } from "./QuickView";
 import AccountMenu, { type NavCustomer } from "./AccountMenu";
 import { money } from "./format";
-import type { StoreCategory, StoreProduct, MegaProduct } from "@/lib/storefront";
+import { quickSearch } from "@/app/(shop)/searchAction";
+import type { StoreCategory, StoreProduct, MegaProduct, LiteProduct } from "@/lib/storefront";
 import type { StoreSettings } from "@/lib/storeSettings";
 
 export default function StoreHeader({
@@ -38,6 +39,8 @@ export default function StoreHeader({
   const [openMenu, setOpenMenu] = useState<null | "shop" | "customize">(null);
   const [activeCat, setActiveCat] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [results, setResults] = useState<LiteProduct[]>([]);
+  const [searching, setSearching] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -95,12 +98,27 @@ export default function StoreHeader({
     closeMenus();
   }
 
-  const goSearch = (term: string) => {
-    setQ(term);
-    router.push(`/shop?q=${encodeURIComponent(term)}`);
-    closeMenus();
-  };
-  const trendingTags = categories.map((c) => c.Name);
+  // Type-ahead: debounce the query and fetch matching products for the drawer.
+  useEffect(() => {
+    if (!searchOpen) return;
+    const term = q.trim();
+    if (term.length < 2) {
+      setResults([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    const t = setTimeout(async () => {
+      try {
+        setResults(await quickSearch(term));
+      } catch {
+        setResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 220);
+    return () => clearTimeout(t);
+  }, [q, searchOpen]);
 
   const logoMark = settings.logoDark || settings.logo || "";
   const lightLogo = settings.logoLight || "";
@@ -466,22 +484,54 @@ export default function StoreHeader({
                     <X className="w-5 h-5" />
                   </button>
                 </form>
-                {trendingTags.length > 0 && (
-                  <div className="mt-6">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-3">Trending searches</p>
-                    <div className="flex flex-wrap gap-2">
-                      {trendingTags.map((t) => (
-                        <button
-                          key={t}
-                          type="button"
-                          onClick={() => goSearch(t)}
-                          className="px-3.5 py-1.5 rounded-full border border-gray-300 text-sm text-gray-700 hover:border-gray-900 hover:text-gray-900 transition-colors"
-                        >
-                          {t}
-                        </button>
-                      ))}
-                    </div>
+                {q.trim().length >= 2 ? (
+                  <div className="mt-5">
+                    {searching && results.length === 0 ? (
+                      <p className="text-sm text-gray-400">Searching…</p>
+                    ) : results.length > 0 ? (
+                      <>
+                        <div className="divide-y divide-gray-100">
+                          {results.map((p) => (
+                            <Link key={p.Id} href={`/product/${p.Slug}`} onClick={closeMenus} className="flex items-center gap-3 py-2.5 -mx-2 px-2 rounded hover:bg-gray-50">
+                              <div className="w-12 h-14 bg-gray-100 overflow-hidden shrink-0">
+                                {p.ImageUrl && (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img src={p.ImageUrl} alt={p.Name} className="w-full h-full object-cover" />
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium text-gray-900 line-clamp-1">{p.Name}</p>
+                                <p className="text-sm font-bold text-gray-900">{money(p.SellingPrice)}</p>
+                              </div>
+                            </Link>
+                          ))}
+                        </div>
+                        <Link href={`/shop?q=${encodeURIComponent(q.trim())}`} onClick={closeMenus} className="mt-3 inline-block text-sm font-semibold text-primary hover:underline">
+                          See all results →
+                        </Link>
+                      </>
+                    ) : (
+                      <p className="text-sm text-gray-400">No products found for &ldquo;{q.trim()}&rdquo;.</p>
+                    )}
                   </div>
+                ) : (
+                  categories.length > 0 && (
+                    <div className="mt-6">
+                      <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-3">Trending searches</p>
+                      <div className="flex flex-wrap gap-2">
+                        {categories.map((c) => (
+                          <Link
+                            key={c.Id}
+                            href={`/category/${c.Slug}`}
+                            onClick={closeMenus}
+                            className="px-3.5 py-1.5 rounded-full border border-gray-300 text-sm text-gray-700 hover:border-gray-900 hover:text-gray-900 transition-colors"
+                          >
+                            {c.Name}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )
                 )}
               </div>
             </motion.div>

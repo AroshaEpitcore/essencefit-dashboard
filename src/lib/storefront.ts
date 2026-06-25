@@ -255,7 +255,7 @@ export async function searchProducts(params: ProductQuery): Promise<StoreProduct
 
   if (params.q) {
     req.input("q", sql.NVarChar(200), `%${params.q}%`);
-    where.push("(p.Name LIKE @q OR p.Description LIKE @q)");
+    where.push("(p.Name ILIKE @q OR p.Description ILIKE @q OR cat.Name ILIKE @q)");
   }
   if (params.categorySlug) {
     req.input("catSlug", sql.NVarChar(150), params.categorySlug);
@@ -289,6 +289,29 @@ export async function searchProducts(params: ProductQuery): Promise<StoreProduct
 
   const res = await req.query(`${PRODUCT_SELECT} WHERE ${where.join(" AND ")} ORDER BY ${orderBy}`);
   return attachColors(pool, res.recordset as StoreProduct[]);
+}
+
+/* Lightweight type-ahead search for the header search drawer — matches product
+   name, SKU, or category name (case-insensitive), no colours/joins overhead. */
+export type LiteProduct = { Id: string; Name: string; Slug: string; ImageUrl: string | null; SellingPrice: number; CompareAtPrice: number | null };
+
+export async function searchProductsLite(q: string, limit = 6): Promise<LiteProduct[]> {
+  const term = (q || "").trim();
+  if (term.length < 2) return [];
+  const pool = await getDb();
+  const res = await pool
+    .request()
+    .input("q", sql.NVarChar(200), `%${term}%`)
+    .input("n", sql.Int, limit)
+    .query(`
+      SELECT p.Id, p.Name, p.Slug, p.ImageUrl, p.SellingPrice, p.CompareAtPrice
+      FROM Products p
+      LEFT JOIN Categories cat ON cat.Id = p.CategoryId
+      WHERE p.IsActive = true AND (p.Name ILIKE @q OR p.SKU ILIKE @q OR cat.Name ILIKE @q)
+      ORDER BY p.SortOrder, p.Name
+      LIMIT @n
+    `);
+  return res.recordset as LiteProduct[];
 }
 
 /* ---------- Product detail (PDP) ---------- */

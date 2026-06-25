@@ -54,7 +54,7 @@ export async function getOrderLogs(options: {
 
   if (orderId) {
     req.input("orderId", NVarChar(100), `%${orderId}%`);
-    whereClause += " AND CAST(l.OrderId AS text) LIKE @orderId";
+    whereClause += " AND CAST(l.OrderId AS text) ILIKE @orderId";
   }
 
   const result = await req.query(`
