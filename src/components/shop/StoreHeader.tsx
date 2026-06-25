@@ -7,6 +7,7 @@ import { ShoppingCart, Search, Menu, X, Heart, ChevronDown, ChevronRight } from 
 import { motion, AnimatePresence } from "framer-motion";
 import { useCart } from "./CartContext";
 import { useWishlist } from "./WishlistContext";
+import { useQuickView } from "./QuickView";
 import AccountMenu, { type NavCustomer } from "./AccountMenu";
 import { money } from "./format";
 import type { StoreCategory, StoreProduct, MegaProduct } from "@/lib/storefront";
@@ -27,6 +28,7 @@ export default function StoreHeader({
 }) {
   const { count } = useCart();
   const { count: wishCount } = useWishlist();
+  const { open: openQuickView } = useQuickView();
   const router = useRouter();
   const pathname = usePathname();
   const isHome = pathname === "/";
@@ -55,13 +57,14 @@ export default function StoreHeader({
     return m;
   }, [categoryProducts]);
 
-  const defaultCat = useMemo(
-    () => categories.find((c) => byCat[c.Id]?.length)?.Id ?? categories[0]?.Id ?? null,
-    [categories, byCat]
-  );
-  const effectiveCat = activeCat ?? defaultCat;
-  const effProducts = (effectiveCat && byCat[effectiveCat]) || [];
-  const effCatName = categories.find((c) => c.Id === effectiveCat)?.Name ?? "";
+  // "All products" view = featured products, or all category previews mixed
+  // when nothing is flagged featured (so it always shows something).
+  const allItems: MegaProduct[] = featured.length
+    ? featured.map((p) => ({ Id: p.Id, Name: p.Name, Slug: p.Slug, ImageUrl: p.ImageUrl, SellingPrice: p.SellingPrice, CompareAtPrice: p.CompareAtPrice, CategoryId: "" }))
+    : categoryProducts;
+  const effectiveCat = activeCat ?? "__all";
+  const rightItems = effectiveCat === "__all" ? allItems : byCat[effectiveCat] || [];
+  const effHeading = effectiveCat === "__all" ? "All products" : categories.find((c) => c.Id === effectiveCat)?.Name ?? "";
 
   // Preload category + featured imagery when the Shop menu opens so the
   // hover-to-swap is instant and smooth (no network flash).
@@ -102,7 +105,17 @@ export default function StoreHeader({
   const navBtn = `${linkCls} inline-flex items-center gap-1 cursor-pointer`;
 
   return (
-    <header className="fixed top-0 inset-x-0 z-50">
+    <>
+      {/* Dim the page behind the mega menu */}
+      {openMenu && (
+        <div
+          className="hidden md:block fixed inset-0 z-40 bg-black/30"
+          onMouseEnter={() => setOpenMenu(null)}
+          onClick={() => setOpenMenu(null)}
+          aria-hidden
+        />
+      )}
+      <header className="fixed top-0 inset-x-0 z-50">
       {/* Top promo banner */}
       {settings.announcement && (
         <div className="h-9 bg-gray-900 text-white flex items-center justify-center px-4">
@@ -199,19 +212,20 @@ export default function StoreHeader({
           <div className="hidden md:block absolute left-0 right-0 top-full bg-white shadow-xl border-t border-gray-100">
             <div className="max-w-[1920px] mx-auto px-6 py-8">
               {openMenu === "shop" && (
-                <div className="grid grid-cols-[1fr_1.6fr] gap-12">
+                <div className="grid grid-cols-[260px_1fr] gap-12">
                   {/* Left: category list — hovering swaps the products on the right */}
                   <div>
-                    <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-4">Shop by category</h3>
-                    <ul className="space-y-1 text-sm">
+                    <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">Shop by category</h3>
+                    <ul className="-mx-2">
                       <li>
                         <Link
                           href="/shop"
-                          onMouseEnter={() => setActiveCat(defaultCat)}
+                          onMouseEnter={() => setActiveCat("__all")}
                           onClick={closeMenus}
-                          className="block py-1.5 text-gray-700 hover:text-primary"
+                          className={`w-full flex items-center justify-between rounded-md px-2 py-2 text-[15px] transition-colors ${effectiveCat === "__all" ? "text-primary font-semibold bg-primary/5" : "text-gray-600 hover:text-gray-900"}`}
                         >
                           All products
+                          <ChevronRight className={`w-4 h-4 transition-opacity ${effectiveCat === "__all" ? "opacity-100" : "opacity-0"}`} />
                         </Link>
                       </li>
                       {categories.map((c) => {
@@ -222,7 +236,7 @@ export default function StoreHeader({
                               href={`/category/${c.Slug}`}
                               onMouseEnter={() => setActiveCat(c.Id)}
                               onClick={closeMenus}
-                              className={`group/cat flex items-center justify-between py-1.5 transition-colors ${active ? "text-primary font-semibold" : "text-gray-700 hover:text-primary"}`}
+                              className={`group/cat w-full flex items-center justify-between rounded-md px-2 py-2 text-[15px] transition-colors ${active ? "text-primary font-semibold bg-primary/5" : "text-gray-600 hover:text-gray-900"}`}
                             >
                               {c.Name}
                               <ChevronRight className={`w-4 h-4 transition-opacity ${active ? "opacity-100" : "opacity-0 group-hover/cat:opacity-50"}`} />
@@ -233,30 +247,52 @@ export default function StoreHeader({
                     </ul>
                   </div>
 
-                  {/* Right: products of the hovered category (smooth crossfade) */}
-                  <div className="min-h-[244px]">
-                    <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-4">{effCatName || "Featured"}</h3>
+                  {/* Right: products of the active category (smooth crossfade) */}
+                  <div className="min-h-[256px]">
+                    <div className="flex items-baseline justify-between mb-4">
+                      <h3 className="text-lg font-bold tracking-tight text-gray-900">{effHeading}</h3>
+                      <Link
+                        href={effectiveCat === "__all" ? "/shop" : `/category/${categories.find((c) => c.Id === effectiveCat)?.Slug ?? ""}`}
+                        onClick={closeMenus}
+                        className="text-xs font-semibold text-primary hover:underline"
+                      >
+                        View all →
+                      </Link>
+                    </div>
                     <AnimatePresence mode="wait">
                       <motion.div
-                        key={effectiveCat ?? "none"}
+                        key={effectiveCat}
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0 }}
                         transition={{ duration: 0.18, ease: "easeOut" }}
                       >
-                        {effProducts.length ? (
-                          <div className="grid grid-cols-4 gap-4">
-                            {effProducts.slice(0, 4).map((p) => (
-                              <Link key={p.Id} href={`/product/${p.Slug}`} onClick={closeMenus} className="group block">
-                                <div className="aspect-[3/4] bg-gray-100 overflow-hidden">
-                                  {p.ImageUrl && (
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img src={p.ImageUrl} alt={p.Name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                                  )}
+                        {rightItems.length ? (
+                          <div className="grid grid-cols-4 gap-5">
+                            {rightItems.slice(0, 4).map((p) => (
+                              <div key={p.Id} className="group">
+                                <div className="relative aspect-[3/4] bg-gray-100 overflow-hidden">
+                                  <Link href={`/product/${p.Slug}`} onClick={closeMenus} className="block w-full h-full">
+                                    {p.ImageUrl ? (
+                                      // eslint-disable-next-line @next/next/no-img-element
+                                      <img src={p.ImageUrl} alt={p.Name} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                                    ) : (
+                                      <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">No image</div>
+                                    )}
+                                  </Link>
+                                  <button
+                                    type="button"
+                                    onClick={() => { openQuickView(p.Id); closeMenus(); }}
+                                    className="absolute inset-x-2 bottom-2 z-10 translate-y-3 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-200 bg-gray-900 text-white text-[11px] font-semibold py-2 flex items-center justify-center gap-1.5 hover:bg-black"
+                                  >
+                                    <ShoppingCart className="w-3.5 h-3.5" /> Add to cart
+                                  </button>
                                 </div>
-                                <p className="mt-2 text-xs text-gray-800 line-clamp-1">{p.Name}</p>
-                                <p className="text-xs font-semibold text-gray-900">{money(p.SellingPrice)}</p>
-                              </Link>
+                                <Link href={`/product/${p.Slug}`} onClick={closeMenus} className="block">
+                                  <p className="mt-2 text-[13px] font-medium text-gray-900 line-clamp-1">{p.Name}</p>
+                                </Link>
+                                <p className="text-[13px] font-bold text-gray-900">{money(p.SellingPrice)}</p>
+                              </div>
                             ))}
                           </div>
                         ) : (
@@ -325,6 +361,7 @@ export default function StoreHeader({
           </nav>
         </div>
       )}
-    </header>
+      </header>
+    </>
   );
 }
