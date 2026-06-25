@@ -1,0 +1,32 @@
+name: Supabase keep-alive
+
+# Supabase free-tier projects pause after 7 consecutive days with no database
+# activity. This workflow runs a harmless, read-only `SELECT 1` on a schedule so
+# the inactivity timer never reaches 7 days. It never writes, so it cannot affect
+# the site or admin data.
+
+on:
+  schedule:
+    # 06:00 UTC every Mon / Wed / Fri — max gap ~3 days, well under the 7-day limit
+    # (leaves margin even if GitHub skips a scheduled run under load).
+    - cron: "0 6 * * 1,3,5"
+  # Allow running it by hand from the Actions tab to test / wake the DB on demand.
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run read-only keep-alive query
+        env:
+          # Add this in: repo Settings → Secrets and variables → Actions → New secret.
+          # Use the value of DATABASE_URL from your .env.local (the Supabase pooler URL).
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "::error::SUPABASE_DB_URL secret is not set."
+            exit 1
+          fi
+          # psql ships preinstalled on ubuntu-latest runners.
+          psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -c "select 1 as keepalive, now() as checked_at;"
+          echo "Keep-alive query succeeded."
