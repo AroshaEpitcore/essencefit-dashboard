@@ -78,7 +78,7 @@ export default function StoreHeader({
     }
   }, [openMenu, categoryProducts, featured]);
 
-  const solid = scrolled || menuOpen || openMenu !== null;
+  const solid = scrolled || menuOpen;
   const onDark = !solid;
 
   const closeMenus = () => {
@@ -108,14 +108,20 @@ export default function StoreHeader({
   return (
     <>
       {/* Dim the page behind the mega menu */}
-      {openMenu && (
-        <div
-          className="hidden md:block fixed inset-0 z-40 bg-black/30"
-          onMouseEnter={() => setOpenMenu(null)}
-          onClick={() => setOpenMenu(null)}
-          aria-hidden
-        />
-      )}
+      <AnimatePresence>
+        {openMenu && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="hidden md:block fixed inset-0 z-40 bg-black/30"
+            onMouseEnter={() => setOpenMenu(null)}
+            onClick={() => setOpenMenu(null)}
+            aria-hidden
+          />
+        )}
+      </AnimatePresence>
       <header className="fixed top-0 inset-x-0 z-50">
       {/* Top promo banner */}
       {settings.announcement && (
@@ -209,8 +215,16 @@ export default function StoreHeader({
         </div>
 
         {/* Mega menu panel (desktop) */}
+        <AnimatePresence>
         {openMenu && (
-          <div className="hidden md:block absolute left-0 right-0 top-full bg-white shadow-xl border-t border-gray-100 overflow-hidden">
+          <motion.div
+            key="mega-panel"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="hidden md:block absolute left-0 right-0 top-full bg-white shadow-xl border-t border-gray-100 overflow-hidden"
+          >
             {openMenu === "shop" && (
               <div className="max-w-[1920px] mx-auto grid grid-cols-[260px_1fr]">
                 {/* Col 1: category rail (gray) */}
@@ -354,8 +368,9 @@ export default function StoreHeader({
                 </div>
               </div>
             )}
-          </div>
+          </motion.div>
         )}
+        </AnimatePresence>
       </div>
 
       {/* Mobile drawer */}
