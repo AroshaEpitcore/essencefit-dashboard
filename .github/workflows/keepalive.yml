@@ -22,11 +22,17 @@ jobs:
           # Add this in: repo Settings → Secrets and variables → Actions → New secret.
           # Use the value of DATABASE_URL from your .env.local (the Supabase pooler URL).
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          # Supabase's pooler requires TLS. `require` encrypts without verifying the
+          # cert against a CA (no CA bundle needed on the runner).
+          PGSSLMODE: require
         run: |
           if [ -z "$SUPABASE_DB_URL" ]; then
             echo "::error::SUPABASE_DB_URL secret is not set."
             exit 1
           fi
+          # Strip the ?query string (e.g. ?pgbouncer=true). That param is for the
+          # app's node `pg` driver; libpq/psql rejects unknown URI parameters.
+          DB_URL="${SUPABASE_DB_URL%%\?*}"
           # psql ships preinstalled on ubuntu-latest runners.
-          psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -c "select 1 as keepalive, now() as checked_at;"
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -c "select 1 as keepalive, now() as checked_at;"
           echo "Keep-alive query succeeded."
