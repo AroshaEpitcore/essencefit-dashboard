@@ -210,9 +210,9 @@ export default function StoreHeader({
 
         {/* Mega menu panel (desktop) */}
         {openMenu && (
-          <div className="hidden md:block absolute left-1/2 -translate-x-1/2 top-full w-3/4 bg-white shadow-xl border border-t-0 border-gray-100 rounded-b-xl overflow-hidden">
+          <div className="hidden md:block absolute left-0 right-0 top-full bg-white shadow-xl border-t border-gray-100 overflow-hidden">
             {openMenu === "shop" && (
-              <div className="grid grid-cols-[240px_1fr]">
+              <div className="max-w-[1920px] mx-auto grid grid-cols-[260px_1fr]">
                 {/* Col 1: category rail (gray) */}
                 <div className="bg-gray-50 px-6 py-7 flex flex-col">
                   <ul className="-mx-2">
