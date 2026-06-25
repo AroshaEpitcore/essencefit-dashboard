@@ -210,7 +210,7 @@ export async function runPnLReport(from?: string, to?: string) {
         SELECT
           CAST(S.SaleDate AS DATE) AS D,
           SUM(S.Qty * S.SellingPrice) AS GrossSales,
-          SUM(S.Qty * P.CostPrice) AS COGS
+          SUM(S.Qty * (P.CostPrice + COALESCE(P.Utilities, 0))) AS COGS
         FROM Sales S
         JOIN ProductVariants V ON S.VariantId = V.Id
         JOIN Products P ON V.ProductId = P.Id

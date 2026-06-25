@@ -58,6 +58,7 @@ export default function StocksPage() {
 
   const [pName, setPName] = useState("");
   const [pCost, setPCost] = useState("");
+  const [pUtil, setPUtil] = useState("");
   const [pSell, setPSell] = useState("");
   const [pOneOff, setPOneOff] = useState(false);
   const [pOneOffQty, setPOneOffQty] = useState("1");
@@ -340,11 +341,13 @@ export default function StocksPage() {
         Number(pCost),
         Number(pSell),
         pOneOff,
-        pOneOff ? Number(pOneOffQty) || 0 : 0
+        pOneOff ? Number(pOneOffQty) || 0 : 0,
+        Number(pUtil) || 0
       );
       toast.success(pOneOff ? "One-off product added with stock" : "Product added");
       setPName("");
       setPCost("");
+      setPUtil("");
       setPSell("");
       setPOneOff(false);
       setPOneOffQty("1");
@@ -379,7 +382,8 @@ export default function StocksPage() {
           editItem.id,
           editItem.name,
           Number(editItem.cost),
-          Number(editItem.sell)
+          Number(editItem.sell),
+          Number(editItem.util) || 0
         );
       }
       toast.success("Updated");
@@ -647,7 +651,7 @@ export default function StocksPage() {
 
           {selectedCat && (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-4">
                 <input
                   placeholder="Name"
                   value={pName}
@@ -658,6 +662,13 @@ export default function StocksPage() {
                   placeholder="Cost"
                   value={pCost}
                   onChange={(e) => setPCost(e.target.value)}
+                  className="bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                />
+                <input
+                  placeholder="Utilities"
+                  value={pUtil}
+                  onChange={(e) => setPUtil(e.target.value)}
+                  title="Per-item overhead (e.g. printing, packaging). Added to cost when calculating profit."
                   className="bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
                 />
                 <input
@@ -739,6 +750,7 @@ export default function StocksPage() {
                                   name: p.Name,
                                   cost: p.CostPrice,
                                   sell: p.SellingPrice,
+                                  util: p.Utilities ?? 0,
                                 })
                               }
                               className="text-blue-500 hover:text-blue-400 transition-colors flex items-center gap-1"
@@ -1339,6 +1351,20 @@ export default function StocksPage() {
                         setEditItem({ ...editItem, cost: e.target.value })
                       }
                       placeholder="Cost"
+                      className="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Utilities (per-item overhead)
+                    </label>
+                    <input
+                      type="number"
+                      value={editItem.util}
+                      onChange={(e) =>
+                        setEditItem({ ...editItem, util: e.target.value })
+                      }
+                      placeholder="Utilities"
                       className="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
                     />
                   </div>

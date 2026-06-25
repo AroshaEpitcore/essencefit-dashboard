@@ -82,7 +82,8 @@ CREATE TABLE IF NOT EXISTS products (
   dtfprofit numeric(10,2),
   printondemand boolean NOT NULL DEFAULT false,
   sizecharturl text,
-  selectbyimage boolean NOT NULL DEFAULT false
+  selectbyimage boolean NOT NULL DEFAULT false,
+  utilities numeric(18,2) NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS productvariants (

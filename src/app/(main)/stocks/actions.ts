@@ -65,7 +65,7 @@ export async function getProductsByCategory(categoryId: string) {
   const res = await pool
     .request()
     .input("CategoryId", categoryId)
-    .query(`SELECT Id, Name, SKU, CostPrice, SellingPrice,
+    .query(`SELECT Id, Name, SKU, CostPrice, SellingPrice, Utilities,
               (SELECT COUNT(*) FROM ProductVariants v WHERE v.ProductId = Products.Id) AS Variants
             FROM Products WHERE CategoryId=@CategoryId ORDER BY Name`);
   return res.recordset;
@@ -124,7 +124,8 @@ export async function addProduct(
   cost: number,
   sell: number,
   oneOff: boolean = false,
-  qty: number = 0
+  qty: number = 0,
+  utilities: number = 0
 ) {
   const pool = await getDb();
   const sku = `${name.replace(/\s+/g, "-").toUpperCase()}-${Date.now()}`;
@@ -135,7 +136,8 @@ export async function addProduct(
     .input("SKU", sku)
     .input("Cost", cost)
     .input("Sell", sell)
-    .query("INSERT INTO Products (CategoryId, Name, SKU, CostPrice, SellingPrice) VALUES (@CategoryId,@Name,@SKU,@Cost,@Sell) RETURNING Id");
+    .input("Util", utilities)
+    .query("INSERT INTO Products (CategoryId, Name, SKU, CostPrice, SellingPrice, Utilities) VALUES (@CategoryId,@Name,@SKU,@Cost,@Sell,@Util) RETURNING Id");
 
   // One-off / single item: create a single attribute-less variant (no size/colour)
   // with the starting quantity so it's immediately sellable, and log the stock-in.
@@ -161,7 +163,7 @@ export async function addProduct(
     }
   }
 }
-export async function updateProduct(id: string, name: string, cost: number, sell: number) {
+export async function updateProduct(id: string, name: string, cost: number, sell: number, utilities: number = 0) {
   const pool = await getDb();
   await pool
     .request()
@@ -169,7 +171,8 @@ export async function updateProduct(id: string, name: string, cost: number, sell
     .input("Name", name)
     .input("Cost", cost)
     .input("Sell", sell)
-    .query("UPDATE Products SET Name=@Name, CostPrice=@Cost, SellingPrice=@Sell WHERE Id=@Id");
+    .input("Util", utilities)
+    .query("UPDATE Products SET Name=@Name, CostPrice=@Cost, SellingPrice=@Sell, Utilities=@Util WHERE Id=@Id");
 
   // Also update all ProductVariants for this product so orders pick up the new prices
   await pool
