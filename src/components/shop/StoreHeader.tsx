@@ -210,9 +210,9 @@ export default function StoreHeader({
 
         {/* Mega menu panel (desktop) */}
         {openMenu && (
-          <div className="hidden md:block absolute left-0 right-0 top-full bg-white shadow-xl border-t border-gray-100 overflow-hidden">
+          <div className="hidden md:block absolute left-1/2 -translate-x-1/2 top-full w-3/4 bg-white shadow-xl border border-t-0 border-gray-100 rounded-b-xl overflow-hidden">
             {openMenu === "shop" && (
-              <div className="max-w-[1920px] mx-auto grid grid-cols-[260px_1fr]">
+              <div className="grid grid-cols-[240px_1fr]">
                 {/* Col 1: category rail (gray) */}
                 <div className="bg-gray-50 px-6 py-7 flex flex-col">
                   <ul className="-mx-2">
@@ -267,10 +267,10 @@ export default function StoreHeader({
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.18, ease: "easeOut" }}
-                      className="grid grid-cols-[200px_1fr] gap-10"
+                      className="flex gap-10"
                     >
                       {/* Heading + product links */}
-                      <div>
+                      <div className="w-[190px] shrink-0">
                         <h3 className="text-2xl font-extrabold uppercase tracking-tight text-gray-900">{effHeading}</h3>
                         <p className="mt-6 mb-3 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400">Products</p>
                         {rightItems.length ? (
@@ -294,9 +294,9 @@ export default function StoreHeader({
                       </div>
 
                       {/* Big imagery */}
-                      <div className="grid grid-cols-2 gap-6">
+                      <div className="flex gap-6">
                         {rightItems.slice(0, 2).map((p) => (
-                          <div key={p.Id} className="group">
+                          <div key={p.Id} className="group w-[210px] shrink-0">
                             <div className="relative aspect-[4/5] bg-gray-100 overflow-hidden">
                               <Link href={`/product/${p.Slug}`} onClick={closeMenus} className="block w-full h-full">
                                 {p.ImageUrl ? (
@@ -360,26 +360,42 @@ export default function StoreHeader({
 
       {/* Mobile drawer */}
       {menuOpen && (
-        <div className="md:hidden bg-white border-t border-gray-200 px-4 py-3">
-          <form onSubmit={submitSearch} className="relative mb-3">
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search products..."
-              className="w-full bg-gray-100 rounded-full pl-4 pr-10 py-2 text-sm text-gray-800 focus:outline-none"
-            />
-            <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"><Search className="w-4 h-4" /></button>
-          </form>
-          <nav className="space-y-1">
-            <Link href="/shop" onClick={closeMenus} className="block py-2 text-gray-700">All products</Link>
-            {categories.map((c) => (
-              <Link key={c.Id} href={`/category/${c.Slug}`} onClick={closeMenus} className="block py-2 text-gray-700">{c.Name}</Link>
-            ))}
-            <Link href="/deals" onClick={closeMenus} className="block py-2 text-primary font-semibold">Deals</Link>
-            <Link href="/customize" onClick={closeMenus} className="block py-2 text-gray-700">Customize &amp; DTF Print</Link>
-            <Link href="/wishlist" onClick={closeMenus} className="block py-2 text-gray-700">Wishlist</Link>
-            <Link href="/account" onClick={closeMenus} className="block py-2 text-gray-700">My account</Link>
-          </nav>
+        <div className="md:hidden bg-white border-t border-gray-200 max-h-[calc(100vh-4rem)] overflow-y-auto">
+          <div className="px-4 py-4">
+            <form onSubmit={submitSearch} className="relative mb-5">
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Search products..."
+                className="w-full bg-gray-100 rounded-full pl-4 pr-10 py-2.5 text-sm text-gray-800 focus:outline-none"
+              />
+              <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"><Search className="w-4 h-4" /></button>
+            </form>
+
+            <p className="px-1 mb-1 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400">Shop by category</p>
+            <nav className="mb-5">
+              <Link href="/shop" onClick={closeMenus} className="flex items-center justify-between py-3 text-[15px] font-semibold text-gray-900 border-b border-gray-100">
+                Featured <ChevronRight className="w-4 h-4 text-gray-400" />
+              </Link>
+              {categories.map((c) => (
+                <Link key={c.Id} href={`/category/${c.Slug}`} onClick={closeMenus} className="flex items-center justify-between py-3 text-[15px] text-gray-600 border-b border-gray-100">
+                  {c.Name} <ChevronRight className="w-4 h-4 text-gray-400" />
+                </Link>
+              ))}
+              <Link href="/customize" onClick={closeMenus} className="flex items-center justify-between py-3 text-[15px] text-gray-600 border-b border-gray-100">
+                Customize &amp; DTF Print <ChevronRight className="w-4 h-4 text-gray-400" />
+              </Link>
+              <Link href="/deals" onClick={closeMenus} className="flex items-center justify-between py-3 text-[15px] font-bold text-primary">
+                Deals <ChevronRight className="w-4 h-4" />
+              </Link>
+            </nav>
+
+            <p className="px-1 mb-1 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400">Account</p>
+            <nav>
+              <Link href="/account" onClick={closeMenus} className="block py-2.5 text-[15px] text-gray-600">My account</Link>
+              <Link href="/wishlist" onClick={closeMenus} className="block py-2.5 text-[15px] text-gray-600">Wishlist</Link>
+            </nav>
+          </div>
         </div>
       )}
       </header>
