@@ -28,7 +28,7 @@ export default function WishlistPage() {
       <h1 className="text-2xl font-bold text-gray-900 mb-1">My wishlist</h1>
       <p className="text-sm text-gray-500 mb-6">{items.length} item{items.length !== 1 ? "s" : ""}</p>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8">
         {items.map((it) => {
           const pct = discountPct(it.price, it.compareAt);
           return (
