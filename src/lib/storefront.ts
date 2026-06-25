@@ -109,6 +109,35 @@ export async function getFeaturedProducts(limit = 8): Promise<StoreProduct[]> {
   return attachColors(pool, res.recordset as StoreProduct[]);
 }
 
+/* Top few products per category — drives the Shop mega-menu preview that
+   swaps as the customer hovers each category. One windowed query; no colours
+   needed (just image/name/price), so it stays light. */
+export type MegaProduct = {
+  Id: string;
+  Name: string;
+  Slug: string;
+  ImageUrl: string | null;
+  SellingPrice: number;
+  CompareAtPrice: number | null;
+  CategoryId: string;
+};
+
+export async function getCategoryPreviews(perCat = 4): Promise<MegaProduct[]> {
+  const pool = await getDb();
+  const res = await pool
+    .request()
+    .input("n", sql.Int, perCat)
+    .query(`
+      SELECT Id, Name, Slug, ImageUrl, SellingPrice, CompareAtPrice, CategoryId FROM (
+        SELECT p.Id, p.Name, p.Slug, p.ImageUrl, p.SellingPrice, p.CompareAtPrice, p.CategoryId,
+               ROW_NUMBER() OVER (PARTITION BY p.CategoryId ORDER BY p.IsFeatured DESC, p.SortOrder, p.CreatedAt DESC) AS rn
+        FROM Products p
+        WHERE p.IsActive = true
+      ) t WHERE rn <= @n
+    `);
+  return res.recordset as MegaProduct[];
+}
+
 export async function getDeals(limit = 8): Promise<StoreProduct[]> {
   const pool = await getDb();
   const res = await pool

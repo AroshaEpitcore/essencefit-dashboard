@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
-import { ShoppingCart, Search, Menu, X, Heart, ChevronDown } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ShoppingCart, Search, Menu, X, Heart, ChevronDown, ChevronRight } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useCart } from "./CartContext";
 import { useWishlist } from "./WishlistContext";
 import AccountMenu, { type NavCustomer } from "./AccountMenu";
 import { money } from "./format";
-import type { StoreCategory, StoreProduct } from "@/lib/storefront";
+import type { StoreCategory, StoreProduct, MegaProduct } from "@/lib/storefront";
 import type { StoreSettings } from "@/lib/storeSettings";
 
 export default function StoreHeader({
@@ -16,11 +17,13 @@ export default function StoreHeader({
   categories,
   customer,
   featured,
+  categoryProducts,
 }: {
   settings: StoreSettings;
   categories: StoreCategory[];
   customer: NavCustomer;
   featured: StoreProduct[];
+  categoryProducts: MegaProduct[];
 }) {
   const { count } = useCart();
   const { count: wishCount } = useWishlist();
@@ -31,6 +34,7 @@ export default function StoreHeader({
   const [q, setQ] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<null | "shop" | "customize">(null);
+  const [activeCat, setActiveCat] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -43,6 +47,33 @@ export default function StoreHeader({
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, [isHome]);
+
+  // Group the category-preview products by category for the Shop mega menu.
+  const byCat = useMemo(() => {
+    const m: Record<string, MegaProduct[]> = {};
+    for (const p of categoryProducts) (m[p.CategoryId] ||= []).push(p);
+    return m;
+  }, [categoryProducts]);
+
+  const defaultCat = useMemo(
+    () => categories.find((c) => byCat[c.Id]?.length)?.Id ?? categories[0]?.Id ?? null,
+    [categories, byCat]
+  );
+  const effectiveCat = activeCat ?? defaultCat;
+  const effProducts = (effectiveCat && byCat[effectiveCat]) || [];
+  const effCatName = categories.find((c) => c.Id === effectiveCat)?.Name ?? "";
+
+  // Preload category + featured imagery when the Shop menu opens so the
+  // hover-to-swap is instant and smooth (no network flash).
+  useEffect(() => {
+    if (openMenu !== "shop" || typeof window === "undefined") return;
+    for (const u of [...categoryProducts.map((p) => p.ImageUrl), ...featured.map((p) => p.ImageUrl)]) {
+      if (u) {
+        const img = new window.Image();
+        img.src = u;
+      }
+    }
+  }, [openMenu, categoryProducts, featured]);
 
   const solid = scrolled || menuOpen || openMenu !== null;
   const onDark = !solid;
@@ -84,7 +115,7 @@ export default function StoreHeader({
         className={`relative transition-colors duration-300 ${solid ? "bg-white shadow-sm" : "bg-transparent"}`}
         onMouseLeave={() => setOpenMenu(null)}
       >
-        <div className="max-w-[1920px] mx-auto px-4 sm:px-6 relative flex items-center h-16 md:h-24">
+        <div className="max-w-[1920px] mx-auto px-4 sm:px-8 relative flex items-center h-16 md:h-24">
           {/* Left: mobile menu toggle + desktop mega-nav */}
           <div className="flex items-center gap-4 md:gap-6">
             <button className={`md:hidden ${iconCls}`} onClick={() => setMenuOpen((v) => !v)} aria-label="Menu">
@@ -168,32 +199,71 @@ export default function StoreHeader({
           <div className="hidden md:block absolute left-0 right-0 top-full bg-white shadow-xl border-t border-gray-100">
             <div className="max-w-[1920px] mx-auto px-6 py-8">
               {openMenu === "shop" && (
-                <div className="grid grid-cols-[1fr_1.5fr] gap-12">
+                <div className="grid grid-cols-[1fr_1.6fr] gap-12">
+                  {/* Left: category list — hovering swaps the products on the right */}
                   <div>
                     <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-4">Shop by category</h3>
-                    <ul className="grid grid-cols-2 gap-x-8 gap-y-2.5 text-sm">
-                      <li><Link href="/shop" onClick={closeMenus} className="text-gray-700 hover:text-primary">All products</Link></li>
-                      {categories.map((c) => (
-                        <li key={c.Id}><Link href={`/category/${c.Slug}`} onClick={closeMenus} className="text-gray-700 hover:text-primary">{c.Name}</Link></li>
-                      ))}
+                    <ul className="space-y-1 text-sm">
+                      <li>
+                        <Link
+                          href="/shop"
+                          onMouseEnter={() => setActiveCat(defaultCat)}
+                          onClick={closeMenus}
+                          className="block py-1.5 text-gray-700 hover:text-primary"
+                        >
+                          All products
+                        </Link>
+                      </li>
+                      {categories.map((c) => {
+                        const active = effectiveCat === c.Id;
+                        return (
+                          <li key={c.Id}>
+                            <Link
+                              href={`/category/${c.Slug}`}
+                              onMouseEnter={() => setActiveCat(c.Id)}
+                              onClick={closeMenus}
+                              className={`group/cat flex items-center justify-between py-1.5 transition-colors ${active ? "text-primary font-semibold" : "text-gray-700 hover:text-primary"}`}
+                            >
+                              {c.Name}
+                              <ChevronRight className={`w-4 h-4 transition-opacity ${active ? "opacity-100" : "opacity-0 group-hover/cat:opacity-50"}`} />
+                            </Link>
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
-                  <div>
-                    <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-4">Featured</h3>
-                    <div className="grid grid-cols-3 gap-4">
-                      {promoItems.slice(0, 3).map((it, i) => (
-                        <Link key={i} href={it.href} onClick={closeMenus} className="group block">
-                          <div className="aspect-[3/4] bg-gray-100 overflow-hidden">
-                            {it.img && (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={it.img} alt={it.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                            )}
+
+                  {/* Right: products of the hovered category (smooth crossfade) */}
+                  <div className="min-h-[244px]">
+                    <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-4">{effCatName || "Featured"}</h3>
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={effectiveCat ?? "none"}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.18, ease: "easeOut" }}
+                      >
+                        {effProducts.length ? (
+                          <div className="grid grid-cols-4 gap-4">
+                            {effProducts.slice(0, 4).map((p) => (
+                              <Link key={p.Id} href={`/product/${p.Slug}`} onClick={closeMenus} className="group block">
+                                <div className="aspect-[3/4] bg-gray-100 overflow-hidden">
+                                  {p.ImageUrl && (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={p.ImageUrl} alt={p.Name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                                  )}
+                                </div>
+                                <p className="mt-2 text-xs text-gray-800 line-clamp-1">{p.Name}</p>
+                                <p className="text-xs font-semibold text-gray-900">{money(p.SellingPrice)}</p>
+                              </Link>
+                            ))}
                           </div>
-                          <p className="mt-2 text-xs text-gray-800 line-clamp-1">{it.name}</p>
-                          {it.price && <p className="text-xs font-semibold text-gray-900">{it.price}</p>}
-                        </Link>
-                      ))}
-                    </div>
+                        ) : (
+                          <div className="flex items-center h-[200px] text-sm text-gray-400">No products in this category yet.</div>
+                        )}
+                      </motion.div>
+                    </AnimatePresence>
                   </div>
                 </div>
               )}
