@@ -6,7 +6,7 @@ import { Upload, X, FileText, MessageCircle, Check, Loader2, Lightbulb } from "l
 import type { StoreProduct, StoreVariant } from "@/lib/storefront";
 import type { DtfPricingConfig } from "@/lib/dtfPricing";
 import type { DtfPageSettings } from "@/lib/dtfSettings";
-import { money, sizeRank } from "@/components/shop/format";
+import { sizeRank } from "@/components/shop/format";
 import { resolveSwatch, cutLineColor } from "@/lib/colorHex";
 import { createDtfOrder, getGarmentVariants, type DtfDesignInput } from "./actions";
 
@@ -51,8 +51,6 @@ export default function CustomizeForm({
   const [variants, setVariants] = useState<StoreVariant[]>([]);
   const [colorId, setColorId] = useState<string | null>(null);
   const [sizeId, setSizeId] = useState<string | null>(null);
-  const [dtfProfit, setDtfProfit] = useState<number | null>(null);
-  const [productCost, setProductCost] = useState(0);
   const [qty, setQty] = useState(1);
   const [prints, setPrints] = useState<string[]>([]);
   const [designs, setDesigns] = useState<DtfDesignInput[]>([]);
@@ -91,17 +89,6 @@ export default function CustomizeForm({
     variants.find((v) => (!hasColors || v.ColorId === colorId) && (!hasSizes || v.SizeId === sizeId)) || null;
   const variantId = variant?.VariantId || "";
 
-  // DTF garment base = the blank's COST + a DTF profit (per-product, else global).
-  const garmentCost = Number(variant?.CostPrice ?? productCost ?? 0);
-  const effProfit = dtfProfit != null ? dtfProfit : pricing.profit;
-  const garmentDisplay = garmentCost + effProfit; // "garment" line shown to the customer (hides raw cost)
-
-  const printSum = pricing.prints
-    .filter((p) => prints.includes(p.Name))
-    .reduce((s, p) => s + Number(p.Amount), 0);
-  const perPiece = garmentCost + printSum + pricing.overheadTotal + effProfit;
-  const estimate = product ? perPiece * Math.max(1, qty) + pricing.orderExtra : 0;
-
   const waNumber = (settings.whatsapp || "").replace(/[^\d]/g, "");
 
   async function onPickProduct(id: string) {
@@ -113,8 +100,6 @@ export default function CustomizeForm({
     try {
       const g = await getGarmentVariants(id);
       setVariants(g.variants);
-      setDtfProfit(g.dtfProfit);
-      setProductCost(g.productCost);
     } catch {
       setVariants([]);
     }
@@ -254,7 +239,6 @@ export default function CustomizeForm({
                     )}
                   </div>
                   <p className="text-sm font-medium text-gray-900 line-clamp-1">{p.Name}</p>
-                  <p className="text-sm text-gray-600">{money(p.SellingPrice)}</p>
                 </button>
               );
             })}
@@ -353,7 +337,6 @@ export default function CustomizeForm({
                     }`}
                   >
                     <span className="font-medium block">{p.Name}</span>
-                    <span className="text-xs opacity-70">+{money(p.Amount)}</span>
                   </button>
                 );
               })}
@@ -449,46 +432,22 @@ export default function CustomizeForm({
       {/* Right: summary + estimate */}
       <aside className="space-y-4">
         <div className="border border-gray-200  p-5 lg:sticky lg:top-28">
-          <h3 className="font-semibold text-gray-900 mb-3">Estimate</h3>
+          <h3 className="font-semibold text-gray-900 mb-3">Your request</h3>
           {product ? (
-            <>
-              <div className="flex justify-between text-sm py-1">
-                <span className="text-gray-600">Garment</span>
-                <span>{money(garmentDisplay)}</span>
-              </div>
-              {pricing.prints.filter((p) => prints.includes(p.Name)).map((p) => (
-                <div key={p.Id} className="flex justify-between text-sm py-1">
-                  <span className="text-gray-600">Print — {p.Name}</span>
-                  <span>+{money(p.Amount)}</span>
-                </div>
-              ))}
-              {pricing.overheadTotal > 0 && (
-                <div className="flex justify-between text-sm py-1">
-                  <span className="text-gray-600">Handling</span>
-                  <span>+{money(pricing.overheadTotal)}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-sm py-1 border-t border-gray-100 mt-1 pt-2">
-                <span className="text-gray-600">Per piece × {Math.max(1, qty)}</span>
-                <span>{money(perPiece * Math.max(1, qty))}</span>
-              </div>
-              {pricing.orderExtra > 0 && (
-                <div className="flex justify-between text-sm py-1">
-                  <span className="text-gray-600">Order extra</span>
-                  <span>+{money(pricing.orderExtra)}</span>
-                </div>
-              )}
-              <div className="flex justify-between font-bold text-lg text-primary border-t border-gray-200 mt-2 pt-2">
-                <span>Estimated total</span>
-                <span>{money(estimate)}</span>
-              </div>
-              <p className="text-xs text-gray-500 mt-2">
-                This is an estimate — the final price may change after we review your artwork.
-              </p>
-            </>
+            <div className="text-sm space-y-1.5">
+              <div className="flex justify-between gap-3"><span className="text-gray-500">Garment</span><span className="text-gray-900 font-medium text-right">{product.Name}</span></div>
+              {colorId && <div className="flex justify-between gap-3"><span className="text-gray-500">Colour</span><span className="text-gray-900 text-right">{allColors.find((c) => c.id === colorId)?.name}</span></div>}
+              {sizeId && <div className="flex justify-between gap-3"><span className="text-gray-500">Size</span><span className="text-gray-900 text-right">{allSizes.find((s) => s.id === sizeId)?.name}</span></div>}
+              <div className="flex justify-between gap-3"><span className="text-gray-500">Quantity</span><span className="text-gray-900 text-right">{Math.max(1, qty)}</span></div>
+              {prints.length > 0 && <div className="flex justify-between gap-3"><span className="text-gray-500">Print</span><span className="text-gray-900 text-right">{prints.join(", ")}</span></div>}
+              <div className="flex justify-between gap-3"><span className="text-gray-500">Designs</span><span className="text-gray-900 text-right">{designs.length} file{designs.length === 1 ? "" : "s"}</span></div>
+            </div>
           ) : (
-            <p className="text-sm text-gray-500">Choose a garment to see your estimate.</p>
+            <p className="text-sm text-gray-500">Choose a garment and upload your design to submit a request.</p>
           )}
+          <p className="text-xs text-gray-500 mt-3">
+            Submit your design and requirements — we&apos;ll review your artwork and get back to you with a quote.
+          </p>
 
           {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
 
