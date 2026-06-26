@@ -41,18 +41,22 @@ function CutLine({ hex }: { hex: string | null }) {
   );
 }
 
+export type AddToCartActions = { add: (buyNow?: boolean) => void; canAdd: boolean };
+
 export default function AddToCart({
   product,
   variants,
   colorId,
   setColorId,
   currentImage,
+  actionsRef,
 }: {
   product: ProductLite;
   variants: StoreVariant[];
   colorId: string | null;
   setColorId: (id: string | null) => void;
   currentImage?: string | null;
+  actionsRef?: React.MutableRefObject<AddToCartActions | null>;
 }) {
   const { addItem } = useCart();
   const router = useRouter();
@@ -135,6 +139,10 @@ export default function AddToCart({
     if (buyNow) router.push("/cart");
     else toast.success("Added to cart");
   }
+
+  // Expose the live add() + canAdd so the sticky summary bar can reuse the real
+  // cart logic instead of duplicating selection state.
+  if (actionsRef) actionsRef.current = { add, canAdd };
 
   return (
     <div>

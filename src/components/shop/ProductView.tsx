@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import ProductGallery from "./ProductGallery";
-import AddToCart from "./AddToCart";
+import AddToCart, { type AddToCartActions } from "./AddToCart";
+import StickyProductBar from "./StickyProductBar";
 import type { StoreVariant, ProductImagesByColor } from "@/lib/storefront";
 
 type ProductLite = {
@@ -52,38 +53,71 @@ export default function ProductView({
     return product.ImageUrl ? [product.ImageUrl] : [];
   }, [colorId, images, product.ImageUrl, hasColors]);
 
+  const actionsRef = useRef<AddToCartActions | null>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const currentImage = activeImages[0] ?? product.ImageUrl;
+
+  // The sticky bar's button reuses the real add(): add when a variant is chosen,
+  // otherwise smoothly bring the shopper back up to the options to pick.
+  function handleStickyAdd() {
+    const a = actionsRef.current;
+    if (a?.canAdd) a.add(false);
+    else containerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  const stickyBar = (
+    <StickyProductBar
+      name={product.Name}
+      image={currentImage}
+      price={product.SellingPrice}
+      compareAtPrice={product.CompareAtPrice}
+      sentinelRef={sentinelRef}
+      onAddToCart={handleStickyAdd}
+    />
+  );
+  const sentinel = <div ref={sentinelRef} aria-hidden className="h-0" />;
+
   if (stacked) {
     return (
-      <div className="flex flex-col gap-6">
-        <ProductGallery images={activeImages} name={product.Name} />
-        <div>
-          {header}
-          <AddToCart product={product} variants={variants} colorId={colorId} setColorId={setColorId} currentImage={activeImages[0] ?? product.ImageUrl} />
-          {footer}
+      <>
+        <div ref={containerRef} style={{ scrollMarginTop: "var(--header-h, 132px)" }} className="flex flex-col gap-6">
+          <ProductGallery images={activeImages} name={product.Name} />
+          <div>
+            {header}
+            <AddToCart product={product} variants={variants} colorId={colorId} setColorId={setColorId} currentImage={currentImage} actionsRef={actionsRef} />
+            {footer}
+          </div>
         </div>
-      </div>
+        {sentinel}
+        {stickyBar}
+      </>
     );
   }
 
   return (
-    <div className="grid md:grid-cols-2 gap-8 lg:gap-12 items-start">
-      {/* Gallery — left column, row 1 */}
-      <div className="md:col-start-1 md:row-start-1">
-        <ProductGallery images={activeImages} name={product.Name} />
-      </div>
+    <>
+      <div ref={containerRef} style={{ scrollMarginTop: "var(--header-h, 132px)" }} className="grid md:grid-cols-2 gap-8 lg:gap-12 items-start">
+        {/* Gallery — left column, row 1 */}
+        <div className="md:col-start-1 md:row-start-1">
+          <ProductGallery images={activeImages} name={product.Name} />
+        </div>
 
-      {/* Product info — right column, row 1, sticky while the page scrolls
-          (top clears the fixed header). On mobile it flows right after the gallery. */}
-      <div
-        className="md:col-start-2 md:row-start-1 md:sticky self-start"
-        style={{ top: "calc(var(--header-h, 132px) + 1.5rem)" }}
-      >
-        {header}
-        <AddToCart product={product} variants={variants} colorId={colorId} setColorId={setColorId} currentImage={activeImages[0] ?? product.ImageUrl} />
-      </div>
+        {/* Product info — right column, row 1, sticky while the page scrolls
+            (top clears the fixed header). On mobile it flows right after the gallery. */}
+        <div
+          className="md:col-start-2 md:row-start-1 md:sticky self-start"
+          style={{ top: "calc(var(--header-h, 132px) + 1.5rem)" }}
+        >
+          {header}
+          <AddToCart product={product} variants={variants} colorId={colorId} setColorId={setColorId} currentImage={currentImage} actionsRef={actionsRef} />
+        </div>
 
-      {/* Description — left column under the gallery on desktop; last on mobile */}
-      {footer && <div className="md:col-start-1 md:row-start-2">{footer}</div>}
-    </div>
+        {/* Description — left column under the gallery on desktop; last on mobile */}
+        {footer && <div className="md:col-start-1 md:row-start-2">{footer}</div>}
+      </div>
+      {sentinel}
+      {stickyBar}
+    </>
   );
 }
