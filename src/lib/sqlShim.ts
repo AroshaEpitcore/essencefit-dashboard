@@ -8,8 +8,17 @@
  * with only their SQL *bodies* translated (done in later phases), not their
  * call-site plumbing. Backed by `pg`.
  */
-import { Pool, type PoolClient, type QueryResultRow } from "pg";
+import { Pool, types, type PoolClient, type QueryResultRow } from "pg";
 import { COLUMN_CASE } from "@/lib/columnCase";
+
+// node-postgres returns NUMERIC/DECIMAL (OID 1700) and BIGINT (OID 20) as
+// STRINGS to avoid precision loss. This app treats prices and quantities as JS
+// numbers everywhere (its types declare `number`), and string values silently
+// break numeric comparisons — e.g. "1299" > "990" is false (compared as text),
+// which hid every sale/deal (no Sale tag, no PDP cut price, empty "Deals only").
+// Parse them to numbers at the source so every comparison behaves numerically.
+types.setTypeParser(1700, (v) => (v == null ? null : parseFloat(v))); // numeric / decimal / money
+types.setTypeParser(20, (v) => (v == null ? null : parseInt(v, 10))); // bigint (SUM/COUNT results)
 
 // PostgreSQL folds unquoted identifiers to lowercase, so pg returns lowercase
 // row keys. The app reads PascalCase (row.PaymentStatus); remap each row's keys
