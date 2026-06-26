@@ -127,12 +127,6 @@ export default function StoreHeader({
   const iconCls = `transition-colors duration-300 ${onDark ? "text-white hover:text-white/70" : "text-gray-800 hover:text-primary"}`;
   const linkCls = `transition-colors duration-300 ${onDark ? "text-white/90 hover:text-white" : "text-gray-700 hover:text-primary"}`;
 
-  // Imagery for the mega-menu right panels: featured products, falling back to
-  // category tiles when no products are flagged featured.
-  const promoItems = featured.length
-    ? featured.map((p) => ({ href: `/product/${p.Slug}`, img: p.ImageUrl, name: p.Name, price: money(p.SellingPrice) }))
-    : categories.filter((c) => c.ImageUrl).map((c) => ({ href: `/category/${c.Slug}`, img: c.ImageUrl, name: c.Name, price: "" }));
-
   const navBtn = `${linkCls} inline-flex items-center gap-1 cursor-pointer`;
 
   return (
@@ -338,9 +332,9 @@ export default function StoreHeader({
                       </div>
 
                       {/* Big imagery */}
-                      <div className="flex gap-6">
-                        {rightItems.slice(0, 2).map((p) => (
-                          <div key={p.Id} className="group w-[210px] shrink-0">
+                      <div className="flex flex-1 flex-wrap gap-6">
+                        {rightItems.slice(0, 4).map((p) => (
+                          <div key={p.Id} className="group w-[200px] shrink-0">
                             <div className="relative aspect-[4/5] bg-gray-100 overflow-hidden">
                               <Link href={`/product/${p.Slug}`} onClick={closeMenus} className="block w-full h-full">
                                 {p.ImageUrl ? (
@@ -369,31 +363,65 @@ export default function StoreHeader({
             )}
 
             {openMenu === "customize" && (
-              <div className="max-w-[1920px] mx-auto px-6 py-8">
-                <div className="grid grid-cols-[1fr_1.5fr] gap-12">
-                  <div>
-                    <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-4">Make it yours</h3>
-                    <ul className="space-y-2.5 text-sm">
-                      <li><Link href="/customize" onClick={closeMenus} className="text-gray-700 hover:text-primary">Start customizing</Link></li>
-                      <li><Link href="/customize" onClick={closeMenus} className="text-gray-700 hover:text-primary">DTF printing</Link></li>
-                      <li><Link href="/shop" onClick={closeMenus} className="text-gray-700 hover:text-primary">Printable garments</Link></li>
-                    </ul>
-                    <p className="mt-4 text-sm text-gray-500 leading-relaxed max-w-[15rem]">
-                      Add your own design or text — printed on demand and delivered to your door.
-                    </p>
-                    <Link href="/customize" onClick={closeMenus} className="mt-4 inline-block text-sm font-semibold text-primary hover:underline">Start now →</Link>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    {promoItems.slice(0, 2).map((it, i) => (
-                      <Link key={i} href="/customize" onClick={closeMenus} className="group block">
-                        <div className="aspect-[4/3] bg-gray-100 overflow-hidden">
-                          {it.img && (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={it.img} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                          )}
-                        </div>
+              <div className="grid grid-cols-[260px_1fr]">
+                {/* Col 1: gray rail */}
+                <div className="bg-gray-50 px-6 py-7 flex flex-col">
+                  <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">Customize</h3>
+                  <ul className="-mx-2">
+                    <li>
+                      <Link href="/customize" onClick={closeMenus} className="w-full flex items-center justify-between rounded-md px-3 py-2.5 text-[15px] font-bold text-gray-900">
+                        Custom design <ChevronRight className="w-4 h-4" />
                       </Link>
-                    ))}
+                    </li>
+                    <li>
+                      <Link href="/customize" onClick={closeMenus} className="block rounded-md px-3 py-2.5 text-[15px] text-gray-500 hover:text-gray-900 transition-colors">DTF printing</Link>
+                    </li>
+                    <li>
+                      <Link href="/shop" onClick={closeMenus} className="block rounded-md px-3 py-2.5 text-[15px] text-gray-500 hover:text-gray-900 transition-colors">Printable garments</Link>
+                    </li>
+                  </ul>
+                  <div className="mt-auto pt-6">
+                    <div className="border-t border-gray-200 pt-5 space-y-2.5">
+                      <Link href="/account" onClick={closeMenus} className="block px-3 text-[13px] text-gray-500 hover:text-gray-900">My account</Link>
+                      <Link href="/wishlist" onClick={closeMenus} className="block px-3 text-[13px] text-gray-500 hover:text-gray-900">Wishlist</Link>
+                      <Link href="/deals" onClick={closeMenus} className="block px-3 text-[13px] text-gray-500 hover:text-gray-900">Deals</Link>
+                    </div>
+                    {logoMark && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={logoMark} alt="" aria-hidden className="mt-6 ml-3 h-7 w-auto opacity-[0.08] grayscale" />
+                    )}
+                  </div>
+                </div>
+
+                {/* Col 2 + 3: heading/links + big imagery */}
+                <div className="px-10 py-8 min-h-[340px]">
+                  <div className="flex gap-10">
+                    <div className="w-[190px] shrink-0">
+                      <h3 className="text-2xl font-extrabold uppercase tracking-tight text-gray-900">Customize</h3>
+                      <p className="mt-6 mb-3 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400">Get started</p>
+                      <ul className="space-y-2">
+                        <li><Link href="/customize" onClick={closeMenus} className="text-sm text-gray-600 hover:text-gray-900">Add your design</Link></li>
+                        <li><Link href="/customize" onClick={closeMenus} className="text-sm text-gray-600 hover:text-gray-900">DTF printing</Link></li>
+                        <li><Link href="/shop" onClick={closeMenus} className="text-sm text-gray-600 hover:text-gray-900">Printable garments</Link></li>
+                      </ul>
+                      <p className="mt-4 text-sm text-gray-500 leading-relaxed">Add your own design or text — printed on demand.</p>
+                      <Link href="/customize" onClick={closeMenus} className="mt-6 inline-block text-xs font-semibold text-primary hover:underline">Start now →</Link>
+                    </div>
+                    <div className="flex flex-1 flex-wrap gap-6">
+                      {allItems.slice(0, 4).map((p) => (
+                        <Link key={p.Id} href="/customize" onClick={closeMenus} className="group w-[200px] shrink-0 block">
+                          <div className="relative aspect-[4/5] bg-gray-100 overflow-hidden">
+                            {p.ImageUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={p.ImageUrl} alt={p.Name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm">No image</div>
+                            )}
+                          </div>
+                          <p className="mt-3 text-sm font-bold text-gray-900">{p.Name}</p>
+                        </Link>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
