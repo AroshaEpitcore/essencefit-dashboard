@@ -85,7 +85,7 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
   heroSlides: [],
   bank: { bank: "", accountName: "", accountNo: "", branch: "" },
   deliveryFee: 400,
-  freeDeliveryOver: 0,
+  freeDeliveryOver: 7500,
   deliveryProvinces: DEFAULT_PROVINCES,
   contactPhone: "",
   contactEmail: "",

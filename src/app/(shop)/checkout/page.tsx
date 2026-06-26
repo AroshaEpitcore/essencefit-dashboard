@@ -61,9 +61,14 @@ export default function CheckoutPage() {
   }, [ready, items.length, placing, router]);
 
   const provinceFee = config?.deliveryProvinces.find((p) => p.name === f.province)?.fee;
+  const hasProvinces = !!config && config.deliveryProvinces.length > 0;
+  const provinceChosen = !hasProvinces || !!f.province;
   const baseFee = provinceFee != null ? provinceFee : config?.deliveryFee ?? 0;
+  // Free delivery only when the admin threshold is set AND met — never just because no province is picked yet.
   const freeApplies = !!config && config.freeDeliveryOver > 0 && subtotal >= config.freeDeliveryOver;
-  const deliveryFee = freeApplies ? 0 : baseFee;
+  // Until the province is chosen the fee is unknown, so don't count it (and don't call it "Free").
+  const deliveryFee = freeApplies ? 0 : provinceChosen ? baseFee : 0;
+  const deliveryKnown = freeApplies || provinceChosen;
   const total = subtotal + deliveryFee;
 
   async function switchAccount() {
@@ -244,8 +249,25 @@ export default function CheckoutPage() {
           </div>
           <div className="space-y-2 text-sm border-t border-gray-200 pt-3">
             <div className="flex justify-between"><span className="text-gray-500">Subtotal</span><span>{money(subtotal)}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">Delivery</span><span>{deliveryFee === 0 ? "Free" : money(deliveryFee)}</span></div>
-            <div className="flex justify-between text-base border-t border-gray-200 pt-2"><span className="font-semibold">Total</span><span className="font-bold">{money(total)}</span></div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500">Delivery</span>
+              {freeApplies ? (
+                <span className="font-semibold text-green-600">Free</span>
+              ) : !provinceChosen ? (
+                <span className="text-xs text-gray-400">Select province to calculate</span>
+              ) : (
+                <span>{money(deliveryFee)}</span>
+              )}
+            </div>
+            {!freeApplies && config && config.freeDeliveryOver > 0 && subtotal < config.freeDeliveryOver && (
+              <p className="text-xs text-primary">
+                Add {money(config.freeDeliveryOver - subtotal)} more for free delivery.
+              </p>
+            )}
+            <div className="flex justify-between text-base border-t border-gray-200 pt-2">
+              <span className="font-semibold">Total</span>
+              <span className="font-bold">{deliveryKnown ? money(total) : `${money(total)}+`}</span>
+            </div>
           </div>
           <button onClick={place} disabled={placing} className="mt-5 w-full bg-primary text-white py-3  font-semibold hover:bg-primary/90 disabled:opacity-50">
             {placing ? "Placing order..." : "Place order"}
