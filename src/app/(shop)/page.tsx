@@ -2,6 +2,7 @@ import { getFeaturedProducts, getDeals, getActiveCategories, getNewProducts, get
 import { getPublicStoreSettings } from "@/lib/storeSettings";
 import ProductSlider from "@/components/shop/ProductSlider";
 import CategorySlider from "@/components/shop/CategorySlider";
+import WeeklyMvp from "@/components/shop/WeeklyMvp";
 import Hero from "@/components/shop/Hero";
 
 export const dynamic = "force-dynamic";
@@ -21,13 +22,16 @@ export default async function HomePage() {
       <Hero slides={settings.heroSlides} storeName={settings.storeName} />
 
       {/* New Collection slider — admin-curated via the "New" flag in Storefront Catalog */}
-      <ProductSlider products={newArrivals} title="New Arrivals" href="/shop?sort=new" />
+      <ProductSlider products={newArrivals} title="FRESH SWAG. RELEASED." href="/shop?sort=new" />
 
       {/* Categories — large black image tiles */}
       <CategorySlider categories={categories} title="Shop by Category" />
 
+      {/* Weekly MVP — spotlight on the newest product, PDP-style */}
+      {latest.length > 0 && <WeeklyMvp product={latest[0]} />}
+
       {deals.length > 0 && <ProductSlider title="🔥 Deals" href="/deals" products={deals} />}
-      {featured.length > 0 && <ProductSlider title="Featured" href="/shop" products={featured} />}
+      {featured.length > 0 && <ProductSlider title="Best of the Best" href="/shop" products={featured} />}
       {latest.length > 0 && <ProductSlider title="Just In" href="/shop?sort=new" products={latest} />}
 
       {featured.length === 0 && deals.length === 0 && latest.length === 0 && (
