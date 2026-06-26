@@ -23,7 +23,7 @@ optgroup {
 
 /* Storefront headings use the dedicated heading font */
 .store-headings :is(h1, h2, h3) {
-  font-family: var(--font-heading), "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-heading), "Montserrat", ui-sans-serif, system-ui, sans-serif;
 }
 
 /* Hero animations */
