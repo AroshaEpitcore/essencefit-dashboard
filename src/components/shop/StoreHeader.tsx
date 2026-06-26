@@ -9,6 +9,7 @@ import { useCart } from "./CartContext";
 import { useWishlist } from "./WishlistContext";
 import { useQuickView } from "./QuickView";
 import AccountMenu, { type NavCustomer } from "./AccountMenu";
+import Marquee from "./Marquee";
 import { money } from "./format";
 import { quickSearch } from "@/app/(shop)/searchAction";
 import type { StoreCategory, StoreProduct, MegaProduct, LiteProduct } from "@/lib/storefront";
@@ -33,6 +34,9 @@ export default function StoreHeader({
   const router = useRouter();
   const pathname = usePathname();
   const isHome = pathname === "/";
+
+  // Promo messages: one per line in the admin banner field.
+  const promoItems = settings.announcement.split("\n").map((s) => s.trim()).filter(Boolean);
 
   const [q, setQ] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -147,10 +151,10 @@ export default function StoreHeader({
         )}
       </AnimatePresence>
       <header className="fixed top-0 inset-x-0 z-50">
-      {/* Top promo banner */}
-      {settings.announcement && (
-        <div className="h-9 bg-gray-900 text-white flex items-center justify-center px-4">
-          <span className="line-clamp-1 text-center text-[11px] sm:text-xs tracking-wide">{settings.announcement}</span>
+      {/* Top promo banner — scrolling marquee (one message per line in admin) */}
+      {promoItems.length > 0 && (
+        <div className="h-9 bg-primary text-white flex items-center">
+          <Marquee items={promoItems} />
         </div>
       )}
 

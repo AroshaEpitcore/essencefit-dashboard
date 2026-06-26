@@ -147,8 +147,8 @@ export default function StoreSettingsPage() {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Top promo banner text <span className="text-gray-400">(leave empty to hide)</span></label>
-            <input value={s.announcement} onChange={(e) => set("announcement", e.target.value)} placeholder="e.g. Free delivery over Rs. 10,000 • Island-wide COD" className={input} />
+            <label className="block text-sm font-medium mb-1">Top promo banner <span className="text-gray-400">(one message per line — they scroll as a marquee; leave empty to hide)</span></label>
+            <textarea value={s.announcement} onChange={(e) => set("announcement", e.target.value)} rows={4} placeholder={"Free delivery on orders over Rs. 10,000\nIsland-wide cash on delivery\nNew arrivals every week"} className={`${input} resize-y`} />
           </div>
         </div>
 
