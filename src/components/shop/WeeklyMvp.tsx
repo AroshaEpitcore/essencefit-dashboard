@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { money, discountPct } from "./format";
+import ProductTags from "./ProductTags";
 import type { StoreProduct } from "@/lib/storefront";
 
 /* Home-page spotlight for a single product, laid out like the PDP first section
@@ -39,6 +40,7 @@ export default function WeeklyMvp({ product }: { product: StoreProduct }) {
         </Link>
 
         <div className="md:py-6">
+          <ProductTags isNew={product.IsNewArrival} onSale={pct > 0} className="mb-3" />
           {product.CategoryName && (
             <p className="text-xs uppercase tracking-wide text-gray-400 mb-1">{product.CategoryName}</p>
           )}

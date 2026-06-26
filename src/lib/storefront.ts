@@ -23,6 +23,7 @@ export type StoreProduct = {
   CategoryName: string | null;
   CategorySlug: string | null;
   Stock: number;
+  IsNewArrival: boolean;
   Colors: ProductColor[];
 };
 
@@ -37,7 +38,7 @@ export type StoreCategory = {
 
 const PRODUCT_SELECT = `
   SELECT
-    p.Id, p.Name, p.Slug, p.ImageUrl, p.SellingPrice, p.CompareAtPrice,
+    p.Id, p.Name, p.Slug, p.ImageUrl, p.SellingPrice, p.CompareAtPrice, p.IsNewArrival,
     cat.Name AS CategoryName, cat.Slug AS CategorySlug,
     COALESCE((SELECT SUM(b.Qty) FROM ProductVariants b WHERE b.ProductId = COALESCE(p.BlankProductId, p.Id)), 0) AS Stock,
     (SELECT pi.Url FROM ProductImages pi
@@ -429,6 +430,7 @@ export type QuickView = {
     CompareAtPrice: number | null;
     CategoryName: string | null;
     Description: string | null;
+    IsNewArrival: boolean;
   };
   images: ProductImagesByColor;
   variants: StoreVariant[];
@@ -441,7 +443,7 @@ export async function getQuickView(productId: string): Promise<QuickView | null>
     .input("pid", sql.UniqueIdentifier, productId)
     .query(`
       SELECT p.Id, p.Name, p.Slug, p.ImageUrl, p.SellingPrice, p.CompareAtPrice,
-             p.Description, cat.Name AS CategoryName
+             p.Description, p.IsNewArrival, cat.Name AS CategoryName
       FROM Products p
       LEFT JOIN Categories cat ON cat.Id = p.CategoryId
       WHERE p.Id = @pid AND p.IsActive = true LIMIT 1

@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useState } from "react";
 import Link from "next/link";
 import { X } from "lucide-react";
 import ProductView from "./ProductView";
+import ProductTags from "./ProductTags";
 import { money, discountPct } from "./format";
 import { getQuickViewData } from "@/app/(shop)/quickview-actions";
 import { displayFont, headingFont } from "@/lib/fonts";
@@ -80,6 +81,11 @@ export function QuickViewProvider({ children }: { children: React.ReactNode }) {
                 stacked
                 header={
                   <>
+                    <ProductTags
+                      isNew={data.product.IsNewArrival}
+                      onSale={discountPct(data.product.SellingPrice, data.product.CompareAtPrice) > 0}
+                      className="mb-2"
+                    />
                     {data.product.CategoryName && (
                       <p className="text-xs uppercase tracking-wide text-gray-400 mb-1">{data.product.CategoryName}</p>
                     )}

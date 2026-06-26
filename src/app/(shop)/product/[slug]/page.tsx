@@ -5,6 +5,7 @@ import { getProductBySlug, getProductVariants, getRelatedProducts, getProductIma
 import ProductView from "@/components/shop/ProductView";
 import DesignPicker from "@/components/shop/DesignPicker";
 import ProductCard from "@/components/shop/ProductCard";
+import ProductTags from "@/components/shop/ProductTags";
 import SizeChartButton from "@/components/shop/SizeChartButton";
 import { money, discountPct } from "@/components/shop/format";
 import { ChevronRight } from "lucide-react";
@@ -53,6 +54,7 @@ export default async function ProductPage({
   };
   const headerSlot = (
     <div>
+      <ProductTags isNew={product.IsNewArrival} onSale={pct > 0} className="mb-3" />
       {product.CategoryName && <p className="text-xs uppercase tracking-wide text-gray-400 mb-1">{product.CategoryName}</p>}
       <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">{product.Name}</h1>
       {/* Server-rendered price (in HTML for SEO / instant paint) */}

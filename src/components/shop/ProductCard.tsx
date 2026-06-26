@@ -9,6 +9,7 @@ import { resolveSwatch, cutLineColor } from "@/lib/colorHex";
 import { useWishlist } from "./WishlistContext";
 import { useQuickView } from "./QuickView";
 import QuickViewButton from "./QuickViewButton";
+import ProductTags from "./ProductTags";
 
 // Warm the browser cache for colour images so switching swatches is instant
 // instead of waiting on a network fetch. De-duped via a module-level set.
@@ -79,11 +80,11 @@ export default function ProductCard({ p }: { p: StoreProduct }) {
           )}
         </Link>
 
-        {pct > 0 && (
-          <span className="absolute top-2 right-2 z-10 bg-gray-900 text-white text-[10px] font-semibold tracking-wide px-2 py-1 rounded">
-            SALE
-          </span>
-        )}
+        <ProductTags
+          isNew={p.IsNewArrival}
+          onSale={pct > 0}
+          className="absolute top-2 right-2 z-10 flex-col items-end"
+        />
         <button
           type="button"
           onClick={() => toggle({ productId: p.Id, name: p.Name, slug: p.Slug, image: baseImage, price: p.SellingPrice, compareAt: p.CompareAtPrice })}
