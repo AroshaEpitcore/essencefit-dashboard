@@ -4,6 +4,7 @@ import { QuickViewProvider } from "@/components/shop/QuickView";
 import StoreHeader from "@/components/shop/StoreHeader";
 import HeaderOffset from "@/components/shop/HeaderOffset";
 import StoreFooter from "@/components/shop/StoreFooter";
+import CookieConsent from "@/components/shop/CookieConsent";
 import { getActiveCategories, getFeaturedProducts, getCategoryPreviews } from "@/lib/storefront";
 import { getPublicStoreSettings } from "@/lib/storeSettings";
 import { getCurrentCustomer } from "@/lib/customerAuth";
@@ -32,6 +33,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
               {children}
             </main>
             <StoreFooter settings={settings} categories={categories} />
+            <CookieConsent />
           </div>
         </QuickViewProvider>
       </WishlistProvider>

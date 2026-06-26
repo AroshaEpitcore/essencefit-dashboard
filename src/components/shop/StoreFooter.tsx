@@ -60,6 +60,8 @@ export default function StoreFooter({
       </div>
       <div className="border-t border-gray-800 py-4 text-center text-xs text-gray-500">
         © {new Date().getFullYear()} {settings.storeName}. All rights reserved.
+        <span className="mx-2">·</span>
+        <Link href="/cookie-policy" className="hover:text-primary">Cookie Policy</Link>
       </div>
     </footer>
   );
