@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast, { Toaster } from "react-hot-toast";
 import { Minus, Plus, ShoppingCart, X } from "lucide-react";
 import { useCart } from "./CartContext";
+import StickyProductBar from "./StickyProductBar";
 import type { StoreDesign } from "@/lib/storefront";
 
 type ProductLite = {
@@ -42,6 +43,15 @@ export default function DesignPicker({
   const design = designs[sel] as StoreDesign | undefined;
   const stock = design?.Qty ?? 0;
   const canAdd = !!design && stock > 0;
+
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Sticky bar's button: add the selected design, or scroll back up to the picker.
+  function handleStickyAdd() {
+    if (canAdd) add(false);
+    else containerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   useEffect(() => { setQty(1); }, [sel]);
 
@@ -84,7 +94,8 @@ export default function DesignPicker({
   }
 
   return (
-    <div className="grid md:grid-cols-2 gap-8 lg:gap-12 items-start">
+    <>
+    <div ref={containerRef} style={{ scrollMarginTop: "var(--header-h, 132px)" }} className="grid md:grid-cols-2 gap-8 lg:gap-12 items-start">
       <Toaster position="top-center" />
 
       {/* Selected design — large, click to zoom */}
@@ -176,5 +187,16 @@ export default function DesignPicker({
         </div>
       )}
     </div>
+
+    <div ref={sentinelRef} aria-hidden className="h-0" />
+    <StickyProductBar
+      name={product.Name}
+      image={design?.Image ?? product.ImageUrl}
+      price={design?.Price ?? product.SellingPrice}
+      compareAtPrice={product.CompareAtPrice}
+      sentinelRef={sentinelRef}
+      onAddToCart={handleStickyAdd}
+    />
+    </>
   );
 }
