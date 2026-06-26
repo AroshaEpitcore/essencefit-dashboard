@@ -35,8 +35,18 @@ export default function StoreHeader({
   const pathname = usePathname();
   const isHome = pathname === "/";
 
-  // Promo messages: one per line in the admin banner field.
-  const promoItems = settings.announcement.split("\n").map((s) => s.trim()).filter(Boolean);
+  // Promo messages: one per line in the admin banner field. The free-delivery
+  // line is generated from the actual threshold (so it always matches checkout);
+  // any manual "free delivery" line is dropped to avoid contradicting it.
+  const customPromo = settings.announcement
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .filter((t) => !/free\s*delivery/i.test(t));
+  const promoItems =
+    settings.freeDeliveryOver > 0
+      ? [`Free delivery on orders over ${money(settings.freeDeliveryOver)}`, ...customPromo]
+      : customPromo;
 
   const [q, setQ] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);

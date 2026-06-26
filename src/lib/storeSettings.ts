@@ -81,7 +81,8 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
   logo: "",
   logoDark: "",
   logoLight: "",
-  announcement: "Free delivery on orders over Rs. 10,000\nIsland-wide cash on delivery\nNew arrivals dropping every week\nQuality apparel, delivered to your door",
+  // The free-delivery line is generated from freeDeliveryOver in the header, so it's not listed here.
+  announcement: "Island-wide cash on delivery\nNew arrivals dropping every week\nQuality apparel, delivered to your door",
   heroSlides: [],
   bank: { bank: "", accountName: "", accountNo: "", branch: "" },
   deliveryFee: 400,
