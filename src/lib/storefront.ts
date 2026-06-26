@@ -473,3 +473,105 @@ export async function getRelatedProducts(categoryId: string, excludeId: string, 
             LIMIT @n OFFSET 0`);
   return attachColors(pool, res.recordset as StoreProduct[]);
 }
+
+/* ---------- Customer reviews ---------- */
+
+export type StoreReview = {
+  Id: string;
+  ProductId: string;
+  CustomerName: string;
+  CustomerImage: string | null;
+  Rating: number;
+  Message: string;
+  CreatedAt: string;
+  ProductName?: string | null; // populated by category/home reads for linking
+  ProductSlug?: string | null;
+  Images: string[];
+};
+
+// Batched second query: review id -> ordered image urls (mirrors attachColors,
+// avoiding an N+1 over ReviewImages).
+async function attachReviewImages<T extends StoreReview>(
+  pool: Awaited<ReturnType<typeof getDb>>,
+  rows: T[]
+): Promise<T[]> {
+  rows.forEach((r) => (r.Images = []));
+  if (rows.length === 0) return rows;
+  const req = pool.request();
+  const params = rows.map((r, i) => {
+    req.input(`r${i}`, sql.UniqueIdentifier, r.Id);
+    return `@r${i}`;
+  });
+  const res = await req.query(`
+    SELECT ReviewId, Url FROM ReviewImages
+    WHERE ReviewId IN (${params.join(",")})
+    ORDER BY SortOrder, CreatedAt
+  `);
+  const byReview: Record<string, string[]> = {};
+  for (const row of res.recordset as { ReviewId: string; Url: string }[]) {
+    (byReview[row.ReviewId] ||= []).push(row.Url);
+  }
+  for (const r of rows) r.Images = byReview[r.Id] ?? [];
+  return rows;
+}
+
+export async function getReviewsForProduct(productId: string): Promise<StoreReview[]> {
+  const pool = await getDb();
+  const res = await pool
+    .request()
+    .input("pid", sql.UniqueIdentifier, productId)
+    .query(`
+      SELECT Id, ProductId, CustomerName, CustomerImage, Rating, Message, CreatedAt
+      FROM Reviews
+      WHERE ProductId = @pid AND IsPublished = true
+      ORDER BY SortOrder, CreatedAt DESC
+    `);
+  return attachReviewImages(pool, res.recordset as StoreReview[]);
+}
+
+export async function getProductRatingSummary(productId: string): Promise<{ avg: number; count: number }> {
+  const pool = await getDb();
+  const res = await pool
+    .request()
+    .input("pid", sql.UniqueIdentifier, productId)
+    .query(`
+      SELECT COALESCE(AVG(Rating::numeric), 0) AS avgrating, COUNT(*) AS cnt
+      FROM Reviews WHERE ProductId = @pid AND IsPublished = true
+    `);
+  const row = res.recordset[0] as { avgrating: number | string; cnt: number | string } | undefined;
+  return { avg: Number(row?.avgrating ?? 0), count: Number(row?.cnt ?? 0) };
+}
+
+export async function getReviewsByCategory(categorySlug: string): Promise<StoreReview[]> {
+  const pool = await getDb();
+  const res = await pool
+    .request()
+    .input("slug", sql.NVarChar(150), categorySlug)
+    .query(`
+      SELECT r.Id, r.ProductId, r.CustomerName, r.CustomerImage, r.Rating, r.Message, r.CreatedAt,
+             p.Name AS ProductName, p.Slug AS ProductSlug
+      FROM Reviews r
+      JOIN Products p ON p.Id = r.ProductId
+      JOIN Categories c ON c.Id = p.CategoryId
+      WHERE c.Slug = @slug AND r.IsPublished = true
+      ORDER BY r.SortOrder, r.CreatedAt DESC
+    `);
+  return attachReviewImages(pool, res.recordset as StoreReview[]);
+}
+
+export async function getLatestReviews(limit = 12): Promise<StoreReview[]> {
+  const pool = await getDb();
+  const res = await pool
+    .request()
+    .input("n", sql.Int, limit)
+    .query(`
+      SELECT r.Id, r.ProductId, r.CustomerName, r.CustomerImage, r.Rating, r.Message, r.CreatedAt,
+             p.Name AS ProductName, p.Slug AS ProductSlug
+      FROM Reviews r
+      JOIN Products p ON p.Id = r.ProductId
+      WHERE r.IsPublished = true
+      ORDER BY r.SortOrder, r.CreatedAt DESC
+      LIMIT @n OFFSET 0
+    `);
+  return attachReviewImages(pool, res.recordset as StoreReview[]);
+}

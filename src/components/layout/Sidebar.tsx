@@ -28,6 +28,7 @@ import {
   Shirt,
   Store,
   Globe,
+  Star,
 } from "lucide-react";
 import { Tooltip } from "react-tooltip";
 
@@ -40,6 +41,7 @@ const navItems = [
   { href: "/web-orders", label: "Website Orders", icon: Globe },
   { href: "/catalog", label: "Storefront Catalog", icon: Store },
   { href: "/store-settings", label: "Store Settings", icon: Globe },
+  { href: "/reviews", label: "Reviews", icon: Star },
   { href: "/dtf", label: "DTF Printing", icon: Printer },
   { href: "/dtf-orders", label: "DTF Orders", icon: Shirt },
   { href: "/order-logs", label: "Order Logs", icon: History },

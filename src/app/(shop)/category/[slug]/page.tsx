@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { getCategoryBySlug, searchProducts } from "@/lib/storefront";
+import { getCategoryBySlug, searchProducts, getReviewsByCategory } from "@/lib/storefront";
 import ProductCard from "@/components/shop/ProductCard";
+import ReviewsSection from "@/components/shop/ReviewsSection";
 import { ChevronRight } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +19,10 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
   const cat = await getCategoryBySlug(slug);
   if (!cat) notFound();
 
-  const products = await searchProducts({ categorySlug: slug });
+  const [products, reviews] = await Promise.all([
+    searchProducts({ categorySlug: slug }),
+    getReviewsByCategory(slug),
+  ]);
 
   return (
     <div className="max-w-[1920px] mx-auto px-4 sm:px-6 py-6">
@@ -39,6 +43,12 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8">
           {products.map((p) => <ProductCard key={p.Id} p={p} />)}
+        </div>
+      )}
+
+      {reviews.length > 0 && (
+        <div className="mt-14">
+          <ReviewsSection reviews={reviews} title={`Reviews in ${cat.Name}`} showProduct bare />
         </div>
       )}
     </div>

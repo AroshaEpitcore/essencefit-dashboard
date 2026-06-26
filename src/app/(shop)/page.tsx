@@ -1,20 +1,22 @@
-import { getFeaturedProducts, getDeals, getActiveCategories, getNewProducts, getNewArrivals } from "@/lib/storefront";
+import { getFeaturedProducts, getDeals, getActiveCategories, getNewProducts, getNewArrivals, getLatestReviews } from "@/lib/storefront";
 import { getPublicStoreSettings } from "@/lib/storeSettings";
 import ProductSlider from "@/components/shop/ProductSlider";
 import CategorySlider from "@/components/shop/CategorySlider";
 import WeeklyMvp from "@/components/shop/WeeklyMvp";
+import ReviewsSection from "@/components/shop/ReviewsSection";
 import Hero from "@/components/shop/Hero";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const [settings, categories, featured, deals, latest, newArrivals] = await Promise.all([
+  const [settings, categories, featured, deals, latest, newArrivals, reviews] = await Promise.all([
     getPublicStoreSettings(),
     getActiveCategories(),
     getFeaturedProducts(8),
     getDeals(8),
     getNewProducts(8),
     getNewArrivals(12),
+    getLatestReviews(12),
   ]);
 
   return (
@@ -33,6 +35,9 @@ export default async function HomePage() {
       {deals.length > 0 && <ProductSlider title="🔥 Deals" href="/deals" products={deals} />}
       {featured.length > 0 && <ProductSlider title="Best of the Best" href="/shop" products={featured} />}
       {latest.length > 0 && <ProductSlider title="Just In" href="/shop?sort=new" products={latest} />}
+
+      {/* What customers say — latest published reviews */}
+      <ReviewsSection reviews={reviews} title="What our customers say" variant="carousel" showProduct />
 
       {featured.length === 0 && deals.length === 0 && latest.length === 0 && (
         <div className="max-w-[1920px] mx-auto px-4 sm:px-6 py-20 text-center text-gray-500">

@@ -344,6 +344,28 @@ CREATE TABLE IF NOT EXISTS dtforderdesigns (
   sortorder integer NOT NULL DEFAULT 0
 );
 
+-- Admin-managed customer reviews, each assigned to a product (category derived
+-- via products.categoryid). reviewimages holds the optional gallery photos.
+CREATE TABLE IF NOT EXISTS reviews (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  productid uuid NOT NULL,
+  customername text NOT NULL,
+  customerimage text,
+  rating smallint NOT NULL DEFAULT 5,
+  message text NOT NULL,
+  ispublished boolean NOT NULL DEFAULT true,
+  sortorder integer NOT NULL DEFAULT 0,
+  createdat timestamp NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS reviewimages (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  reviewid uuid NOT NULL,
+  url text NOT NULL,
+  sortorder integer NOT NULL DEFAULT 0,
+  createdat timestamp NOT NULL DEFAULT now()
+);
+
 -- ============================ INDEXES ============================
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_customers_phone ON customers (phone) WHERE phone IS NOT NULL;
@@ -359,6 +381,8 @@ CREATE INDEX IF NOT EXISTS ix_orderstatuslogs_changedat ON orderstatuslogs (chan
 CREATE INDEX IF NOT EXISTS ix_orderstatuslogs_newstatus ON orderstatuslogs (newstatus);
 CREATE INDEX IF NOT EXISTS ix_orderstatuslogs_orderid ON orderstatuslogs (orderid);
 CREATE INDEX IF NOT EXISTS ix_sales_orderid ON sales (orderid);
+CREATE INDEX IF NOT EXISTS ix_reviews_productid ON reviews (productid);
+CREATE INDEX IF NOT EXISTS ix_reviewimages_reviewid ON reviewimages (reviewid);
 
 -- ============================ FOREIGN KEYS ============================
 

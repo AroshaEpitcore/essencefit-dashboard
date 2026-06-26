@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { getProductBySlug, getProductVariants, getRelatedProducts, getProductImagesByColor, getProductDesigns } from "@/lib/storefront";
+import { getProductBySlug, getProductVariants, getRelatedProducts, getProductImagesByColor, getProductDesigns, getReviewsForProduct, getProductRatingSummary } from "@/lib/storefront";
 import ProductView from "@/components/shop/ProductView";
 import DesignPicker from "@/components/shop/DesignPicker";
 import ProductCard from "@/components/shop/ProductCard";
 import ProductTags from "@/components/shop/ProductTags";
+import ReviewsSection from "@/components/shop/ReviewsSection";
+import ReviewStars from "@/components/shop/ReviewStars";
 import SizeChartButton from "@/components/shop/SizeChartButton";
 import { money, discountPct } from "@/components/shop/format";
 import { ChevronRight } from "lucide-react";
@@ -35,11 +37,13 @@ export default async function ProductPage({
   const product = await getProductBySlug(slug);
   if (!product) notFound();
 
-  const [variants, images, related, designs] = await Promise.all([
+  const [variants, images, related, designs, reviews, rating] = await Promise.all([
     getProductVariants(product.Id),
     getProductImagesByColor(product.Id),
     product.CategoryId ? getRelatedProducts(product.CategoryId, product.Id, 4) : Promise.resolve([]),
     product.SelectByImage ? getProductDesigns(product.Id) : Promise.resolve([]),
+    getReviewsForProduct(product.Id),
+    getProductRatingSummary(product.Id),
   ]);
 
   // Colourless products keep using the flat image list as their "shared" set.
@@ -57,6 +61,14 @@ export default async function ProductPage({
       <ProductTags isNew={product.IsNewArrival} onSale={pct > 0} className="mb-3" />
       {product.CategoryName && <p className="text-xs uppercase tracking-wide text-gray-400 mb-1">{product.CategoryName}</p>}
       <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">{product.Name}</h1>
+      {rating.count > 0 && (
+        <a href="#reviews" className="group flex items-center gap-2 mb-3 -mt-1">
+          <ReviewStars value={rating.avg} />
+          <span className="text-sm text-gray-500 group-hover:text-primary">
+            {rating.avg.toFixed(1)} ({rating.count} review{rating.count !== 1 ? "s" : ""})
+          </span>
+        </a>
+      )}
       {/* Server-rendered price (in HTML for SEO / instant paint) */}
       <div className="flex items-baseline gap-3 mb-5">
         <span className="text-3xl font-bold text-gray-900">{money(product.SellingPrice)}</span>
@@ -107,6 +119,12 @@ export default async function ProductPage({
           header={headerSlot}
           footer={footerSlot}
         />
+      )}
+
+      {reviews.length > 0 && (
+        <div id="reviews" className="mt-14 scroll-mt-[140px]">
+          <ReviewsSection reviews={reviews} title="Customer Reviews" bare />
+        </div>
       )}
 
       {related.length > 0 && (
