@@ -73,10 +73,19 @@ export default function CartPage() {
           <h2 className="font-semibold text-gray-900 mb-4">Order summary</h2>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between"><span className="text-gray-500">Subtotal</span><span className="font-medium">{money(subtotal)}</span></div>
-            <div className="flex justify-between">
+            <div className="flex justify-between items-center">
               <span className="text-gray-500">Delivery</span>
-              <span className="font-medium text-gray-500">{freeDelivery ? "Free" : "Calculated at checkout"}</span>
+              {freeDelivery ? (
+                <span className="font-semibold text-green-600">Free</span>
+              ) : (
+                <span className="text-xs text-gray-400">Calculated at checkout</span>
+              )}
             </div>
+            {!freeDelivery && config && config.freeDeliveryOver > 0 && subtotal < config.freeDeliveryOver && (
+              <p className="text-xs text-primary">
+                Add {money(config.freeDeliveryOver - subtotal)} more for free delivery.
+              </p>
+            )}
             <div className="border-t border-gray-200 pt-2 flex justify-between text-base">
               <span className="font-semibold">Total</span><span className="font-bold">{money(subtotal)}</span>
             </div>
