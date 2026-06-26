@@ -25,7 +25,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
         <QuickViewProvider>
           <div
             className={`${displayFont.className} ${headingFont.variable} store-headings min-h-screen flex flex-col bg-white text-gray-900`}
-            style={{ "--header-h": settings.announcement ? "132px" : "96px" } as React.CSSProperties}
+            style={{ "--header-h": settings.announcement ? "116px" : "80px" } as React.CSSProperties}
           >
             <StoreHeader settings={settings} categories={categories} customer={customer} featured={featured} categoryProducts={categoryProducts} />
             <main className="flex-1">

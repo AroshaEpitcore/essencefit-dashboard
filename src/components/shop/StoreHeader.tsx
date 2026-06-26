@@ -159,7 +159,7 @@ export default function StoreHeader({
         className={`relative transition-colors duration-300 ${solid ? "bg-white shadow-sm" : "bg-transparent"}`}
         onMouseLeave={() => setOpenMenu(null)}
       >
-        <div className="max-w-[1920px] mx-auto px-4 sm:px-8 relative flex items-center h-16 md:h-24">
+        <div className="max-w-[1920px] mx-auto px-4 sm:px-8 relative flex items-center h-16 md:h-20">
           {/* Left: mobile menu toggle + desktop mega-nav */}
           <div className="flex items-center gap-4 md:gap-6">
             <button className={`md:hidden ${iconCls}`} onClick={() => setMenuOpen((v) => !v)} aria-label="Menu">
