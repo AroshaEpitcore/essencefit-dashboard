@@ -14,14 +14,12 @@ export default function ReviewsSection({
   variant = "grid",
   showProduct = false,
   bare = false,
-  logo = null,
 }: {
   reviews: StoreReview[];
   title: string;
   variant?: "grid" | "carousel";
   showProduct?: boolean;
   bare?: boolean;
-  logo?: string | null;
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
 
@@ -61,14 +59,14 @@ export default function ReviewsSection({
       <div ref={trackRef} className="flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {reviews.map((r) => (
           <div key={r.Id} data-review className="snap-start shrink-0 w-[85%] sm:w-[45%] lg:w-[31%]">
-            <ReviewCard review={r} showProduct={showProduct} logo={logo} />
+            <ReviewCard review={r} showProduct={showProduct} />
           </div>
         ))}
       </div>
     ) : (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {reviews.map((r) => (
-          <ReviewCard key={r.Id} review={r} showProduct={showProduct} logo={logo} />
+          <ReviewCard key={r.Id} review={r} showProduct={showProduct} />
         ))}
       </div>
     );
@@ -81,19 +79,12 @@ export default function ReviewsSection({
   );
 
   if (bare) {
-    return (
-      <section className="relative overflow-hidden rounded-3xl bg-black px-5 sm:px-8 py-10">
-        {/* soft brand glow */}
-        <div aria-hidden className="pointer-events-none absolute -top-24 -right-24 w-72 h-72 rounded-full bg-primary/20 blur-3xl" />
-        <div className="relative">{inner}</div>
-      </section>
-    );
+    return <section className="rounded-3xl bg-black px-5 sm:px-8 py-10">{inner}</section>;
   }
 
   return (
-    <section className="relative overflow-hidden bg-black">
-      <div aria-hidden className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 w-[40rem] h-72 rounded-full bg-primary/15 blur-3xl" />
-      <div className="relative max-w-[1920px] mx-auto px-4 sm:px-6 py-16">{inner}</div>
+    <section className="bg-black">
+      <div className="max-w-[1920px] mx-auto px-4 sm:px-6 py-16">{inner}</div>
     </section>
   );
 }

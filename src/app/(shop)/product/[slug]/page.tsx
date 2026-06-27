@@ -8,7 +8,6 @@ import ProductCard from "@/components/shop/ProductCard";
 import ProductTags from "@/components/shop/ProductTags";
 import ReviewsSection from "@/components/shop/ReviewsSection";
 import ReviewStars from "@/components/shop/ReviewStars";
-import { getPublicStoreSettings } from "@/lib/storeSettings";
 import SizeChartButton from "@/components/shop/SizeChartButton";
 import { money, discountPct } from "@/components/shop/format";
 import { ChevronRight } from "lucide-react";
@@ -38,14 +37,13 @@ export default async function ProductPage({
   const product = await getProductBySlug(slug);
   if (!product) notFound();
 
-  const [variants, images, related, designs, reviews, rating, settings] = await Promise.all([
+  const [variants, images, related, designs, reviews, rating] = await Promise.all([
     getProductVariants(product.Id),
     getProductImagesByColor(product.Id),
     product.CategoryId ? getRelatedProducts(product.CategoryId, product.Id, 4) : Promise.resolve([]),
     product.SelectByImage ? getProductDesigns(product.Id) : Promise.resolve([]),
     getReviewsForProduct(product.Id),
     getProductRatingSummary(product.Id),
-    getPublicStoreSettings(),
   ]);
 
   // Colourless products keep using the flat image list as their "shared" set.
@@ -125,7 +123,7 @@ export default async function ProductPage({
 
       {reviews.length > 0 && (
         <div id="reviews" className="mt-14 scroll-mt-[140px]">
-          <ReviewsSection reviews={reviews} title="Customer Reviews" bare logo={settings.logoLight || settings.logo} />
+          <ReviewsSection reviews={reviews} title="Customer Reviews" bare />
         </div>
       )}
 
