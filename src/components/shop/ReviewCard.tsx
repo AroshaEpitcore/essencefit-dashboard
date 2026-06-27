@@ -46,7 +46,7 @@ export default function ReviewCard({
   }, [zoom]);
 
   return (
-    <div className="relative overflow-hidden h-full flex flex-col rounded-2xl border border-white/10 bg-white/[0.04] p-5 sm:p-6 transition-colors hover:border-white/25">
+    <div className="relative overflow-hidden h-full flex flex-col rounded-2xl border border-white/10 bg-white/[0.04] p-5 sm:p-6">
       {/* Brand logo watermark */}
       {logo && (
         // eslint-disable-next-line @next/next/no-img-element

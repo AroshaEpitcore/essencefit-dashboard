@@ -38,10 +38,10 @@ export default function ReviewsSection({
       <div className="marquee-pause overflow-hidden -mx-1">
         <div
           className="flex w-max animate-marquee"
-          style={{ animationDuration: `${Math.max(reviews.length, 4) * 6}s` }}
+          style={{ animationDuration: `${Math.max(reviews.length, 4) * 10}s` }}
         >
           {[...reviews, ...reviews].map((r, i) => (
-            <div key={`${r.Id}-${i}`} className="w-[280px] sm:w-[340px] shrink-0 px-1">
+            <div key={`${r.Id}-${i}`} className="w-[320px] sm:w-[420px] shrink-0 px-1.5">
               <ReviewCard review={r} showProduct={showProduct} logo={logo} />
             </div>
           ))}
