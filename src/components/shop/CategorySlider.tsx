@@ -28,11 +28,10 @@ export default function CategorySlider({
   }
 
   return (
-    <section className="max-w-[1920px] mx-auto px-4 sm:px-6 py-10">
-      <div className="relative overflow-hidden rounded-3xl bg-black px-5 sm:px-8 py-10">
-        {/* soft brand glow */}
-        <div aria-hidden className="pointer-events-none absolute -top-24 -right-24 w-72 h-72 rounded-full bg-primary/20 blur-3xl" />
-        <div className="relative">
+    <section className="relative overflow-hidden bg-black">
+      {/* soft brand glow */}
+      <div aria-hidden className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 w-[40rem] h-72 rounded-full bg-primary/15 blur-3xl" />
+      <div className="relative max-w-[1920px] mx-auto px-4 sm:px-6 py-14">
       <div className="flex items-end justify-between mb-6">
         <h2 className="text-2xl md:text-3xl font-bold uppercase tracking-wide text-white inline-block border-b-2 border-primary pb-1">
           {title}
@@ -88,7 +87,6 @@ export default function CategorySlider({
           </Link>
         ))}
       </div>
-        </div>
       </div>
     </section>
   );
