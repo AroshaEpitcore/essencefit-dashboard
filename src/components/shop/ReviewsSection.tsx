@@ -1,13 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import ReviewCard from "./ReviewCard";
 import type { StoreReview } from "@/lib/storefront";
 
-/* Storefront reviews band — premium black testimonial section. Renders nothing
-   when there are no reviews. Full-bleed black on the home page; a rounded black
-   panel when nested (`bare`) inside an already-padded page (PDP / category). */
+/* Storefront reviews band on black. The "carousel" variant flows continuously
+   like a marquee (duplicated track, paused on hover); the "grid" variant is a
+   simple responsive grid. Renders nothing when there are no reviews. */
 export default function ReviewsSection({
   reviews,
   title,
@@ -23,76 +21,31 @@ export default function ReviewsSection({
   bare?: boolean;
   logo?: string | null;
 }) {
-  const trackRef = useRef<HTMLDivElement>(null);
-
-  function scroll(dir: -1 | 1) {
-    const el = trackRef.current;
-    if (!el) return;
-    const card = el.querySelector<HTMLElement>("[data-review]");
-    const step = card ? card.offsetWidth + 16 : el.clientWidth * 0.8;
-    el.scrollBy({ left: dir * step, behavior: "smooth" });
-  }
-
-  // Auto-advance the carousel; pause on hover/touch, loop back at the end.
-  useEffect(() => {
-    if (variant !== "carousel" || reviews.length < 2) return;
-    const el = trackRef.current;
-    if (!el) return;
-    let paused = false;
-    const pause = () => { paused = true; };
-    const resume = () => { paused = false; };
-    el.addEventListener("mouseenter", pause);
-    el.addEventListener("mouseleave", resume);
-    el.addEventListener("touchstart", pause, { passive: true });
-    const id = setInterval(() => {
-      if (paused) return;
-      const card = el.querySelector<HTMLElement>("[data-review]");
-      const step = card ? card.offsetWidth + 16 : el.clientWidth * 0.8;
-      if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 4) {
-        el.scrollTo({ left: 0, behavior: "smooth" });
-      } else {
-        el.scrollBy({ left: step, behavior: "smooth" });
-      }
-    }, 3500);
-    return () => {
-      clearInterval(id);
-      el.removeEventListener("mouseenter", pause);
-      el.removeEventListener("mouseleave", resume);
-      el.removeEventListener("touchstart", pause);
-    };
-  }, [variant, reviews.length]);
-
   if (!reviews.length) return null;
 
   const header = (
-    <div className="flex items-end justify-between mb-8">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary mb-2">Real customers</p>
-        <h2 className="text-2xl md:text-3xl font-bold uppercase tracking-wide text-white inline-block border-b-2 border-primary pb-1">
-          {title}
-        </h2>
-      </div>
-      {variant === "carousel" && reviews.length > 1 && (
-        <div className="flex items-center gap-3">
-          <button type="button" onClick={() => scroll(-1)} aria-label="Previous" className="w-9 h-9 rounded-full border border-white/20 flex items-center justify-center text-white/70 hover:border-white hover:text-white transition-colors">
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <button type="button" onClick={() => scroll(1)} aria-label="Next" className="w-9 h-9 rounded-full border border-white/20 flex items-center justify-center text-white/70 hover:border-white hover:text-white transition-colors">
-            <ChevronRight className="w-5 h-5" />
-          </button>
-        </div>
-      )}
+    <div className="mb-8">
+      <p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary mb-2">Real customers</p>
+      <h2 className="text-2xl md:text-3xl font-bold uppercase tracking-wide text-white inline-block border-b-2 border-primary pb-1">
+        {title}
+      </h2>
     </div>
   );
 
   const body =
     variant === "carousel" ? (
-      <div ref={trackRef} className="flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {reviews.map((r) => (
-          <div key={r.Id} data-review className="snap-start shrink-0 w-[85%] sm:w-[45%] lg:w-[31%]">
-            <ReviewCard review={r} showProduct={showProduct} logo={logo} />
-          </div>
-        ))}
+      // Continuous flow — duplicate the cards and translate -50% so it loops seamlessly.
+      <div className="marquee-pause overflow-hidden -mx-1">
+        <div
+          className="flex w-max animate-marquee"
+          style={{ animationDuration: `${Math.max(reviews.length, 4) * 6}s` }}
+        >
+          {[...reviews, ...reviews].map((r, i) => (
+            <div key={`${r.Id}-${i}`} className="w-[280px] sm:w-[340px] shrink-0 px-1">
+              <ReviewCard review={r} showProduct={showProduct} logo={logo} />
+            </div>
+          ))}
+        </div>
       </div>
     ) : (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
