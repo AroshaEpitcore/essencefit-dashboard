@@ -37,7 +37,7 @@ export default async function HomePage() {
       {latest.length > 0 && <ProductSlider title="Just In" href="/shop?sort=new" products={latest} />}
 
       {/* What customers say — latest published reviews */}
-      <ReviewsSection reviews={reviews} title="What our customers say" variant="carousel" showProduct />
+      <ReviewsSection reviews={reviews} title="What our customers say" variant="carousel" showProduct logo={settings.logoLight || settings.logo} />
 
       {featured.length === 0 && deals.length === 0 && latest.length === 0 && (
         <div className="max-w-[1920px] mx-auto px-4 sm:px-6 py-20 text-center text-gray-500">

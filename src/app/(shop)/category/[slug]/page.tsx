@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getCategoryBySlug, searchProducts, getReviewsByCategory } from "@/lib/storefront";
+import { getPublicStoreSettings } from "@/lib/storeSettings";
 import ProductCard from "@/components/shop/ProductCard";
 import ReviewsSection from "@/components/shop/ReviewsSection";
 import { ChevronRight } from "lucide-react";
@@ -19,9 +20,10 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
   const cat = await getCategoryBySlug(slug);
   if (!cat) notFound();
 
-  const [products, reviews] = await Promise.all([
+  const [products, reviews, settings] = await Promise.all([
     searchProducts({ categorySlug: slug }),
     getReviewsByCategory(slug),
+    getPublicStoreSettings(),
   ]);
 
   return (
@@ -48,7 +50,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
 
       {reviews.length > 0 && (
         <div className="mt-14">
-          <ReviewsSection reviews={reviews} title={`Reviews in ${cat.Name}`} showProduct bare />
+          <ReviewsSection reviews={reviews} title={`Reviews in ${cat.Name}`} showProduct bare logo={settings.logoLight || settings.logo} />
         </div>
       )}
     </div>
