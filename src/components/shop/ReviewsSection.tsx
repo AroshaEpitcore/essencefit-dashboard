@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import ReviewCard from "./ReviewCard";
 import type { StoreReview } from "@/lib/storefront";
@@ -25,8 +25,6 @@ export default function ReviewsSection({
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
 
-  if (!reviews.length) return null;
-
   function scroll(dir: -1 | 1) {
     const el = trackRef.current;
     if (!el) return;
@@ -34,6 +32,37 @@ export default function ReviewsSection({
     const step = card ? card.offsetWidth + 16 : el.clientWidth * 0.8;
     el.scrollBy({ left: dir * step, behavior: "smooth" });
   }
+
+  // Auto-advance the carousel; pause on hover/touch, loop back at the end.
+  useEffect(() => {
+    if (variant !== "carousel" || reviews.length < 2) return;
+    const el = trackRef.current;
+    if (!el) return;
+    let paused = false;
+    const pause = () => { paused = true; };
+    const resume = () => { paused = false; };
+    el.addEventListener("mouseenter", pause);
+    el.addEventListener("mouseleave", resume);
+    el.addEventListener("touchstart", pause, { passive: true });
+    const id = setInterval(() => {
+      if (paused) return;
+      const card = el.querySelector<HTMLElement>("[data-review]");
+      const step = card ? card.offsetWidth + 16 : el.clientWidth * 0.8;
+      if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 4) {
+        el.scrollTo({ left: 0, behavior: "smooth" });
+      } else {
+        el.scrollBy({ left: step, behavior: "smooth" });
+      }
+    }, 3500);
+    return () => {
+      clearInterval(id);
+      el.removeEventListener("mouseenter", pause);
+      el.removeEventListener("mouseleave", resume);
+      el.removeEventListener("touchstart", pause);
+    };
+  }, [variant, reviews.length]);
+
+  if (!reviews.length) return null;
 
   const header = (
     <div className="flex items-end justify-between mb-8">

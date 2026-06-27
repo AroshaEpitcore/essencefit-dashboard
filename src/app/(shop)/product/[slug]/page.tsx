@@ -125,7 +125,7 @@ export default async function ProductPage({
 
       {reviews.length > 0 && (
         <div id="reviews" className="mt-14 scroll-mt-[140px]">
-          <ReviewsSection reviews={reviews} title="Customer Reviews" bare logo={settings.logoLight || settings.logo} />
+          <ReviewsSection reviews={reviews} title="Customer Reviews" variant="carousel" bare logo={settings.logoLight || settings.logo} />
         </div>
       )}
 
