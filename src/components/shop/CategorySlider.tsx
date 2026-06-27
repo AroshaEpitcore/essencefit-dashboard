@@ -29,8 +29,12 @@ export default function CategorySlider({
 
   return (
     <section className="max-w-[1920px] mx-auto px-4 sm:px-6 py-10">
+      <div className="relative overflow-hidden rounded-3xl bg-black px-5 sm:px-8 py-10">
+        {/* soft brand glow */}
+        <div aria-hidden className="pointer-events-none absolute -top-24 -right-24 w-72 h-72 rounded-full bg-primary/20 blur-3xl" />
+        <div className="relative">
       <div className="flex items-end justify-between mb-6">
-        <h2 className="text-2xl md:text-3xl font-bold uppercase tracking-wide text-gray-900 inline-block border-b-2 border-primary pb-1">
+        <h2 className="text-2xl md:text-3xl font-bold uppercase tracking-wide text-white inline-block border-b-2 border-primary pb-1">
           {title}
         </h2>
 
@@ -39,7 +43,7 @@ export default function CategorySlider({
             type="button"
             onClick={() => scroll(-1)}
             aria-label="Previous"
-            className="w-9 h-9 rounded-full border border-gray-300 flex items-center justify-center text-gray-700 hover:border-gray-900 hover:text-gray-900 transition-colors"
+            className="w-9 h-9 rounded-full border border-white/20 flex items-center justify-center text-white/70 hover:border-white hover:text-white transition-colors"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
@@ -47,7 +51,7 @@ export default function CategorySlider({
             type="button"
             onClick={() => scroll(1)}
             aria-label="Next"
-            className="w-9 h-9 rounded-full border border-gray-300 flex items-center justify-center text-gray-700 hover:border-gray-900 hover:text-gray-900 transition-colors"
+            className="w-9 h-9 rounded-full border border-white/20 flex items-center justify-center text-white/70 hover:border-white hover:text-white transition-colors"
           >
             <ChevronRight className="w-5 h-5" />
           </button>
@@ -83,6 +87,8 @@ export default function CategorySlider({
             </div>
           </Link>
         ))}
+      </div>
+        </div>
       </div>
     </section>
   );
