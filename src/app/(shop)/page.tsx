@@ -36,8 +36,10 @@ export default async function HomePage() {
       {featured.length > 0 && <ProductSlider title="Best of the Best" href="/shop" products={featured} />}
       {latest.length > 0 && <ProductSlider title="Just In" href="/shop?sort=new" products={latest} />}
 
-      {/* What customers say — latest published reviews */}
-      <ReviewsSection reviews={reviews} title="What our customers say" variant="carousel" showProduct logo={settings.logoLight || settings.logo} />
+      {/* What customers say — latest published reviews (rounded black panel, like the PDP) */}
+      <div className="max-w-[1920px] mx-auto px-4 sm:px-6 py-10">
+        <ReviewsSection reviews={reviews} title="What our customers say" variant="carousel" showProduct bare logo={settings.logoLight || settings.logo} />
+      </div>
 
       {featured.length === 0 && deals.length === 0 && latest.length === 0 && (
         <div className="max-w-[1920px] mx-auto px-4 sm:px-6 py-20 text-center text-gray-500">
