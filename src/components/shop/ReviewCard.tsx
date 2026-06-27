@@ -16,16 +16,17 @@ function initials(name: string): string {
 export default function ReviewCard({
   review,
   showProduct = false,
+  logo = null,
 }: {
   review: StoreReview;
   showProduct?: boolean;
+  logo?: string | null;
 }) {
   const [zoom, setZoom] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [truncated, setTruncated] = useState(false);
   const msgRef = useRef<HTMLParagraphElement>(null);
 
-  // Measure overflow while clamped so we only show "Read more" when needed.
   useEffect(() => {
     const el = msgRef.current;
     if (!el || expanded) return;
@@ -45,9 +46,15 @@ export default function ReviewCard({
   }, [zoom]);
 
   return (
-    <div className="h-full flex flex-col rounded-2xl border border-white/10 bg-white/[0.04] p-5 sm:p-6 transition-colors hover:border-white/25">
+    <div className="relative overflow-hidden h-full flex flex-col rounded-2xl border border-white/10 bg-white/[0.04] p-5 sm:p-6 transition-colors hover:border-white/25">
+      {/* Brand logo watermark */}
+      {logo && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={logo} alt="" aria-hidden className="pointer-events-none select-none absolute -right-6 -bottom-6 w-36 opacity-[0.07]" />
+      )}
+
       {/* Reviewer header */}
-      <div className="flex items-center gap-3 mb-4">
+      <div className="relative flex items-center gap-3 mb-4">
         <div className="w-11 h-11 rounded-full overflow-hidden bg-primary/20 text-primary flex items-center justify-center font-semibold shrink-0 ring-1 ring-white/10">
           {review.CustomerImage ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -63,20 +70,20 @@ export default function ReviewCard({
       </div>
 
       {/* Message with inline expand */}
-      <p ref={msgRef} className={`text-white/80 leading-relaxed ${expanded ? "" : "line-clamp-5"}`}>
+      <p ref={msgRef} className={`relative text-white/80 leading-relaxed ${expanded ? "" : "line-clamp-5"}`}>
         {review.Message}
       </p>
       {truncated && (
         <button
           onClick={() => setExpanded((v) => !v)}
-          className="self-start mt-2 text-sm font-semibold text-primary hover:underline"
+          className="relative self-start mt-2 text-sm font-semibold text-primary hover:underline"
         >
           {expanded ? "Show less" : "Read more"}
         </button>
       )}
 
       {review.Images.length > 0 && (
-        <div className="flex flex-wrap gap-2 mt-4">
+        <div className="relative flex flex-wrap gap-2 mt-4">
           {review.Images.map((url) => (
             <button key={url} type="button" onClick={() => setZoom(url)} className="w-16 h-16 rounded-lg overflow-hidden bg-white/5 border border-white/10 hover:opacity-90">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -87,7 +94,7 @@ export default function ReviewCard({
       )}
 
       {showProduct && review.ProductSlug && review.ProductName && (
-        <Link href={`/product/${review.ProductSlug}`} className="mt-4 text-xs text-white/40 hover:text-primary">
+        <Link href={`/product/${review.ProductSlug}`} className="relative mt-4 text-xs text-white/40 hover:text-primary">
           on {review.ProductName}
         </Link>
       )}

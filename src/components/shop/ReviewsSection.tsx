@@ -14,12 +14,14 @@ export default function ReviewsSection({
   variant = "grid",
   showProduct = false,
   bare = false,
+  logo = null,
 }: {
   reviews: StoreReview[];
   title: string;
   variant?: "grid" | "carousel";
   showProduct?: boolean;
   bare?: boolean;
+  logo?: string | null;
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
 
@@ -59,14 +61,14 @@ export default function ReviewsSection({
       <div ref={trackRef} className="flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {reviews.map((r) => (
           <div key={r.Id} data-review className="snap-start shrink-0 w-[85%] sm:w-[45%] lg:w-[31%]">
-            <ReviewCard review={r} showProduct={showProduct} />
+            <ReviewCard review={r} showProduct={showProduct} logo={logo} />
           </div>
         ))}
       </div>
     ) : (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {reviews.map((r) => (
-          <ReviewCard key={r.Id} review={r} showProduct={showProduct} />
+          <ReviewCard key={r.Id} review={r} showProduct={showProduct} logo={logo} />
         ))}
       </div>
     );
