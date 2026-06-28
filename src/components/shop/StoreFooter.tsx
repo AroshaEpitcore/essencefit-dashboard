@@ -88,7 +88,7 @@ export default function StoreFooter({
 
       {/* Oversized brand wordmark bleeding off the bottom edge */}
       <div aria-hidden className="pointer-events-none select-none relative">
-        <span className="block text-center font-black tracking-tighter leading-[0.75] text-white/[0.05] text-[15vw] -mb-[0.16em] whitespace-nowrap">
+        <span className="block text-center font-black tracking-tighter leading-none text-white/10 text-[15vw] whitespace-nowrap pb-2">
           {settings.storeName}
         </span>
       </div>
