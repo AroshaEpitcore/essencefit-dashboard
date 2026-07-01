@@ -85,15 +85,27 @@ export default function AddToCart({
   const [sizeId, setSizeId] = useState<string | null>(hasSizes ? null : "none");
   const [qty, setQty] = useState(1);
 
-  // availability that respects the OTHER current selection
-  const colorAvailable = (cid: string) =>
-    variants.some(
-      (v) => v.ColorId === cid && (!hasSizes || !sizeId || sizeId === "none" || v.SizeId === sizeId) && v.Qty > 0
-    );
+  // Colours must stay pickable regardless of the current size — a colour that
+  // simply doesn't come in the selected size (e.g. no Black-Small) would
+  // otherwise get `disabled` and trap the shopper: a disabled swatch never
+  // fires onClick, so there'd be no way to switch off the wrong size.
+  // Only disable a colour once it has zero stock across every size.
+  const colorAvailable = (cid: string) => variants.some((v) => v.ColorId === cid && v.Qty > 0);
+  // Sizes stay dependent on the chosen colour (standard pick-colour-then-size flow).
   const sizeAvailable = (sid: string) =>
     variants.some(
       (v) => v.SizeId === sid && (!hasColors || !colorId || colorId === "none" || v.ColorId === colorId) && v.Qty > 0
     );
+
+  // Switching colour when the current size doesn't exist in the new colour
+  // clears the size instead of leaving a stale, invalid combo selected.
+  function pickColor(cid: string) {
+    setColorId(cid);
+    if (sizeId && sizeId !== "none") {
+      const stillValid = variants.some((v) => v.ColorId === cid && v.SizeId === sizeId && v.Qty > 0);
+      if (!stillValid) setSizeId(null);
+    }
+  }
 
   const variant = useMemo(
     () =>
@@ -171,7 +183,7 @@ export default function AddToCart({
                   type="button"
                   disabled={!avail}
                   title={c.name + (avail ? "" : " — sold out")}
-                  onClick={() => setColorId(c.id)}
+                  onClick={() => pickColor(c.id)}
                   className={`relative w-11 h-11 rounded-sm border-2 overflow-hidden transition-[border-color] ${
                     selected ? "border-gray-900" : "border-gray-200"
                   } ${!avail ? "cursor-not-allowed opacity-70" : "hover:border-gray-400"}`}
