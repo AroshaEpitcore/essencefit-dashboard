@@ -7,7 +7,7 @@ import { getPublicStoreSettings } from "@/lib/storeSettings";
 import { money } from "@/components/shop/format";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Order details | EssenceFit" };
+export const metadata = { title: "Order details" };
 
 const STEPS = ["Pending", "Paid", "Completed"] as const;
 const STEP_LABEL: Record<string, string> = {

@@ -5,7 +5,7 @@ import { getCurrentCustomer } from "@/lib/customerAuth";
 import CustomizeForm from "./CustomizeForm";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Customize & DTF Print | EssenceFit" };
+export const metadata = { title: "Customize & DTF Print" };
 
 export default async function CustomizePage() {
   const [products, pricing, settings, account] = await Promise.all([

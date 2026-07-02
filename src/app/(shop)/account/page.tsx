@@ -7,7 +7,7 @@ import LogoutButton from "@/components/shop/LogoutButton";
 import { Package, User, ChevronRight } from "lucide-react";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "My account | EssenceFit" };
+export const metadata = { title: "My account" };
 
 const statusColor: Record<string, string> = {
   Pending: "bg-amber-100 text-amber-700",

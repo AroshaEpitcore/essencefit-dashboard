@@ -6,7 +6,7 @@ import { money } from "@/components/shop/format";
 import { ChevronLeft, Package } from "lucide-react";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "My orders | EssenceFit" };
+export const metadata = { title: "My orders" };
 
 const statusColor: Record<string, string> = {
   Pending: "bg-amber-100 text-amber-700",

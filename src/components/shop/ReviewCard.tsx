@@ -87,7 +87,7 @@ export default function ReviewCard({
           {review.Images.map((url) => (
             <button key={url} type="button" onClick={() => setZoom(url)} className="w-16 h-16 rounded-lg overflow-hidden bg-white/5 border border-white/10 hover:opacity-90">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={url} alt="" className="w-full h-full object-cover" />
+              <img src={url} alt={`Photo from ${review.CustomerName}'s review`} className="w-full h-full object-cover" />
             </button>
           ))}
         </div>
@@ -105,7 +105,7 @@ export default function ReviewCard({
             <X className="w-7 h-7" />
           </button>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={zoom} alt="" onClick={(e) => e.stopPropagation()} className="max-w-[92vw] max-h-[90vh] object-contain" />
+          <img src={zoom} alt={`Photo from ${review.CustomerName}'s review`} onClick={(e) => e.stopPropagation()} className="max-w-[92vw] max-h-[90vh] object-contain" />
         </div>
       )}
     </div>

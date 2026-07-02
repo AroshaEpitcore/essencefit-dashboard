@@ -3,7 +3,7 @@ import { getCurrentCustomer } from "@/lib/customerAuth";
 import ProfileForm from "./ProfileForm";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Profile | EssenceFit" };
+export const metadata = { title: "Profile" };
 
 export default async function ProfilePage() {
   const me = await getCurrentCustomer();

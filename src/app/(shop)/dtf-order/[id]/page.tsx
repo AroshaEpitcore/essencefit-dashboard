@@ -7,7 +7,7 @@ import { getDtfPageSettings } from "@/lib/dtfSettings";
 import { money } from "@/components/shop/format";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Custom order | EssenceFit" };
+export const metadata = { title: "Custom order" };
 
 const STEPS = ["Pending", "Confirmed", "InProduction", "Ready", "Completed"] as const;
 const STEP_LABEL: Record<string, string> = {

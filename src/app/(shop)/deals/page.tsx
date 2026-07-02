@@ -4,7 +4,7 @@ import { Tag } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Deals | EssenceFit" };
+export const metadata = { title: "Deals" };
 
 export default async function DealsPage() {
   const deals = await getDeals(60);

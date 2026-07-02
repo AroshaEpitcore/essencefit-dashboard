@@ -4,7 +4,7 @@ import ShopFilters from "@/components/shop/ShopFilters";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Shop | EssenceFit" };
+export const metadata = { title: "Shop" };
 
 export default async function ShopPage({
   searchParams,

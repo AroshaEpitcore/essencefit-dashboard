@@ -8,13 +8,19 @@ import ReviewsSection from "@/components/shop/ReviewsSection";
 import Hero from "@/components/shop/Hero";
 import { SITE_NAME } from "@/lib/seo";
 
-export const dynamic = "force-dynamic";
+// Intended as ISR (regenerate in the background at most once every 60s)
+// to cut response time. Currently NOT effective: (shop)/layout.tsx reads
+// cookies() via getCurrentCustomer() for the header's login state, and any
+// dynamic API used in a route's tree forces the whole route to render on
+// every request, silently overriding this. Will start working once that
+// customer-session check moves to a client-side fetch instead.
+export const revalidate = 60;
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getPublicStoreSettings();
   const description = `Shop ${settings.storeName || SITE_NAME} — premium apparel and custom DTF-printed t-shirts with island-wide delivery across Sri Lanka.`;
   return {
-    title: `${settings.storeName || SITE_NAME} — Premium Apparel, Delivered Island-Wide`,
+    title: { absolute: `${settings.storeName || SITE_NAME} — Premium Apparel, Island-Wide Delivery` },
     description,
     alternates: { canonical: "/" },
     openGraph: { title: settings.storeName || SITE_NAME, description, url: "/", images: settings.logoDark || settings.logo ? [{ url: settings.logoDark || settings.logo }] : undefined },
