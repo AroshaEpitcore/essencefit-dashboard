@@ -12,6 +12,7 @@ import { getPublicStoreSettings } from "@/lib/storeSettings";
 import SizeChartButton from "@/components/shop/SizeChartButton";
 import { money, discountPct } from "@/components/shop/format";
 import { ChevronRight } from "lucide-react";
+import { buildProductDescription, breadcrumbJsonLd, productJsonLd } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
@@ -19,10 +20,14 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const product = await getProductBySlug(slug);
   if (!product) return { title: "Product not found" };
+  const description = buildProductDescription(product.Name, product.CategoryName, product.Description);
+  const images = product.Images.length ? product.Images : product.ImageUrl ? [product.ImageUrl] : [];
   return {
-    title: `${product.Name} | EssenceFit`,
-    description: product.Description?.slice(0, 160) || product.Name,
-    openGraph: { images: product.ImageUrl ? [product.ImageUrl] : [] },
+    title: product.Name,
+    description,
+    alternates: { canonical: `/product/${product.Slug}` },
+    openGraph: { title: product.Name, description, url: `/product/${product.Slug}`, images, type: "website" },
+    twitter: { card: "summary_large_image", title: product.Name, description, images },
   };
 }
 
@@ -95,8 +100,25 @@ export default async function ProductPage({
     </div>
   ) : null;
 
+  const productLd = productJsonLd({
+    name: product.Name,
+    slug: product.Slug,
+    description: buildProductDescription(product.Name, product.CategoryName, product.Description),
+    images: product.Images.length ? product.Images : product.ImageUrl ? [product.ImageUrl] : [],
+    sellingPrice: product.SellingPrice,
+    inStock: variants.some((v) => v.Qty > 0) || product.Stock > 0,
+    rating: rating.count > 0 ? rating : null,
+  });
+  const breadcrumbLd = breadcrumbJsonLd([
+    { name: "Home", path: "/" },
+    ...(product.CategoryName && product.CategorySlug ? [{ name: product.CategoryName, path: `/category/${product.CategorySlug}` }] : []),
+    { name: product.Name, path: `/product/${product.Slug}` },
+  ]);
+
   return (
     <div className="max-w-[1920px] mx-auto px-4 sm:px-6 py-6">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
       {/* Breadcrumb */}
       <nav className="flex items-center gap-1 text-sm text-gray-500 mb-6 flex-wrap">
         <Link href="/" className="hover:text-primary">Home</Link>

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { getFeaturedProducts, getDeals, getActiveCategories, getNewProducts, getNewArrivals, getLatestReviews } from "@/lib/storefront";
 import { getPublicStoreSettings } from "@/lib/storeSettings";
 import ProductSlider from "@/components/shop/ProductSlider";
@@ -5,8 +6,20 @@ import CategorySlider from "@/components/shop/CategorySlider";
 import WeeklyMvp from "@/components/shop/WeeklyMvp";
 import ReviewsSection from "@/components/shop/ReviewsSection";
 import Hero from "@/components/shop/Hero";
+import { SITE_NAME } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getPublicStoreSettings();
+  const description = `Shop ${settings.storeName || SITE_NAME} — premium apparel and custom DTF-printed t-shirts with island-wide delivery across Sri Lanka.`;
+  return {
+    title: `${settings.storeName || SITE_NAME} — Premium Apparel, Delivered Island-Wide`,
+    description,
+    alternates: { canonical: "/" },
+    openGraph: { title: settings.storeName || SITE_NAME, description, url: "/", images: settings.logoDark || settings.logo ? [{ url: settings.logoDark || settings.logo }] : undefined },
+  };
+}
 
 export default async function HomePage() {
   const [settings, categories, featured, deals, latest, newArrivals, reviews] = await Promise.all([

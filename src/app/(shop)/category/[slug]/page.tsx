@@ -6,13 +6,21 @@ import { getPublicStoreSettings } from "@/lib/storeSettings";
 import ProductCard from "@/components/shop/ProductCard";
 import ReviewsSection from "@/components/shop/ReviewsSection";
 import { ChevronRight } from "lucide-react";
+import { buildCategoryDescription, breadcrumbJsonLd } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const cat = await getCategoryBySlug(slug);
-  return { title: cat ? `${cat.Name} | EssenceFit` : "Category" };
+  if (!cat) return { title: "Category" };
+  const description = buildCategoryDescription(cat.Name, cat.Description, cat.ProductCount);
+  return {
+    title: cat.Name,
+    description,
+    alternates: { canonical: `/category/${cat.Slug}` },
+    openGraph: { title: cat.Name, description, url: `/category/${cat.Slug}`, images: cat.ImageUrl ? [{ url: cat.ImageUrl }] : undefined },
+  };
 }
 
 export default async function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -26,8 +34,14 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
     getPublicStoreSettings(),
   ]);
 
+  const breadcrumbLd = breadcrumbJsonLd([
+    { name: "Home", path: "/" },
+    { name: cat.Name, path: `/category/${cat.Slug}` },
+  ]);
+
   return (
     <div className="max-w-[1920px] mx-auto px-4 sm:px-6 py-6">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
       <nav className="flex items-center gap-1 text-sm text-gray-500 mb-4">
         <Link href="/" className="hover:text-primary">Home</Link>
         <ChevronRight className="w-4 h-4" />
