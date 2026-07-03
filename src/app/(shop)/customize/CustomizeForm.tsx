@@ -2,14 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Upload, X, FileText, MessageCircle, Check, Loader2, Lightbulb, User, Mail, MapPin, Lock } from "lucide-react";
+import { Upload, X, FileText, MessageCircle, Check, Loader2, Lightbulb } from "lucide-react";
 import type { StoreProduct, StoreVariant } from "@/lib/storefront";
 import type { DtfPricingConfig } from "@/lib/dtfPricing";
 import type { DtfPageSettings } from "@/lib/dtfSettings";
 import { sizeRank } from "@/components/shop/format";
 import { resolveSwatch, cutLineColor } from "@/lib/colorHex";
-import { FloatingInput, FloatingTextarea } from "@/components/shop/FloatingInput";
-import PhoneInput from "@/components/shop/PhoneInput";
+import { LabeledInput, LabeledTextarea } from "@/components/shop/LabeledInput";
 import { createDtfOrder, getGarmentVariants, type DtfDesignInput } from "./actions";
 
 type AccountInfo = { name: string; phone: string | null; email: string | null } | null;
@@ -312,7 +311,7 @@ export default function CustomizeForm({
           )}
 
           {product && (
-            <FloatingInput
+            <LabeledInput
               id="dtf-qty" label="Quantity" type="number" min={1}
               containerClassName="mt-5 w-32"
               value={qty} onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))}
@@ -387,8 +386,9 @@ export default function CustomizeForm({
         {/* 4. Note */}
         <section className="border border-gray-200 rounded-xl p-5">
           <h3 className="font-semibold text-gray-900 mb-3">4. Your note</h3>
-          <FloatingTextarea
-            id="dtf-note" label="Tell us print placement, sizing, colours, or anything else…" rows={3}
+          <LabeledTextarea
+            id="dtf-note" label="Your note" rows={3}
+            placeholder="Tell us print placement, sizing, colours, or anything else…"
             value={note} onChange={(e) => setNote(e.target.value)}
           />
         </section>
@@ -397,12 +397,12 @@ export default function CustomizeForm({
         <section className="border border-gray-200 rounded-xl p-5">
           <h3 className="font-semibold text-gray-900 mb-3">5. Your details</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <FloatingInput id="dtf-name" label="Full name *" leftAdornment={<User className="w-4 h-4 text-gray-400" />} value={name} onChange={(e) => setName(e.target.value)} />
-            <PhoneInput id="dtf-phone" label="Phone *" value={phone} onChange={setPhone} />
-            <PhoneInput id="dtf-whatsapp" label="WhatsApp (optional)" value={whatsapp} onChange={setWhatsapp} />
-            <FloatingInput id="dtf-email" label="Email (optional)" type="email" leftAdornment={<Mail className="w-4 h-4 text-gray-400" />} value={email} onChange={(e) => setEmail(e.target.value)} />
-            <FloatingInput
-              id="dtf-address" label="Delivery address (optional)" leftAdornment={<MapPin className="w-4 h-4 text-gray-400" />}
+            <LabeledInput id="dtf-name" label="Full name *" value={name} onChange={(e) => setName(e.target.value)} />
+            <LabeledInput id="dtf-phone" label="Phone *" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+            <LabeledInput id="dtf-whatsapp" label="WhatsApp (optional)" type="tel" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} />
+            <LabeledInput id="dtf-email" label="Email (optional)" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <LabeledInput
+              id="dtf-address" label="Delivery address (optional)"
               containerClassName="sm:col-span-2" value={address} onChange={(e) => setAddress(e.target.value)}
             />
           </div>
@@ -417,9 +417,8 @@ export default function CustomizeForm({
                   Already have an account? Log in
                 </Link>
               </div>
-              <FloatingInput
+              <LabeledInput
                 id="dtf-password" label="Choose a password (min 6 characters) *" type="password"
-                leftAdornment={<Lock className="w-4 h-4 text-gray-400" />}
                 value={password} onChange={(e) => setPassword(e.target.value)}
               />
             </div>

@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
-import { ChevronLeft, User, Lock } from "lucide-react";
-import { FloatingInput, FloatingTextarea } from "@/components/shop/FloatingInput";
-import PhoneInput from "@/components/shop/PhoneInput";
+import { ChevronLeft } from "lucide-react";
+import { LabeledInput, LabeledTextarea } from "@/components/shop/LabeledInput";
 import { updateMyProfile } from "../actions";
 
 export default function ProfileForm({ initial }: { initial: { name: string; phone: string; address: string } }) {
@@ -34,18 +33,20 @@ export default function ProfileForm({ initial }: { initial: { name: string; phon
       </Link>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Profile</h1>
       <form onSubmit={save} className="space-y-4">
-        <FloatingInput
-          id="profile-name" label="Name" leftAdornment={<User className="w-4 h-4 text-gray-400" />}
+        <LabeledInput
+          id="profile-name" label="Name"
           value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })}
         />
-        <PhoneInput id="profile-phone" label="Phone" value={f.phone} onChange={(v) => setF({ ...f, phone: v })} />
-        <FloatingTextarea
+        <LabeledInput
+          id="profile-phone" label="Phone" type="tel"
+          value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })}
+        />
+        <LabeledTextarea
           id="profile-address" label="Address" rows={3}
           value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })}
         />
-        <FloatingInput
+        <LabeledInput
           id="profile-password" label="New password (optional)" type="password"
-          leftAdornment={<Lock className="w-4 h-4 text-gray-400" />}
           value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })}
         />
         <button disabled={busy} className="w-full bg-primary text-white py-3 rounded-lg font-semibold hover:bg-primary/90 disabled:opacity-50">{busy ? "Saving..." : "Save changes"}</button>

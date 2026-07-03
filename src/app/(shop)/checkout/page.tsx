@@ -4,11 +4,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import toast, { Toaster } from "react-hot-toast";
-import { Landmark, Truck, Upload, Check, ShoppingBag, Mail, User, Lock, ArrowRight } from "lucide-react";
+import { Landmark, Truck, Upload, Check, ShoppingBag, ArrowRight } from "lucide-react";
 import { useCart } from "@/components/shop/CartContext";
 import Select from "@/components/shop/Select";
-import { FloatingInput, FloatingTextarea } from "@/components/shop/FloatingInput";
-import PhoneInput from "@/components/shop/PhoneInput";
+import { LabeledInput, LabeledTextarea } from "@/components/shop/LabeledInput";
 import { money } from "@/components/shop/format";
 import { getCheckoutConfig, createWebOrder, type CheckoutConfig } from "./actions";
 import { getMyAccount, logoutCustomer } from "../account/actions";
@@ -24,7 +23,7 @@ async function uploadSlip(file: File): Promise<string> {
 }
 
 const selectTrigger =
-  "peer w-full flex items-center justify-between gap-2 bg-white border border-gray-300 rounded-lg px-4 pt-5 pb-2 text-left text-gray-900 hover:border-gray-400 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors";
+  "w-full flex items-center justify-between gap-2 bg-white border border-gray-300 rounded-lg px-4 py-2.5 text-left text-gray-900 hover:border-gray-400 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors";
 
 function StepBadge({ n }: { n: number }) {
   return (
@@ -150,37 +149,40 @@ export default function CheckoutPage() {
               <h2 className="text-lg font-bold text-gray-900">Delivery details</h2>
             </div>
             <div className="grid sm:grid-cols-2 gap-4">
-              <FloatingInput
-                id="checkout-name" label="Full name *" leftAdornment={<User className="w-4 h-4 text-gray-400" />}
+              <LabeledInput
+                id="checkout-name" label="Full name *"
                 value={f.customer} onChange={(e) => setF({ ...f, customer: e.target.value })}
               />
-              <PhoneInput
-                id="checkout-phone" label="Phone number *" required
-                value={f.customerPhone} onChange={(v) => setF({ ...f, customerPhone: v })}
+              <LabeledInput
+                id="checkout-phone" label="Phone number *" type="tel" required
+                value={f.customerPhone} onChange={(e) => setF({ ...f, customerPhone: e.target.value })}
               />
-              <PhoneInput
-                id="checkout-phone2" label="Secondary phone (optional)"
-                value={f.secondaryPhone} onChange={(v) => setF({ ...f, secondaryPhone: v })}
+              <LabeledInput
+                id="checkout-phone2" label="Secondary phone (optional)" type="tel"
+                value={f.secondaryPhone} onChange={(e) => setF({ ...f, secondaryPhone: e.target.value })}
               />
-              <FloatingInput
-                id="checkout-email" label="Email (optional)" type="email" leftAdornment={<Mail className="w-4 h-4 text-gray-400" />}
+              <LabeledInput
+                id="checkout-email" label="Email (optional)" type="email"
                 value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })}
               />
               {config && config.deliveryProvinces.length > 0 && (
-                <Select
-                  ariaLabel="Province"
-                  placeholder="Select province *"
-                  value={f.province}
-                  onChange={(v) => setF({ ...f, province: v })}
-                  triggerClassName={selectTrigger}
-                  options={config.deliveryProvinces.map((p) => ({ value: p.name, label: `${p.name} — ${money(p.fee)}` }))}
-                />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Province *</label>
+                  <Select
+                    ariaLabel="Province"
+                    placeholder="Select province"
+                    value={f.province}
+                    onChange={(v) => setF({ ...f, province: v })}
+                    triggerClassName={selectTrigger}
+                    options={config.deliveryProvinces.map((p) => ({ value: p.name, label: `${p.name} — ${money(p.fee)}` }))}
+                  />
+                </div>
               )}
-              <FloatingTextarea
+              <LabeledTextarea
                 id="checkout-address" label="Delivery address *" rows={3} containerClassName="sm:col-span-2"
                 value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })}
               />
-              <FloatingTextarea
+              <LabeledTextarea
                 id="checkout-notes" label="Order notes (optional)" rows={2} containerClassName="sm:col-span-2"
                 value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })}
               />
@@ -209,9 +211,8 @@ export default function CheckoutPage() {
               <p className="text-sm text-gray-500 mb-4">
                 We&apos;ll save your details so you can sign in (with your phone or email) and follow your order anytime.
               </p>
-              <FloatingInput
+              <LabeledInput
                 id="checkout-password" label="Choose a password (min 6 characters) *" type="password"
-                leftAdornment={<Lock className="w-4 h-4 text-gray-400" />}
                 value={password} onChange={(e) => setPassword(e.target.value)}
               />
             </section>
