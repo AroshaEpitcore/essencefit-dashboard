@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import { getStoreSettings, saveStoreSettings } from "../settings/actions";
 import type { StoreSettings, HeroSlide } from "@/lib/storeSettings";
-import { Globe, Save, ImagePlus, Plus, Trash2, Landmark, Truck, Phone, Share2 } from "lucide-react";
+import { Globe, Save, ImagePlus, Plus, Trash2, Landmark, Truck, Phone, Share2, BellRing } from "lucide-react";
 
 async function uploadFile(file: File, folder: string): Promise<string> {
   const fd = new FormData();
@@ -286,6 +286,20 @@ export default function StoreSettingsPage() {
             <input value={s.social.whatsapp} onChange={(e) => set("social", { ...s.social, whatsapp: e.target.value })} placeholder="WhatsApp number" className={input} />
             <input value={s.social.tiktok} onChange={(e) => set("social", { ...s.social, tiktok: e.target.value })} placeholder="TikTok URL" className={input} />
           </div>
+        </div>
+
+        {/* Order notifications (internal — not shown to customers) */}
+        <div className={card}>
+          <h2 className="font-semibold flex items-center gap-2"><BellRing className="w-4 h-4 text-primary" /> Order notifications</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            An email is sent here every time a new order comes in (website, admin-entered, or DTF).
+          </p>
+          <input
+            value={s.orderNotificationEmail}
+            onChange={(e) => set("orderNotificationEmail", e.target.value)}
+            placeholder="Order notification email"
+            className={input}
+          />
         </div>
       </div>
     </div>

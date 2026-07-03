@@ -2,6 +2,7 @@
 
 import { getDb } from "@/lib/db";
 import sql, { NVarChar, UniqueIdentifier, Int, Decimal, Transaction } from "@/lib/sqlShim";
+import { sendOrderNotification } from "@/lib/orderNotify";
 
 type OrderStatus = "Pending" | "Paid" | "Partial" | "Completed" | "Canceled";
 export type OrderRange = "today" | "yesterday" | "last7" | "last30" | "all";
@@ -567,6 +568,17 @@ export async function createOrder(payload: OrderPayload) {
       `);
 
     await tx.commit();
+
+    await sendOrderNotification({
+      subject: `New order entered — ${payload.Customer ?? "Customer"}`,
+      heading: "New Admin-Entered Order",
+      lines: [
+        `Customer: ${payload.Customer ?? "—"}`,
+        `Phone: ${payload.CustomerPhone ?? "—"}`,
+        `Total: Rs ${Number(payload.Total).toFixed(2)}`,
+      ],
+      adminPath: "/orders",
+    });
 
     // Auto-create dispatch message if WaybillId is provided
     if (payload.WaybillId?.trim()) {

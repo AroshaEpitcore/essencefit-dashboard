@@ -57,6 +57,7 @@ export type StoreSettings = {
   contactPhone: string;
   contactEmail: string;
   social: SocialLinks;
+  orderNotificationEmail: string; // owner alert address — new-order emails are sent here
 };
 
 // Settings keys ↔ struct mapping
@@ -74,6 +75,7 @@ export const STORE_KEYS = {
   contactPhone: "contact_phone",
   contactEmail: "contact_email",
   social: "social",
+  orderNotificationEmail: "order_notification_email",
 } as const;
 
 export const DEFAULT_STORE_SETTINGS: StoreSettings = {
@@ -91,6 +93,7 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
   contactPhone: "",
   contactEmail: "",
   social: { facebook: "", instagram: "", whatsapp: "", tiktok: "" },
+  orderNotificationEmail: "",
 };
 
 // Normalise stored slides — supports the legacy {image,title,subtitle,link} shape.
@@ -153,5 +156,6 @@ export async function getPublicStoreSettings(): Promise<StoreSettings> {
     contactPhone: map[STORE_KEYS.contactPhone] || d.contactPhone,
     contactEmail: map[STORE_KEYS.contactEmail] || d.contactEmail,
     social: parseJson<SocialLinks>(map[STORE_KEYS.social], d.social),
+    orderNotificationEmail: map[STORE_KEYS.orderNotificationEmail] || d.orderNotificationEmail,
   };
 }

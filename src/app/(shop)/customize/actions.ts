@@ -5,6 +5,7 @@ import { getDb, sql } from "@/lib/db";
 import { getDtfGarment } from "@/lib/storefront";
 import { computeDtfEstimate } from "@/lib/dtfPricing";
 import { getCurrentCustomer, setSessionCookie } from "@/lib/customerAuth";
+import { sendOrderNotification } from "@/lib/orderNotify";
 
 const { UniqueIdentifier, NVarChar, Int, Decimal } = sql;
 
@@ -146,7 +147,7 @@ export async function createDtfOrder(payload: DtfOrderPayload): Promise<{ id: st
         VALUES
           (@Id, @Ref, @CustomerId, @CustomerName, @CustomerPhone, @WhatsApp, @Email, @Address,
            @ProductId, @VariantId, @Qty, @PrintOptions, @CustomerNote,
-           @GarmentPrice, @PrintCharges, @EstimatedTotal, @BreakdownJson, 'Pending', 0)
+           @GarmentPrice, @PrintCharges, @EstimatedTotal, @BreakdownJson, 'Pending', false)
       `);
 
     let i = 0;
@@ -163,6 +164,18 @@ export async function createDtfOrder(payload: DtfOrderPayload): Promise<{ id: st
     }
 
     await tx.commit();
+
+    await sendOrderNotification({
+      subject: `New DTF order — ${ref}`,
+      heading: "New DTF Customization Order",
+      lines: [
+        `Ref: ${ref}`,
+        `Customer: ${name}`,
+        `Phone: ${phone}`,
+        `Estimated total: Rs ${estimate.total.toFixed(2)}`,
+      ],
+      adminPath: "/dtf-orders",
+    });
 
     // Auto-sign-in when a new account was created at submit time.
     if (createdAccount) {

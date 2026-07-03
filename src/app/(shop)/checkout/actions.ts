@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { getDb, sql } from "@/lib/db";
 import { getPublicStoreSettings } from "@/lib/storeSettings";
 import { getCurrentCustomer, setSessionCookie } from "@/lib/customerAuth";
+import { sendOrderNotification } from "@/lib/orderNotify";
 
 const { UniqueIdentifier, NVarChar, Int, Decimal } = sql;
 
@@ -241,6 +242,18 @@ export async function createWebOrder(payload: WebOrderPayload): Promise<{ orderI
               VALUES (@Id, @OrderId, @OldStatus, @NewStatus, @ChangedAt)`);
 
     await tx.commit();
+
+    await sendOrderNotification({
+      subject: `New web order — ${name}`,
+      heading: "New Website Order",
+      lines: [
+        `Customer: ${name}`,
+        `Phone: ${phone}`,
+        `Total: Rs ${total.toFixed(2)}`,
+        `Items: ${priced.length}`,
+      ],
+      adminPath: "/web-orders",
+    });
 
     // Auto-sign-in when an account was just created (so they land logged in)
     if (accountReady && wantsAccount) {

@@ -79,6 +79,7 @@ export async function saveStoreSettings(s: StoreSettings) {
     [STORE_KEYS.contactPhone, s.contactPhone ?? ""],
     [STORE_KEYS.contactEmail, s.contactEmail ?? ""],
     [STORE_KEYS.social, JSON.stringify(s.social ?? {})],
+    [STORE_KEYS.orderNotificationEmail, s.orderNotificationEmail ?? ""],
   ];
   for (const [key, value] of pairs) {
     await saveSetting(key, value);
