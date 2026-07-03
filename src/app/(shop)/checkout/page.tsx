@@ -9,6 +9,7 @@ import { useCart } from "@/components/shop/CartContext";
 import Select from "@/components/shop/Select";
 import { LabeledInput, LabeledTextarea } from "@/components/shop/LabeledInput";
 import { money } from "@/components/shop/format";
+import { cleanPhoneInput } from "@/lib/phoneMask";
 import { getCheckoutConfig, createWebOrder, type CheckoutConfig } from "./actions";
 import { getMyAccount, logoutCustomer } from "../account/actions";
 
@@ -154,12 +155,12 @@ export default function CheckoutPage() {
                 value={f.customer} onChange={(e) => setF({ ...f, customer: e.target.value })}
               />
               <LabeledInput
-                id="checkout-phone" label="Phone number *" type="tel" required
-                value={f.customerPhone} onChange={(e) => setF({ ...f, customerPhone: e.target.value })}
+                id="checkout-phone" label="Phone number *" type="tel" inputMode="numeric" maxLength={10} required
+                value={f.customerPhone} onChange={(e) => setF({ ...f, customerPhone: cleanPhoneInput(e.target.value) })}
               />
               <LabeledInput
-                id="checkout-phone2" label="Secondary phone (optional)" type="tel"
-                value={f.secondaryPhone} onChange={(e) => setF({ ...f, secondaryPhone: e.target.value })}
+                id="checkout-phone2" label="Secondary phone (optional)" type="tel" inputMode="numeric" maxLength={10}
+                value={f.secondaryPhone} onChange={(e) => setF({ ...f, secondaryPhone: cleanPhoneInput(e.target.value) })}
               />
               <LabeledInput
                 id="checkout-email" label="Email (optional)" type="email"
