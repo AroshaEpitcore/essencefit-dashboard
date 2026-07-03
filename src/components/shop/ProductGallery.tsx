@@ -58,7 +58,7 @@ export default function ProductGallery({ images, name }: { images: string[]; nam
                 type="button"
                 onClick={() => setActive(i)}
                 aria-label={`View image ${i + 1}`}
-                className={`relative w-16 h-16 sm:w-full sm:h-20 shrink-0 overflow-hidden bg-gray-100 border ${
+                className={`relative w-16 h-16 sm:w-full sm:h-20 shrink-0 overflow-hidden rounded-lg bg-gray-100 border ${
                   active === i ? "border-gray-900" : "border-transparent hover:border-gray-300"
                 }`}
               >
@@ -70,7 +70,7 @@ export default function ProductGallery({ images, name }: { images: string[]; nam
         )}
 
         {/* Main image */}
-        <div className="flex-1 aspect-square overflow-hidden bg-gray-100">
+        <div className="flex-1 aspect-square overflow-hidden rounded-lg bg-gray-100">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={list[active]}

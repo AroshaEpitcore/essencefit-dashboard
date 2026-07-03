@@ -219,7 +219,7 @@ export default function AddToCart({
                   disabled={!avail}
                   title={s.name + (avail ? "" : " — sold out")}
                   onClick={() => setSizeId(s.id)}
-                  className={`relative min-w-[3rem] h-11 px-3 rounded-sm border-2 text-sm font-medium flex items-center justify-center transition-[border-color] ${
+                  className={`relative min-w-[3rem] h-11 px-3 rounded-full border-2 text-sm font-medium flex items-center justify-center transition-[border-color] ${
                     selected ? "border-gray-900 text-gray-900" : "border-gray-200 text-gray-700"
                   } ${!avail ? "cursor-not-allowed text-gray-400" : "hover:border-gray-400"}`}
                 >
@@ -245,7 +245,7 @@ export default function AddToCart({
 
       {/* Qty + actions */}
       <div className="flex items-center gap-3 mb-4">
-        <div className="flex items-center border border-gray-300 rounded-sm">
+        <div className="flex items-center border border-gray-300 rounded-full">
           <button onClick={() => setQty((q) => Math.max(1, q - 1))} className="p-2.5 text-gray-600 hover:text-primary"><Minus className="w-4 h-4" /></button>
           <span className="w-10 text-center font-medium">{qty}</span>
           <button onClick={() => setQty((q) => (canAdd ? Math.min(stock, q + 1) : q + 1))} className="p-2.5 text-gray-600 hover:text-primary"><Plus className="w-4 h-4" /></button>
@@ -256,14 +256,14 @@ export default function AddToCart({
         <button
           onClick={() => add(false)}
           disabled={!canAdd}
-          className="flex-1 bg-gray-900 text-white py-3.5 font-semibold flex items-center justify-center gap-2 hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex-1 rounded-full bg-gray-900 text-white py-3.5 font-semibold flex items-center justify-center gap-2 hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <ShoppingCart className="w-5 h-5" /> Add to cart
         </button>
         <button
           onClick={() => add(true)}
           disabled={!canAdd}
-          className="flex-1 bg-primary text-white py-3.5 font-semibold hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex-1 rounded-full bg-primary text-white py-3.5 font-semibold hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           Buy now
         </button>
