@@ -150,7 +150,8 @@ CREATE TABLE IF NOT EXISTS sales (
   paymentmethod text NOT NULL DEFAULT 'cash',
   paymentstatus text NOT NULL DEFAULT 'Paid',
   saledate timestamp NOT NULL DEFAULT now(),
-  orderid uuid
+  orderid uuid,
+  dtforderid uuid
 );
 
 CREATE TABLE IF NOT EXISTS handovers (
@@ -381,6 +382,7 @@ CREATE INDEX IF NOT EXISTS ix_orderstatuslogs_changedat ON orderstatuslogs (chan
 CREATE INDEX IF NOT EXISTS ix_orderstatuslogs_newstatus ON orderstatuslogs (newstatus);
 CREATE INDEX IF NOT EXISTS ix_orderstatuslogs_orderid ON orderstatuslogs (orderid);
 CREATE INDEX IF NOT EXISTS ix_sales_orderid ON sales (orderid);
+CREATE INDEX IF NOT EXISTS ix_sales_dtforderid ON sales (dtforderid);
 CREATE INDEX IF NOT EXISTS ix_reviews_productid ON reviews (productid);
 CREATE INDEX IF NOT EXISTS ix_reviewimages_reviewid ON reviewimages (reviewid);
 
@@ -395,6 +397,7 @@ ALTER TABLE orderitems          ADD CONSTRAINT fk_orderitems_order    FOREIGN KE
 ALTER TABLE orderitems          ADD CONSTRAINT fk_orderitems_variant  FOREIGN KEY (variantid)   REFERENCES productvariants (id);
 ALTER TABLE sales               ADD CONSTRAINT fk_sales_orders        FOREIGN KEY (orderid)     REFERENCES orders (id) ON DELETE CASCADE;
 ALTER TABLE sales               ADD CONSTRAINT fk_sales_variant       FOREIGN KEY (variantid)   REFERENCES productvariants (id);
+ALTER TABLE sales               ADD CONSTRAINT fk_sales_dtforders     FOREIGN KEY (dtforderid)  REFERENCES dtforders (id) ON DELETE CASCADE;
 ALTER TABLE handovers           ADD CONSTRAINT fk_handovers_user      FOREIGN KEY (userid)      REFERENCES users (id);
 ALTER TABLE purchases           ADD CONSTRAINT fk_purchases_supplier  FOREIGN KEY (supplierid)  REFERENCES suppliers (id);
 ALTER TABLE purchases           ADD CONSTRAINT fk_purchases_variant   FOREIGN KEY (variantid)   REFERENCES productvariants (id);

@@ -70,6 +70,8 @@ export async function updateDtfOrderPricing(
     .input("AdvanceAmount", Decimal(10, 2), advanceAmount ?? null)
     .input("AdminNote", NVarChar(sql.MAX), adminNote || null)
     .query(`UPDATE DtfOrders SET FinalTotal=@FinalTotal, AdvanceAmount=@AdvanceAmount, AdminNote=@AdminNote WHERE Id=@Id`);
+
+  await syncDtfOrderSales(() => pool.request(), id);
   return true;
 }
 
@@ -128,6 +130,48 @@ export async function confirmDtfOrder(id: string) {
   }
 }
 
+/* ---------- Sales sync (Completed DTF orders count as sales) ----------
+ * Mirrors shouldCreateSales/insertSalesRows/deleteSalesForOrder in
+ * orders/actions.ts: delete-then-reinsert keeps Sales in sync with the
+ * order's current status, so toggling status or editing FinalTotal never
+ * leaves stale/duplicate rows. Sales.OrderId is FK'd to Orders (a
+ * DtfOrders.Id can't go there) so this uses Sales.DtfOrderId instead and
+ * leaves OrderId NULL — Dashboard/Reports read Sales directly and never
+ * require OrderId to resolve, so this is enough for a DTF sale to appear
+ * in revenue/units/charts everywhere. Requires a chosen VariantId
+ * (Sales.VariantId is NOT NULL); orders with no garment variant chosen
+ * are skipped.
+ */
+async function syncDtfOrderSales(requestFactory: () => any, dtfOrderId: string) {
+  const r = await requestFactory()
+    .input("Id", UniqueIdentifier, dtfOrderId)
+    .query(`SELECT Status, VariantId, Qty, FinalTotal, EstimatedTotal, CreatedAt FROM DtfOrders WHERE Id=@Id LIMIT 1`);
+  const o = r.recordset[0];
+  if (!o) return;
+
+  await requestFactory()
+    .input("Id", UniqueIdentifier, dtfOrderId)
+    .query(`DELETE FROM Sales WHERE DtfOrderId=@Id`);
+
+  if (o.Status === "Completed" && o.VariantId) {
+    const qty = o.Qty || 1;
+    const total = Number(o.FinalTotal ?? o.EstimatedTotal ?? 0);
+    const unitPrice = total / qty;
+
+    await requestFactory()
+      .input("SaleId", UniqueIdentifier, crypto.randomUUID())
+      .input("DtfOrderId", UniqueIdentifier, dtfOrderId)
+      .input("VariantId", UniqueIdentifier, o.VariantId)
+      .input("Qty", Int, qty)
+      .input("SellingPrice", Decimal(18, 2), unitPrice)
+      .input("SaleDate", sql.DateTime2(7), o.CreatedAt)
+      .query(`
+        INSERT INTO Sales (Id, DtfOrderId, VariantId, Qty, SellingPrice, PaymentMethod, PaymentStatus, SaleDate)
+        VALUES (@SaleId, @DtfOrderId, @VariantId, @Qty, @SellingPrice, 'DTF', 'Completed', @SaleDate)
+      `);
+  }
+}
+
 /* ---------- Status change (incl. Cancel → restore stock) ---------- */
 export async function setDtfOrderStatus(id: string, status: DtfOrderStatus) {
   const pool = await getDb();
@@ -174,6 +218,8 @@ export async function setDtfOrderStatus(id: string, status: DtfOrderStatus) {
         .input("Status", NVarChar(20), status)
         .query(`UPDATE DtfOrders SET Status=@Status WHERE Id=@Id`);
     }
+
+    await syncDtfOrderSales(() => new sql.Request(tx), id);
 
     await tx.commit();
     return true;

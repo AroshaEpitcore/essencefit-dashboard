@@ -87,7 +87,8 @@ export default function Sidebar({ collapsed }: { collapsed: boolean }) {
         <ul className="space-y-1 px-2 py-3">
           {visibleItems.map((item) => {
             const Icon = item.icon;
-            const active = pathname.startsWith(item.href);
+            const active =
+              pathname === item.href || pathname.startsWith(`${item.href}/`);
 
             const linkClasses = `flex items-center gap-3 px-3 py-2 rounded-md text-base font-medium transition-colors ${
               active
