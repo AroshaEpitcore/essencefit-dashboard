@@ -219,12 +219,15 @@ export default function AddToCart({
                   disabled={!avail}
                   title={s.name + (avail ? "" : " — sold out")}
                   onClick={() => setSizeId(s.id)}
-                  className={`relative min-w-[3rem] h-11 px-3 rounded-full border-2 text-sm font-medium flex items-center justify-center transition-[border-color] ${
-                    selected ? "border-gray-900 text-gray-900" : "border-gray-200 text-gray-700"
-                  } ${!avail ? "cursor-not-allowed text-gray-400" : "hover:border-gray-400"}`}
+                  className={`min-w-[3rem] h-11 px-3 rounded-full border-2 text-sm font-medium flex items-center justify-center transition-colors ${
+                    !avail
+                      ? "border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed"
+                      : selected
+                      ? "border-gray-900 text-gray-900"
+                      : "border-gray-200 text-gray-700 hover:border-gray-400"
+                  }`}
                 >
                   {s.name}
-                  {!avail && <CutLine hex={null} />}
                 </button>
               );
             })}

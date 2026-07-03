@@ -1,0 +1,33 @@
+/* Blends react-phone-number-input into the site's floating-input look. The
+   border/background/focus ring live on our own wrapper div (see PhoneInput.tsx)
+   so this just strips the library's own chrome and lays out flag + input inline. */
+.lk-phone-input.PhoneInput {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+.lk-phone-input .PhoneInputCountry {
+  margin-right: 10px;
+  margin-bottom: 0;
+}
+.lk-phone-input .PhoneInputCountryIcon {
+  width: 22px;
+  height: 16px;
+  border-radius: 2px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+.lk-phone-input .PhoneInputCountrySelectArrow {
+  opacity: 0.45;
+  margin-left: 4px;
+}
+.lk-phone-input .PhoneInputInput {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 15px;
+  color: #111827;
+  padding: 0;
+}

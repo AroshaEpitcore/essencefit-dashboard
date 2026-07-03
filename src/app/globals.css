@@ -21,6 +21,17 @@ optgroup {
   @apply bg-gray-900 text-gray-100;
 }
 
+/* Browser autofill (saved name/address/phone) paints its own yellow background
+   and can override our text colour, which breaks the floating-label inputs on
+   the storefront. Force it back to match the field. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #fff inset;
+  -webkit-text-fill-color: #111827;
+  transition: background-color 9999s ease-in-out 0s;
+}
+
 /* Storefront headings use the dedicated heading font */
 .store-headings :is(h1, h2, h3) {
   font-family: var(--font-heading), "Montserrat", ui-sans-serif, system-ui, sans-serif;

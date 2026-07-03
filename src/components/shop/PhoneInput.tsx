@@ -1,24 +1,24 @@
 "use client";
 
-import { FloatingInput } from "./FloatingInput";
+import { useState } from "react";
+import PhoneInputLib, { type Value } from "react-phone-number-input";
+import "react-phone-number-input/style.css";
+import "./phone-input.css";
 
-/** Formats digits as a Sri Lankan phone number: "076 294 6381". */
-export function formatLkPhone(raw: string): string {
-  const digits = raw.replace(/\D/g, "").slice(0, 10);
-  return [digits.slice(0, 3), digits.slice(3, 6), digits.slice(6, 10)].filter(Boolean).join(" ");
+/** App-facing values stay in the same local "0XXXXXXXXX" format the rest of the
+    site (DB, WhatsApp links, admin display) already expects — only the widget
+    itself talks E.164 internally. */
+function toE164(local: string): Value | undefined {
+  const digits = local.replace(/\D/g, "");
+  if (!digits) return undefined;
+  const national = digits.startsWith("0") ? digits.slice(1) : digits;
+  return `+94${national}` as Value;
 }
 
-function SriLankaFlag() {
-  return (
-    <svg width="22" height="16" viewBox="0 0 20 15" className="rounded-[2px] shadow-sm shrink-0" aria-hidden>
-      <rect width="20" height="15" rx="1.5" fill="#FDB912" />
-      <rect x="1" y="1" width="3" height="13" fill="#00863D" />
-      <rect x="4.3" y="1" width="3" height="13" fill="#FF7A00" />
-      <rect x="7.6" y="1" width="11.4" height="13" rx="0.5" fill="#8D1531" />
-      <circle cx="13.3" cy="7.5" r="2.1" fill="#FDB912" opacity="0.92" />
-      <rect x="12.9" y="4.3" width="0.8" height="6.4" fill="#FDB912" opacity="0.92" />
-    </svg>
-  );
+function toLocal(value: Value | string | undefined): string {
+  if (!value) return "";
+  const digits = value.replace(/\D/g, "");
+  return digits.startsWith("94") ? "0" + digits.slice(2) : digits;
 }
 
 type PhoneInputProps = {
@@ -27,25 +27,43 @@ type PhoneInputProps = {
   value: string;
   onChange: (value: string) => void;
   required?: boolean;
-  name?: string;
   containerClassName?: string;
 };
 
-/** Sri Lanka phone field: flag prefix, live "076 294 6381" formatting as the user types. */
-export default function PhoneInput({ id, label, value, onChange, required, name, containerClassName }: PhoneInputProps) {
+/** Sri Lanka phone field built on react-phone-number-input: flag, live formatting,
+    correct cursor behaviour while typing — all handled by the library. */
+export default function PhoneInput({ id, label, value, onChange, required, containerClassName }: PhoneInputProps) {
+  const [focused, setFocused] = useState(false);
+  const floated = focused || value.length > 0;
+
   return (
-    <FloatingInput
-      id={id}
-      name={name}
-      label={label}
-      type="tel"
-      inputMode="numeric"
-      autoComplete="tel"
-      required={required}
-      value={value}
-      onChange={(e) => onChange(formatLkPhone(e.target.value))}
-      leftAdornment={<SriLankaFlag />}
-      containerClassName={containerClassName}
-    />
+    <div className={`relative ${containerClassName ?? ""}`}>
+      <div
+        className={`flex items-center w-full bg-white border rounded-lg pt-5 pb-2 px-4 transition-colors focus-within:ring-2 ${
+          focused ? "border-primary ring-2 ring-primary/20" : "border-gray-300 ring-0"
+        }`}
+      >
+        <PhoneInputLib
+          id={id}
+          className="lk-phone-input"
+          defaultCountry="LK"
+          countries={["LK"]}
+          international={false}
+          required={required}
+          value={toE164(value)}
+          onChange={(v) => onChange(toLocal(v))}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+        />
+      </div>
+      <label
+        htmlFor={id}
+        className={`pointer-events-none absolute left-[4.5rem] transition-all duration-150 ${
+          floated ? "top-2 -translate-y-0 text-xs text-primary" : "top-1/2 -translate-y-1/2 text-[15px] text-gray-400"
+        }`}
+      >
+        {label}
+      </label>
+    </div>
   );
 }
