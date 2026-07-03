@@ -103,15 +103,14 @@ export default function ProductView({
           <ProductGallery images={activeImages} name={product.Name} />
         </div>
 
-        {/* Product info — right column, row 1, sticky while the page scrolls
-            (top clears the fixed header). On mobile it flows right after the gallery.
-            Description sits right after the buttons in this same column. */}
-        <div
-          className="md:col-start-2 md:row-start-1 md:sticky self-start"
-          style={{ top: "calc(var(--header-h, 132px) + 1.5rem)" }}
-        >
-          {header}
-          <AddToCart product={product} variants={variants} colorId={colorId} setColorId={setColorId} currentImage={currentImage} actionsRef={actionsRef} />
+        {/* Product info — right column, row 1. Only the buy box (title/price/options/
+            buttons) stays sticky while scrolling; the description below it scrolls
+            normally in the same column instead of stretching the sticky area. */}
+        <div className="md:col-start-2 md:row-start-1">
+          <div className="md:sticky self-start" style={{ top: "calc(var(--header-h, 132px) + 1.5rem)" }}>
+            {header}
+            <AddToCart product={product} variants={variants} colorId={colorId} setColorId={setColorId} currentImage={currentImage} actionsRef={actionsRef} />
+          </div>
           {footer}
         </div>
       </div>
