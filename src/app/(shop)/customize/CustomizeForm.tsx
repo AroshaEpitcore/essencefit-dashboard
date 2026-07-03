@@ -9,7 +9,7 @@ import type { DtfPageSettings } from "@/lib/dtfSettings";
 import { sizeRank } from "@/components/shop/format";
 import { resolveSwatch, cutLineColor } from "@/lib/colorHex";
 import { LabeledInput, LabeledTextarea } from "@/components/shop/LabeledInput";
-import { cleanPhoneInput } from "@/lib/phoneMask";
+import { formatPhone, cleanPhoneInput } from "@/lib/phoneMask";
 import { createDtfOrder, getGarmentVariants, type DtfDesignInput } from "./actions";
 
 type AccountInfo = { name: string; phone: string | null; email: string | null } | null;
@@ -399,8 +399,8 @@ export default function CustomizeForm({
           <h3 className="font-semibold text-gray-900 mb-3">5. Your details</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <LabeledInput id="dtf-name" label="Full name *" value={name} onChange={(e) => setName(e.target.value)} />
-            <LabeledInput id="dtf-phone" label="Phone *" type="tel" inputMode="numeric" maxLength={10} value={phone} onChange={(e) => setPhone(cleanPhoneInput(e.target.value))} />
-            <LabeledInput id="dtf-whatsapp" label="WhatsApp (optional)" type="tel" inputMode="numeric" maxLength={10} value={whatsapp} onChange={(e) => setWhatsapp(cleanPhoneInput(e.target.value))} />
+            <LabeledInput id="dtf-phone" label="Phone *" type="tel" inputMode="numeric" value={formatPhone(phone)} onChange={(e) => setPhone(cleanPhoneInput(e.target.value))} />
+            <LabeledInput id="dtf-whatsapp" label="WhatsApp (optional)" type="tel" inputMode="numeric" value={formatPhone(whatsapp)} onChange={(e) => setWhatsapp(cleanPhoneInput(e.target.value))} />
             <LabeledInput id="dtf-email" label="Email (optional)" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
             <LabeledInput
               id="dtf-address" label="Delivery address (optional)"

@@ -5,7 +5,7 @@ import { useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import { ChevronLeft } from "lucide-react";
 import { LabeledInput, LabeledTextarea } from "@/components/shop/LabeledInput";
-import { cleanPhoneInput } from "@/lib/phoneMask";
+import { formatPhone, cleanPhoneInput } from "@/lib/phoneMask";
 import { updateMyProfile } from "../actions";
 
 export default function ProfileForm({ initial }: { initial: { name: string; phone: string; address: string } }) {
@@ -39,8 +39,8 @@ export default function ProfileForm({ initial }: { initial: { name: string; phon
           value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })}
         />
         <LabeledInput
-          id="profile-phone" label="Phone" type="tel" inputMode="numeric" maxLength={10}
-          value={f.phone} onChange={(e) => setF({ ...f, phone: cleanPhoneInput(e.target.value) })}
+          id="profile-phone" label="Phone" type="tel" inputMode="numeric"
+          value={formatPhone(f.phone)} onChange={(e) => setF({ ...f, phone: cleanPhoneInput(e.target.value) })}
         />
         <LabeledTextarea
           id="profile-address" label="Address" rows={3}

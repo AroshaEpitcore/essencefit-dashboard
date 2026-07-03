@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import { LabeledInput } from "@/components/shop/LabeledInput";
-import { cleanPhoneInput } from "@/lib/phoneMask";
+import { formatPhone, cleanPhoneInput } from "@/lib/phoneMask";
 import { registerCustomer } from "../actions";
 
 export default function CustomerRegisterPage() {
@@ -44,8 +44,8 @@ export default function CustomerRegisterPage() {
           value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })}
         />
         <LabeledInput
-          id="register-phone" label="Phone" type="tel" inputMode="numeric" maxLength={10}
-          value={f.phone} onChange={(e) => setF({ ...f, phone: cleanPhoneInput(e.target.value) })}
+          id="register-phone" label="Phone" type="tel" inputMode="numeric"
+          value={formatPhone(f.phone)} onChange={(e) => setF({ ...f, phone: cleanPhoneInput(e.target.value) })}
         />
         <LabeledInput
           id="register-password" label="Password (min 6 chars)" type="password"
