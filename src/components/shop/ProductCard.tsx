@@ -142,7 +142,7 @@ export default function ProductCard({ p }: { p: StoreProduct }) {
                     <span
                       className="absolute inset-0 pointer-events-none"
                       style={{
-                        backgroundImage: `linear-gradient(to top right, transparent calc(50% - 0.6px), ${cutLineColor(sw.hex)} calc(50% - 0.6px), ${cutLineColor(sw.hex)} calc(50% + 0.6px), transparent calc(50% + 0.6px))`,
+                        backgroundImage: `linear-gradient(45deg, transparent calc(50% - 0.6px), ${cutLineColor(sw.hex)} calc(50% - 0.6px), ${cutLineColor(sw.hex)} calc(50% + 0.6px), transparent calc(50% + 0.6px))`,
                       }}
                     />
                   )}
