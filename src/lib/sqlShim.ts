@@ -70,7 +70,7 @@ export function makeRequest(exec: Exec) {
       }
       return api;
     },
-    async query(text: string) {
+    async _exec(text: string) {
       const values: unknown[] = [];
       const pos: Record<string, number> = {};
       const sqlText = text.replace(/@(\w+)/g, (_m, n: string) => {
@@ -82,10 +82,23 @@ export function makeRequest(exec: Exec) {
         const t = types[n];
         return `$${pos[n]}` + (t ? `::${t}` : "");
       });
-      const res = await exec(sqlText, values);
+      return exec(sqlText, values);
+    },
+    async query(text: string) {
+      const res = await api._exec(text);
       // Remap lowercase pg keys -> PascalCase; keep recordset loosely typed
       // (any[]) as mssql's was, so existing call-sites type-check unchanged.
       return { recordset: res.rows.map(remapKeys) as any[], rowsAffected: [res.rowCount ?? res.rows.length] };
+    },
+    // Like .query() but skips the PascalCase remap. For ad-hoc SELECT ... AS
+    // aliases (e.g. chart-shaped rows like `AS sales`, `AS date`, `AS name`)
+    // that intentionally use lowercase keys matching frontend expectations —
+    // remapKeys() would otherwise rewrite them to a same-named real DB column's
+    // PascalCase form (e.g. "sales"->"Sales", "date"->"DATE", "name"->"Name"),
+    // silently breaking any consumer expecting the lowercase alias.
+    async queryRaw(text: string) {
+      const res = await api._exec(text);
+      return { recordset: res.rows as any[], rowsAffected: [res.rowCount ?? res.rows.length] };
     },
     batch(text: string) {
       return api.query(text);

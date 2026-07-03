@@ -113,7 +113,10 @@ export async function getChartData() {
   const pool = await getDb();
 
   // ✅ Monthly (Net) Sales + (Net) Profit
-  const monthly = await pool.request().query(`
+  // queryRaw: keeps lowercase aliases (month/sales/profit) as-is — .query()'s
+  // PascalCase remap would rewrite "sales"->"Sales", "profit"->"Profit" (they
+  // collide with real column names elsewhere), breaking the chart's dataKeys.
+  const monthly = await pool.request().queryRaw(`
     WITH SalesMonth AS (
       SELECT
         to_char(S.SaleDate, 'Mon YYYY') AS M,
@@ -141,7 +144,7 @@ export async function getChartData() {
   `);
 
   // ✅ Daily (Net) Sales last 14 days
-  const daily = await pool.request().query(`
+  const daily = await pool.request().queryRaw(`
     WITH SalesDay AS (
       SELECT
         CAST(S.SaleDate AS DATE) AS D,
@@ -174,7 +177,9 @@ export async function getAnalyticsData() {
   const pool = await getDb();
 
   // Weekly sales trend (last 8 weeks)
-  const weekly = await pool.request().query(`
+  // queryRaw for the same reason as getChartData above (week/sales/name/
+  // revenue/qty/count all collide with real column names in COLUMN_CASE).
+  const weekly = await pool.request().queryRaw(`
     WITH SalesWeek AS (
       SELECT
         extract(week from S.SaleDate) AS W,
@@ -205,7 +210,7 @@ export async function getAnalyticsData() {
   `);
 
   // Top 10 selling products (this month by qty)
-  const topProducts = await pool.request().query(`
+  const topProducts = await pool.request().queryRaw(`
     SELECT P.Name AS name,
       SUM(S.Qty) AS qty,
       SUM(S.Qty * S.SellingPrice) AS revenue
@@ -218,7 +223,7 @@ export async function getAnalyticsData() {
   `);
 
   // Revenue by category (this month)
-  const revenueByCategory = await pool.request().query(`
+  const revenueByCategory = await pool.request().queryRaw(`
     SELECT
       C.Name AS name,
       SUM(S.Qty * S.SellingPrice) AS revenue
@@ -232,7 +237,7 @@ export async function getAnalyticsData() {
   `);
 
   // Orders by payment status (this month)
-  const ordersByStatus = await pool.request().query(`
+  const ordersByStatus = await pool.request().queryRaw(`
     SELECT
       PaymentStatus AS name,
       COUNT(*) AS count

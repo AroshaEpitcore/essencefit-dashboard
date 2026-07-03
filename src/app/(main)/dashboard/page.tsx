@@ -299,7 +299,7 @@ export default function DashboardPage() {
                     <XAxis dataKey="week" />
                     <YAxis />
                     <Tooltip
-                      formatter={(value: number | undefined) => [
+                      formatter={(value: any) => [
                         `Rs ${Number(value).toFixed(2)}`,
                         "Sales",
                       ]}
@@ -324,7 +324,7 @@ export default function DashboardPage() {
                     <XAxis type="number" />
                     <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 12 }} />
                     <Tooltip
-                      formatter={(value: number | undefined, name: string | undefined) => [
+                      formatter={(value: any, name: any) => [
                         name === "qty"
                           ? `${value} pcs`
                           : `Rs ${Number(value).toFixed(2)}`,
@@ -370,7 +370,7 @@ export default function DashboardPage() {
                         ))}
                       </Pie>
                       <Tooltip
-                        formatter={(value: number | undefined) => [
+                        formatter={(value: any) => [
                           `Rs ${Number(value).toFixed(2)}`,
                           "Revenue",
                         ]}
@@ -412,7 +412,7 @@ export default function DashboardPage() {
                         ))}
                       </Pie>
                       <Tooltip
-                        formatter={(value: number | undefined) => [
+                        formatter={(value: any) => [
                           `${value} orders`,
                           "Count",
                         ]}
