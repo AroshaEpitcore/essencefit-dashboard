@@ -108,15 +108,16 @@ export default function ProductView({
           <ProductGallery images={activeImages} name={product.Name} />
         </div>
 
-        {/* Product info — right column, row 1. Only the buy box (title/price/options/
-            buttons) stays sticky while scrolling; the description below it scrolls
-            normally in the same column instead of stretching the sticky area. */}
+        {/* Product info — right column, row 1. Title/price/options/buttons/description
+            move together as one sticky unit (bounded to the gallery's height via the
+            stretched grid cell above), instead of the description being a separate
+            sibling that would visually scroll past/behind the pinned buy box. */}
         <div className="md:col-start-2 md:row-start-1">
           <div className="md:sticky" style={{ top: "calc(var(--header-h, 132px) + 1.5rem)" }}>
             {header}
             <AddToCart product={product} variants={variants} colorId={colorId} setColorId={setColorId} currentImage={currentImage} actionsRef={actionsRef} />
+            {footer}
           </div>
-          {footer}
         </div>
       </div>
       {sentinel}
