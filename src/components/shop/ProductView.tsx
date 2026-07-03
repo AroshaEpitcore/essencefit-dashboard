@@ -104,17 +104,16 @@ export default function ProductView({
         </div>
 
         {/* Product info — right column, row 1, sticky while the page scrolls
-            (top clears the fixed header). On mobile it flows right after the gallery. */}
+            (top clears the fixed header). On mobile it flows right after the gallery.
+            Description sits right after the buttons in this same column. */}
         <div
           className="md:col-start-2 md:row-start-1 md:sticky self-start"
           style={{ top: "calc(var(--header-h, 132px) + 1.5rem)" }}
         >
           {header}
           <AddToCart product={product} variants={variants} colorId={colorId} setColorId={setColorId} currentImage={currentImage} actionsRef={actionsRef} />
+          {footer}
         </div>
-
-        {/* Description — left column under the gallery on desktop; last on mobile */}
-        {footer && <div className="md:col-start-1 md:row-start-2">{footer}</div>}
       </div>
       {sentinel}
       {stickyBar}

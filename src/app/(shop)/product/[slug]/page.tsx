@@ -11,7 +11,7 @@ import ReviewStars from "@/components/shop/ReviewStars";
 import { getPublicStoreSettings } from "@/lib/storeSettings";
 import SizeChartButton from "@/components/shop/SizeChartButton";
 import { money, discountPct } from "@/components/shop/format";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Truck, ShieldCheck, RotateCcw, BadgeCheck } from "lucide-react";
 import { buildProductDescription, breadcrumbJsonLd, productJsonLd } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
@@ -93,10 +93,42 @@ export default async function ProductPage({
       )}
     </div>
   );
-  const footerSlot = product.Description ? (
+  // First non-empty line reads as the lead paragraph; any further lines become bullets —
+  // there's no separate "features" field, so this is derived straight from Description.
+  const descLines = (product.Description ?? "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  const [descLead, ...descBullets] = descLines;
+
+  const trustBadges = [
+    { Icon: Truck, text: "Island-wide delivery" },
+    { Icon: ShieldCheck, text: "Safe & secure payment" },
+    { Icon: RotateCcw, text: "Easy returns & exchanges" },
+    { Icon: BadgeCheck, text: "Quality guaranteed" },
+  ];
+
+  const footerSlot = descLead ? (
     <div className="mt-8 pt-6 border-t border-gray-200">
-      <h2 className="font-semibold text-gray-900 mb-2">Description</h2>
-      <p className="text-gray-600 whitespace-pre-line leading-relaxed">{product.Description}</p>
+      <h2 className="text-lg font-light uppercase tracking-[0.2em] text-gray-900 mb-4">Description</h2>
+      <p className="font-bold uppercase text-sm leading-relaxed text-gray-900">{descLead}</p>
+
+      {descBullets.length > 0 && (
+        <ul className="mt-4 space-y-2 list-disc pl-5">
+          {descBullets.map((line, i) => (
+            <li key={i} className="font-bold uppercase text-sm text-gray-900">{line}</li>
+          ))}
+        </ul>
+      )}
+
+      <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-6">
+        {trustBadges.map(({ Icon, text }) => (
+          <div key={text} className="flex flex-col gap-2">
+            <Icon className="w-6 h-6 text-gray-900" strokeWidth={1.75} />
+            <span className="text-sm font-bold text-gray-900">{text}</span>
+          </div>
+        ))}
+      </div>
     </div>
   ) : null;
 
