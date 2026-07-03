@@ -3,12 +3,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 
-/* Shows the product's images as a grid (up to a 2×2 of four). Switches with the
-   selected colour because the parent passes the active image set. Clicking an
+/* Large main image with a thumbnail strip (vertical on desktop, horizontal row on
+   mobile) to switch between shots — resets to the first shot whenever the image
+   set changes (e.g. the shopper picks a different colour). Clicking the main
    image opens a full-screen lightbox with prev/next navigation. */
 export default function ProductGallery({ images, name }: { images: string[]; name: string }) {
   const list = images.length ? images : [];
+  const [active, setActive] = useState(0);
   const [lightbox, setLightbox] = useState<number | null>(null);
+
+  useEffect(() => setActive(0), [images]);
 
   const open = useCallback((i: number) => setLightbox(i), []);
   const close = useCallback(() => setLightbox(null), []);
@@ -39,36 +43,43 @@ export default function ProductGallery({ images, name }: { images: string[]; nam
   }, [lightbox, close, next, prev]);
 
   if (list.length === 0) {
-    return <div className="aspect-square  bg-gray-100 flex items-center justify-center text-gray-300">No image</div>;
+    return <div className="aspect-square bg-gray-100 flex items-center justify-center text-gray-300">No image</div>;
   }
 
   return (
     <>
-      {list.length === 1 ? (
-        <div className="aspect-square  overflow-hidden bg-gray-100">
+      <div className="flex flex-col-reverse sm:flex-row gap-3">
+        {/* Thumbnails — row below the main image on mobile, vertical strip to its left on desktop */}
+        {list.length > 1 && (
+          <div className="flex sm:flex-col gap-2 overflow-x-auto sm:overflow-visible sm:w-20 shrink-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {list.map((url, i) => (
+              <button
+                key={url + i}
+                type="button"
+                onClick={() => setActive(i)}
+                aria-label={`View image ${i + 1}`}
+                className={`relative w-16 h-16 sm:w-full sm:h-20 shrink-0 overflow-hidden bg-gray-100 border ${
+                  active === i ? "border-gray-900" : "border-transparent hover:border-gray-300"
+                }`}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url} alt="" className="w-full h-full object-cover" />
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Main image */}
+        <div className="flex-1 aspect-square overflow-hidden bg-gray-100">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={list[0]}
+            src={list[active]}
             alt={name}
-            onClick={() => open(0)}
+            onClick={() => open(active)}
             className="w-full h-full object-cover cursor-zoom-in"
           />
         </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-2 sm:gap-3">
-          {list.map((url, i) => (
-            <div key={url + i} className="aspect-square  overflow-hidden bg-gray-100">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={url}
-                alt={`${name} ${i + 1}`}
-                onClick={() => open(i)}
-                className="w-full h-full object-cover cursor-zoom-in"
-              />
-            </div>
-          ))}
-        </div>
-      )}
+      </div>
 
       {lightbox !== null && (
         <div
