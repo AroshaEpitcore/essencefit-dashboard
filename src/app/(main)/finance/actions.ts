@@ -69,8 +69,8 @@ export async function getProductProfit() {
       P.Name AS ProductName,
       SUM(S.Qty) AS TotalSoldQty,
       CAST(SUM(S.Qty * S.SellingPrice) AS DECIMAL(18,2)) AS TotalRevenue,
-      CAST(SUM(S.Qty * (P.CostPrice + COALESCE(P.Utilities, 0))) AS DECIMAL(18,2)) AS TotalCost,
-      CAST(SUM((S.Qty * S.SellingPrice) - (S.Qty * (P.CostPrice + COALESCE(P.Utilities, 0)))) AS DECIMAL(18,2)) AS Profit
+      CAST(SUM(S.Qty * S.CostPrice) AS DECIMAL(18,2)) AS TotalCost,
+      CAST(SUM((S.Qty * S.SellingPrice) - (S.Qty * S.CostPrice)) AS DECIMAL(18,2)) AS Profit
     FROM Sales S
     JOIN ProductVariants V ON S.VariantId = V.Id
     JOIN Products P ON V.ProductId = P.Id

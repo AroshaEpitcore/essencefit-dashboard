@@ -437,6 +437,25 @@ function shouldCreateSales(status: OrderStatus) {
   return status === "Paid" || status === "Completed";
 }
 
+// Real per-unit cost for a variant: prefer the resolved stock (blank)
+// variant's own CostPrice, else the product's, plus the product's Utilities.
+// Resolving via fn_StockVariantId means a linked/signature product (whose own
+// CostPrice is often 0) correctly picks up its blank's real cost.
+async function resolveUnitCost(tx: Transaction, variantId: string): Promise<number> {
+  const r = await new sql.Request(tx)
+    .input("VariantId", UniqueIdentifier, variantId)
+    .query(`
+      SELECT COALESCE(
+               (SELECT z.CostPrice FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(@VariantId)),
+               p.CostPrice, 0
+             ) + COALESCE(p.Utilities, 0) AS UnitCost
+      FROM ProductVariants v
+      JOIN Products p ON p.Id = v.ProductId
+      WHERE v.Id = @VariantId
+    `);
+  return Number(r.recordset[0]?.UnitCost ?? 0);
+}
+
 async function insertSalesRows(
   tx: Transaction,
   orderId: string,
@@ -445,18 +464,20 @@ async function insertSalesRows(
   items: OrderItemInput[]
 ) {
   for (const it of items) {
+    const unitCost = await resolveUnitCost(tx, it.VariantId);
     await new sql.Request(tx)
       .input("Id", UniqueIdentifier, crypto.randomUUID())
       .input("OrderId", UniqueIdentifier, orderId)
       .input("VariantId", UniqueIdentifier, it.VariantId)
       .input("Qty", Int, it.Qty)
       .input("SellingPrice", Decimal(18, 2), it.SellingPrice)
+      .input("CostPrice", Decimal(18, 2), unitCost)
       .input("PaymentMethod", NVarChar(50), "Order")
       .input("PaymentStatus", NVarChar(20), status)
       .input("SaleDate", sql.DateTime2(7), orderDate)
       .query(`
-        INSERT INTO Sales (Id, OrderId, VariantId, Qty, SellingPrice, PaymentMethod, PaymentStatus, SaleDate)
-        VALUES (@Id, @OrderId, @VariantId, @Qty, @SellingPrice, @PaymentMethod, @PaymentStatus, @SaleDate)
+        INSERT INTO Sales (Id, OrderId, VariantId, Qty, SellingPrice, CostPrice, PaymentMethod, PaymentStatus, SaleDate)
+        VALUES (@Id, @OrderId, @VariantId, @Qty, @SellingPrice, @CostPrice, @PaymentMethod, @PaymentStatus, @SaleDate)
       `);
   }
 }

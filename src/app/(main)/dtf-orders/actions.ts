@@ -141,11 +141,19 @@ export async function confirmDtfOrder(id: string) {
  * in revenue/units/charts everywhere. Requires a chosen VariantId
  * (Sales.VariantId is NOT NULL); orders with no garment variant chosen
  * are skipped.
+ *
+ * CostPrice = GarmentPrice + chosen print costs + overhead, parsed from
+ * BreakdownJson — deliberately EXCLUDES the profit line and the flat
+ * "Order Extra" charge, so real profit = FinalTotal - CostPrice. If
+ * BreakdownJson is missing/unparseable, falls back to GarmentPrice +
+ * PrintCharges (i.e. assumes zero profit was baked in) rather than just
+ * GarmentPrice, so a parsing gap under-states profit instead of
+ * overstating it.
  */
 async function syncDtfOrderSales(requestFactory: () => any, dtfOrderId: string) {
   const r = await requestFactory()
     .input("Id", UniqueIdentifier, dtfOrderId)
-    .query(`SELECT Status, VariantId, Qty, FinalTotal, EstimatedTotal, CreatedAt FROM DtfOrders WHERE Id=@Id LIMIT 1`);
+    .query(`SELECT Status, VariantId, Qty, FinalTotal, EstimatedTotal, GarmentPrice, PrintCharges, BreakdownJson, CreatedAt FROM DtfOrders WHERE Id=@Id LIMIT 1`);
   const o = r.recordset[0];
   if (!o) return;
 
@@ -158,16 +166,29 @@ async function syncDtfOrderSales(requestFactory: () => any, dtfOrderId: string) 
     const total = Number(o.FinalTotal ?? o.EstimatedTotal ?? 0);
     const unitPrice = total / qty;
 
+    const garmentPrice = Number(o.GarmentPrice ?? 0);
+    let unitCost = garmentPrice + Number(o.PrintCharges ?? 0); // conservative fallback
+    try {
+      const bd = o.BreakdownJson ? JSON.parse(o.BreakdownJson) : null;
+      if (bd && Array.isArray(bd.prints)) {
+        const printSum = bd.prints.reduce((s: number, p: { amount: number }) => s + Number(p.amount || 0), 0);
+        unitCost = garmentPrice + printSum + Number(bd.overheadTotal || 0);
+      }
+    } catch {
+      // keep the conservative fallback above
+    }
+
     await requestFactory()
       .input("SaleId", UniqueIdentifier, crypto.randomUUID())
       .input("DtfOrderId", UniqueIdentifier, dtfOrderId)
       .input("VariantId", UniqueIdentifier, o.VariantId)
       .input("Qty", Int, qty)
       .input("SellingPrice", Decimal(18, 2), unitPrice)
+      .input("CostPrice", Decimal(18, 2), unitCost)
       .input("SaleDate", sql.DateTime2(7), o.CreatedAt)
       .query(`
-        INSERT INTO Sales (Id, DtfOrderId, VariantId, Qty, SellingPrice, PaymentMethod, PaymentStatus, SaleDate)
-        VALUES (@SaleId, @DtfOrderId, @VariantId, @Qty, @SellingPrice, 'DTF', 'Completed', @SaleDate)
+        INSERT INTO Sales (Id, DtfOrderId, VariantId, Qty, SellingPrice, CostPrice, PaymentMethod, PaymentStatus, SaleDate)
+        VALUES (@SaleId, @DtfOrderId, @VariantId, @Qty, @SellingPrice, @CostPrice, 'DTF', 'Completed', @SaleDate)
       `);
   }
 }

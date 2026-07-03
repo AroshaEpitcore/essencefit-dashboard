@@ -151,7 +151,8 @@ CREATE TABLE IF NOT EXISTS sales (
   paymentstatus text NOT NULL DEFAULT 'Paid',
   saledate timestamp NOT NULL DEFAULT now(),
   orderid uuid,
-  dtforderid uuid
+  dtforderid uuid,
+  costprice numeric(10,2) NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS handovers (

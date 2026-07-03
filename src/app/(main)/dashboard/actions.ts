@@ -12,10 +12,8 @@ export async function getDashboardStats() {
         CAST(S.SaleDate AS DATE) AS D,
         SUM(S.Qty * S.SellingPrice) AS GrossSales,
         SUM(S.Qty) AS UnitsSold,
-        SUM(S.Qty * (P.CostPrice + COALESCE(P.Utilities, 0))) AS Cogs
+        SUM(S.Qty * S.CostPrice) AS Cogs
       FROM Sales S
-      JOIN ProductVariants V ON S.VariantId = V.Id
-      JOIN Products P ON V.ProductId = P.Id
       GROUP BY CAST(S.SaleDate AS DATE)
     ),
     OrdersAgg AS (
@@ -121,10 +119,8 @@ export async function getChartData() {
         to_char(S.SaleDate, 'Mon YYYY') AS M,
         MIN(S.SaleDate) AS MinD,
         SUM(S.Qty * S.SellingPrice) AS GrossSales,
-        SUM(S.Qty * (P.CostPrice + COALESCE(P.Utilities, 0))) AS Cogs
+        SUM(S.Qty * S.CostPrice) AS Cogs
       FROM Sales S
-      JOIN ProductVariants V ON S.VariantId = V.Id
-      JOIN Products P ON V.ProductId = P.Id
       GROUP BY to_char(S.SaleDate, 'Mon YYYY')
     ),
     OrdersMonth AS (

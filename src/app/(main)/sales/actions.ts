@@ -66,15 +66,32 @@ export async function sellStock(variantId: string, qty: number, sellingPrice: nu
     if (check.recordset.length === 0) throw new Error("Variant not found");
     if (check.recordset[0].Qty < qty) throw new Error("Not enough stock");
 
+    // real unit cost: prefer the resolved stock (blank) variant's own
+    // CostPrice, else the product's, plus the product's Utilities
+    const costRow = await tx
+      .request()
+      .input("vid", sql.UniqueIdentifier, variantId)
+      .query(`
+        SELECT COALESCE(
+                 (SELECT z.CostPrice FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(v.Id)),
+                 p.CostPrice, 0
+               ) + COALESCE(p.Utilities, 0) AS UnitCost
+        FROM ProductVariants v
+        JOIN Products p ON p.Id = v.ProductId
+        WHERE v.Id = @vid
+      `);
+    const unitCost = Number(costRow.recordset[0]?.UnitCost ?? 0);
+
     // insert sale
     await tx
       .request()
       .input("vid", sql.UniqueIdentifier, variantId)
       .input("qty", sql.Int, qty)
       .input("price", sql.Decimal(18, 2), sellingPrice)
+      .input("cost", sql.Decimal(18, 2), unitCost)
       .query(`
-        INSERT INTO Sales (VariantId, Qty, SellingPrice) 
-        VALUES (@vid, @qty, @price)
+        INSERT INTO Sales (VariantId, Qty, SellingPrice, CostPrice)
+        VALUES (@vid, @qty, @price, @cost)
       `);
 
     // reduce stock
@@ -128,9 +145,10 @@ export async function recordBackfill(
     .input("vid", sql.UniqueIdentifier, variantId)
     .input("qty", sql.Int, qty)
     .input("price", sql.Decimal(18, 2), selling)
+    .input("cost", sql.Decimal(18, 2), cost)
     .input("date", sql.DateTime2, date)
     .query(`
-      INSERT INTO Sales (VariantId, Qty, SellingPrice, SaleDate, PaymentMethod, PaymentStatus)
-      VALUES (@vid, @qty, @price, @date, 'backfill', 'Paid')
+      INSERT INTO Sales (VariantId, Qty, SellingPrice, CostPrice, SaleDate, PaymentMethod, PaymentStatus)
+      VALUES (@vid, @qty, @price, @cost, @date, 'backfill', 'Paid')
     `);
 }

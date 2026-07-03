@@ -123,10 +123,8 @@ export async function getMonthlySalesTrend(range: DateRange) {
         to_char(s.SaleDate, 'Mon YY') AS Label,
         MIN(s.SaleDate) AS MinD,
         SUM(s.Qty * s.SellingPrice) AS GrossSales,
-        SUM(s.Qty * (COALESCE(v.CostPrice, COALESCE(p.CostPrice, 0)) + COALESCE(p.Utilities, 0))) AS Cogs
+        SUM(s.Qty * s.CostPrice) AS Cogs
       FROM Sales s
-      JOIN ProductVariants v ON s.VariantId = v.Id
-      JOIN Products p ON v.ProductId = p.Id
       WHERE ${dateClause("s", "SaleDate", range)}
       GROUP BY to_char(s.SaleDate, 'YYYY-MM'), to_char(s.SaleDate, 'Mon YY')
     ),
@@ -199,10 +197,8 @@ export async function getRevenueVsExpenses(range: DateRange) {
         to_char(s.SaleDate, 'Mon YY') AS Label,
         MIN(s.SaleDate) AS MinD,
         SUM(s.Qty * s.SellingPrice) AS Revenue,
-        SUM(s.Qty * (COALESCE(v.CostPrice, COALESCE(p.CostPrice, 0)) + COALESCE(p.Utilities, 0))) AS Cogs
+        SUM(s.Qty * s.CostPrice) AS Cogs
       FROM Sales s
-      JOIN ProductVariants v ON s.VariantId = v.Id
-      JOIN Products p ON v.ProductId = p.Id
       WHERE ${dateClause("s", "SaleDate", range)}
       GROUP BY to_char(s.SaleDate, 'YYYY-MM'), to_char(s.SaleDate, 'Mon YY')
     ),
