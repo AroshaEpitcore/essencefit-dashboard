@@ -1,18 +1,43 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 
-/* Large main image with a thumbnail strip (vertical on desktop, horizontal row on
-   mobile) to switch between shots — resets to the first shot whenever the image
-   set changes (e.g. the shopper picks a different colour). Clicking the main
-   image opens a full-screen lightbox with prev/next navigation. */
+/* All product photos shown stacked, full-height, one after another — scrolling
+   the page scrolls through them. A thumbnail rail (vertical on desktop, horizontal
+   row on mobile) tracks scroll position via IntersectionObserver and highlights
+   whichever shot is currently in view; clicking a thumbnail scrolls to that shot.
+   Clicking any main image opens a full-screen lightbox with prev/next navigation. */
 export default function ProductGallery({ images, name }: { images: string[]; name: string }) {
   const list = images.length ? images : [];
   const [active, setActive] = useState(0);
   const [lightbox, setLightbox] = useState<number | null>(null);
+  const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   useEffect(() => setActive(0), [images]);
+
+  // Highlight the thumbnail for whichever image is most visible as the shopper scrolls.
+  useEffect(() => {
+    if (list.length < 2) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const mostVisible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        if (!mostVisible) return;
+        const idx = itemRefs.current.findIndex((el) => el === mostVisible.target);
+        if (idx !== -1) setActive(idx);
+      },
+      { threshold: [0.25, 0.5, 0.75] },
+    );
+    itemRefs.current.forEach((el) => el && observer.observe(el));
+    return () => observer.disconnect();
+  }, [list]);
+
+  const scrollToImage = (i: number) => {
+    setActive(i);
+    itemRefs.current[i]?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const open = useCallback((i: number) => setLightbox(i), []);
   const close = useCallback(() => setLightbox(null), []);
@@ -49,14 +74,18 @@ export default function ProductGallery({ images, name }: { images: string[]; nam
   return (
     <>
       <div className="flex flex-col-reverse sm:flex-row gap-3">
-        {/* Thumbnails — row below the main image on mobile, vertical strip to its left on desktop */}
+        {/* Thumbnails — row below the images on mobile, vertical strip to the left on
+            desktop that follows the scroll (sticky) while its images scroll past. */}
         {list.length > 1 && (
-          <div className="flex sm:flex-col gap-2 overflow-x-auto sm:overflow-visible sm:w-20 shrink-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div
+            className="flex sm:flex-col gap-2 overflow-x-auto sm:overflow-visible sm:w-20 sm:self-start sm:sticky shrink-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            style={{ top: "calc(var(--header-h, 132px) + 1rem)" }}
+          >
             {list.map((url, i) => (
               <button
                 key={url + i}
                 type="button"
-                onClick={() => setActive(i)}
+                onClick={() => scrollToImage(i)}
                 aria-label={`View image ${i + 1}`}
                 className={`relative w-16 h-16 sm:w-full sm:h-20 shrink-0 overflow-hidden rounded-lg bg-gray-100 border ${
                   active === i ? "border-gray-900" : "border-transparent hover:border-gray-300"
@@ -69,15 +98,23 @@ export default function ProductGallery({ images, name }: { images: string[]; nam
           </div>
         )}
 
-        {/* Main image */}
-        <div className="flex-1 aspect-square overflow-hidden rounded-lg bg-gray-100">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={list[active]}
-            alt={name}
-            onClick={() => open(active)}
-            className="w-full h-full object-cover cursor-zoom-in"
-          />
+        {/* Main images — every shot, stacked; scrolling through updates the active thumbnail */}
+        <div className="flex-1 flex flex-col gap-3">
+          {list.map((url, i) => (
+            <div
+              key={url + i}
+              ref={(el) => { itemRefs.current[i] = el; }}
+              className="aspect-square overflow-hidden rounded-lg bg-gray-100"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={url}
+                alt={`${name} ${i + 1}`}
+                onClick={() => open(i)}
+                className="w-full h-full object-cover cursor-zoom-in"
+              />
+            </div>
+          ))}
         </div>
       </div>
 
