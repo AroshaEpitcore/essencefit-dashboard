@@ -97,7 +97,12 @@ export default function ProductView({
 
   return (
     <>
-      <div ref={containerRef} style={{ scrollMarginTop: "var(--header-h, 132px)" }} className="grid md:grid-cols-2 gap-8 lg:gap-12 items-start">
+      {/* No items-start here on purpose: with default (stretch) alignment, the right
+          column's grid cell stretches to match the gallery's full height, so the
+          sticky buy box below stays pinned for exactly as long as the left-side
+          images are still scrolling past, then releases — standard sticky-sidebar
+          bounded to the taller column, like most ecommerce PDPs. */}
+      <div ref={containerRef} style={{ scrollMarginTop: "var(--header-h, 132px)" }} className="grid md:grid-cols-2 gap-8 lg:gap-12">
         {/* Gallery — left column, row 1 */}
         <div className="md:col-start-1 md:row-start-1">
           <ProductGallery images={activeImages} name={product.Name} />
@@ -107,7 +112,7 @@ export default function ProductView({
             buttons) stays sticky while scrolling; the description below it scrolls
             normally in the same column instead of stretching the sticky area. */}
         <div className="md:col-start-2 md:row-start-1">
-          <div className="md:sticky self-start" style={{ top: "calc(var(--header-h, 132px) + 1.5rem)" }}>
+          <div className="md:sticky" style={{ top: "calc(var(--header-h, 132px) + 1.5rem)" }}>
             {header}
             <AddToCart product={product} variants={variants} colorId={colorId} setColorId={setColorId} currentImage={currentImage} actionsRef={actionsRef} />
           </div>
