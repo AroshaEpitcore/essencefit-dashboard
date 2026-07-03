@@ -67,7 +67,7 @@ export default async function DtfOrderTrackingPage({ params }: { params: Promise
       )}
 
       {/* Garment + pricing */}
-      <div className="bg-white border border-gray-200 p-5 mb-5">
+      <div className="bg-white border border-gray-200 rounded-xl p-5 mb-5">
         <h2 className="font-semibold text-gray-900 mb-3">Order details</h2>
         <div className="text-sm space-y-1 text-gray-700">
           <p><span className="text-gray-500">Garment:</span> {order.ProductName || "—"}</p>
@@ -92,12 +92,12 @@ export default async function DtfOrderTrackingPage({ params }: { params: Promise
       </div>
 
       {/* Designs */}
-      <div className="bg-white border border-gray-200 p-5 mb-5">
+      <div className="bg-white border border-gray-200 rounded-xl p-5 mb-5">
         <h2 className="font-semibold text-gray-900 mb-3">Your designs ({designs.length})</h2>
         <div className="flex flex-wrap gap-3">
           {designs.map((d: any) => (
             <a key={d.Id} href={d.Url} target="_blank" rel="noopener noreferrer"
-               className="w-24 h-24 border border-gray-300 overflow-hidden bg-gray-50 flex items-center justify-center">
+               className="w-24 h-24 rounded-lg border border-gray-300 overflow-hidden bg-gray-50 flex items-center justify-center">
               {d.Kind === "image" ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={d.Url} alt="" className="w-full h-full object-cover" />
@@ -112,7 +112,7 @@ export default async function DtfOrderTrackingPage({ params }: { params: Promise
       {wa && (
         <a href={`https://wa.me/${wa}?text=${encodeURIComponent(`Hi, about my custom order ${order.Ref}`)}`}
            target="_blank" rel="noopener noreferrer"
-           className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 font-semibold">
+           className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold">
           <MessageCircle className="w-5 h-5" /> Message us about this order
         </a>
       )}

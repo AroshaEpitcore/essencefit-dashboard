@@ -32,7 +32,7 @@ export default function WeeklyMvp({ product }: { product: StoreProduct }) {
               />
             )}
             {pct > 0 && (
-              <span className="absolute top-4 left-4 bg-primary text-white text-sm font-bold px-3 py-1 rounded-sm">
+              <span className="absolute top-4 left-4 bg-primary text-white text-sm font-bold px-3 py-1 rounded-full">
                 -{pct}%
               </span>
             )}

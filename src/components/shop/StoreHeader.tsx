@@ -273,7 +273,7 @@ export default function StoreHeader({
                         href="/shop"
                         onMouseEnter={() => setActiveCat("__all")}
                         onClick={closeMenus}
-                        className={`w-full flex items-center justify-between rounded-md px-3 py-2.5 text-[15px] transition-colors ${effectiveCat === "__all" ? "text-gray-900 font-bold" : "text-gray-500 hover:text-gray-900"}`}
+                        className={`w-full flex items-center justify-between rounded-lg px-3 py-2.5 text-[15px] transition-colors ${effectiveCat === "__all" ? "text-gray-900 font-bold" : "text-gray-500 hover:text-gray-900"}`}
                       >
                         Featured
                         <ChevronRight className={`w-4 h-4 transition-opacity ${effectiveCat === "__all" ? "opacity-100" : "opacity-0"}`} />
@@ -287,7 +287,7 @@ export default function StoreHeader({
                             href={`/category/${c.Slug}`}
                             onMouseEnter={() => setActiveCat(c.Id)}
                             onClick={closeMenus}
-                            className={`group/cat w-full flex items-center justify-between rounded-md px-3 py-2.5 text-[15px] transition-colors ${active ? "text-gray-900 font-bold" : "text-gray-500 hover:text-gray-900"}`}
+                            className={`group/cat w-full flex items-center justify-between rounded-lg px-3 py-2.5 text-[15px] transition-colors ${active ? "text-gray-900 font-bold" : "text-gray-500 hover:text-gray-900"}`}
                           >
                             {c.Name}
                             <ChevronRight className={`w-4 h-4 transition-opacity ${active ? "opacity-100" : "opacity-0 group-hover/cat:opacity-50"}`} />
@@ -383,15 +383,15 @@ export default function StoreHeader({
                   <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-4">Customize</h3>
                   <ul className="-mx-2">
                     <li>
-                      <Link href="/customize" onClick={closeMenus} className="w-full flex items-center justify-between rounded-md px-3 py-2.5 text-[15px] font-bold text-gray-900">
+                      <Link href="/customize" onClick={closeMenus} className="w-full flex items-center justify-between rounded-lg px-3 py-2.5 text-[15px] font-bold text-gray-900">
                         Custom design <ChevronRight className="w-4 h-4" />
                       </Link>
                     </li>
                     <li>
-                      <Link href="/customize" onClick={closeMenus} className="block rounded-md px-3 py-2.5 text-[15px] text-gray-500 hover:text-gray-900 transition-colors">DTF printing</Link>
+                      <Link href="/customize" onClick={closeMenus} className="block rounded-lg px-3 py-2.5 text-[15px] text-gray-500 hover:text-gray-900 transition-colors">DTF printing</Link>
                     </li>
                     <li>
-                      <Link href="/shop" onClick={closeMenus} className="block rounded-md px-3 py-2.5 text-[15px] text-gray-500 hover:text-gray-900 transition-colors">Printable garments</Link>
+                      <Link href="/shop" onClick={closeMenus} className="block rounded-lg px-3 py-2.5 text-[15px] text-gray-500 hover:text-gray-900 transition-colors">Printable garments</Link>
                     </li>
                   </ul>
                   <div className="mt-auto pt-6">

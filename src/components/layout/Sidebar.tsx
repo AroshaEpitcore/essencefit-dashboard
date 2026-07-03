@@ -90,7 +90,7 @@ export default function Sidebar({ collapsed }: { collapsed: boolean }) {
             const active =
               pathname === item.href || pathname.startsWith(`${item.href}/`);
 
-            const linkClasses = `flex items-center gap-3 px-3 py-2 rounded-md text-base font-medium transition-colors ${
+            const linkClasses = `flex items-center gap-3 px-3 py-2 rounded-lg text-base font-medium transition-colors ${
               active
                 ? "bg-gray-700 text-primary"
                 : "text-gray-300 hover:bg-gray-700 hover:text-white"

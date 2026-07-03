@@ -181,7 +181,7 @@ export default function CustomizeForm({
         <div className="mt-6 flex flex-wrap gap-3 justify-center">
           <Link
             href={`/dtf-order/${success.id}`}
-            className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-white px-6 py-3 font-semibold"
+            className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-white px-6 py-3 rounded-lg font-semibold"
           >
             Track my order
           </Link>
@@ -190,7 +190,7 @@ export default function CustomizeForm({
               href={`https://wa.me/${waNumber}?text=${encodeURIComponent(`Hi, about my DTF order ${success.ref}`)}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 border border-green-600 text-green-700 hover:bg-green-50 px-6 py-3 font-semibold"
+              className="inline-flex items-center gap-2 border border-green-600 text-green-700 hover:bg-green-50 px-6 py-3 rounded-lg font-semibold"
             >
               <MessageCircle className="w-5 h-5" /> Chat on WhatsApp
             </a>
@@ -218,7 +218,7 @@ export default function CustomizeForm({
       {/* Left: builder */}
       <div className="lg:col-span-2 space-y-6">
         {/* 1. Garment */}
-        <section className="border border-gray-200 p-5">
+        <section className="border border-gray-200 rounded-xl p-5">
           <h3 className="font-semibold text-gray-900 mb-3">1. Choose your garment</h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {products.map((p) => {
@@ -228,9 +228,9 @@ export default function CustomizeForm({
                   key={p.Id}
                   type="button"
                   onClick={() => onPickProduct(p.Id)}
-                  className={`text-left border-2 p-2 transition-[border-color] ${sel ? "border-gray-900" : "border-gray-200 hover:border-gray-400"}`}
+                  className={`text-left border-2 rounded-lg p-2 transition-[border-color] ${sel ? "border-gray-900" : "border-gray-200 hover:border-gray-400"}`}
                 >
-                  <div className="aspect-square bg-gray-100 overflow-hidden mb-2">
+                  <div className="aspect-square rounded-lg bg-gray-100 overflow-hidden mb-2">
                     {p.ImageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={p.ImageUrl} alt={p.Name} className="w-full h-full object-cover" />
@@ -293,7 +293,7 @@ export default function CustomizeForm({
                       disabled={!avail}
                       title={s.name + (avail ? "" : " — sold out")}
                       onClick={() => setSizeId(s.id)}
-                      className={`relative min-w-[3rem] h-11 px-3 rounded-sm border-2 text-sm font-medium flex items-center justify-center transition-[border-color] ${
+                      className={`relative min-w-[3rem] h-11 px-3 rounded-full border-2 text-sm font-medium flex items-center justify-center transition-[border-color] ${
                         selected ? "border-gray-900 text-gray-900" : "border-gray-200 text-gray-700"
                       } ${!avail ? "cursor-not-allowed text-gray-400" : "hover:border-gray-400"}`}
                     >
@@ -314,7 +314,7 @@ export default function CustomizeForm({
                 min={1}
                 value={qty}
                 onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))}
-                className="w-full border border-gray-300 px-3 py-2.5"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2.5"
               />
             </div>
           )}
@@ -322,7 +322,7 @@ export default function CustomizeForm({
 
         {/* 2. Print positions */}
         {pricing.prints.length > 0 && (
-          <section className="border border-gray-200  p-5">
+          <section className="border border-gray-200 rounded-xl p-5">
             <h3 className="font-semibold text-gray-900 mb-3">2. Print options</h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {pricing.prints.map((p) => {
@@ -332,7 +332,7 @@ export default function CustomizeForm({
                     key={p.Id}
                     type="button"
                     onClick={() => togglePrint(p.Name)}
-                    className={`px-3 py-2  border text-sm text-left transition-colors ${
+                    className={`px-3 py-2 rounded-lg border text-sm text-left transition-colors ${
                       on ? "border-primary bg-primary/10 text-primary" : "border-gray-300 hover:bg-gray-50"
                     }`}
                   >
@@ -345,12 +345,12 @@ export default function CustomizeForm({
         )}
 
         {/* 3. Designs */}
-        <section className="border border-gray-200  p-5">
+        <section className="border border-gray-200 rounded-xl p-5">
           <h3 className="font-semibold text-gray-900 mb-1">3. Upload your designs</h3>
           <p className="text-xs text-gray-500 mb-3">JPG, PNG, WEBP or PDF · up to 25MB each · add as many as you like.</p>
           <div className="flex flex-wrap gap-3">
             {designs.map((d, i) => (
-              <div key={d.url + i} className="relative w-24 h-24  border border-gray-300 overflow-hidden bg-gray-50">
+              <div key={d.url + i} className="relative w-24 h-24 rounded-lg border border-gray-300 overflow-hidden bg-gray-50">
                 {d.kind === "image" ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={d.url} alt="" className="w-full h-full object-cover" />
@@ -370,7 +370,7 @@ export default function CustomizeForm({
                 </button>
               </div>
             ))}
-            <label className="w-24 h-24  border-2 border-dashed border-gray-300 flex flex-col items-center justify-center cursor-pointer hover:border-primary text-gray-400 hover:text-primary">
+            <label className="w-24 h-24 rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center cursor-pointer hover:border-primary text-gray-400 hover:text-primary">
               {uploading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Upload className="w-6 h-6" />}
               <span className="text-[10px] mt-1">{uploading ? "Uploading" : "Add"}</span>
               <input
@@ -385,26 +385,26 @@ export default function CustomizeForm({
         </section>
 
         {/* 4. Note */}
-        <section className="border border-gray-200  p-5">
+        <section className="border border-gray-200 rounded-xl p-5">
           <h3 className="font-semibold text-gray-900 mb-3">4. Your note</h3>
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
             rows={3}
             placeholder="Tell us print placement, sizing, colours, or anything else…"
-            className="w-full border border-gray-300  px-3 py-2.5 resize-none"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2.5 resize-none"
           />
         </section>
 
         {/* 5. Contact details */}
-        <section className="border border-gray-200  p-5">
+        <section className="border border-gray-200 rounded-xl p-5">
           <h3 className="font-semibold text-gray-900 mb-3">5. Your details</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name *" className="border border-gray-300  px-3 py-2.5" />
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone *" className="border border-gray-300  px-3 py-2.5" />
-            <input value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="WhatsApp (optional)" className="border border-gray-300  px-3 py-2.5" />
-            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email (optional)" className="border border-gray-300  px-3 py-2.5" />
-            <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Delivery address (optional)" className="border border-gray-300  px-3 py-2.5 sm:col-span-2" />
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name *" className="border border-gray-300 rounded-lg px-3 py-2.5" />
+            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone *" className="border border-gray-300 rounded-lg px-3 py-2.5" />
+            <input value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="WhatsApp (optional)" className="border border-gray-300 rounded-lg px-3 py-2.5" />
+            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email (optional)" className="border border-gray-300 rounded-lg px-3 py-2.5" />
+            <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Delivery address (optional)" className="border border-gray-300 rounded-lg px-3 py-2.5 sm:col-span-2" />
           </div>
 
           {loggedIn ? (
@@ -422,7 +422,7 @@ export default function CustomizeForm({
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Choose a password (min 6 characters) *"
-                className="w-full border border-gray-300 px-3 py-2.5"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2.5"
               />
             </div>
           )}
@@ -431,7 +431,7 @@ export default function CustomizeForm({
 
       {/* Right: summary + estimate */}
       <aside className="space-y-4">
-        <div className="border border-gray-200  p-5 lg:sticky lg:top-28">
+        <div className="border border-gray-200 rounded-xl p-5 lg:sticky lg:top-28">
           <h3 className="font-semibold text-gray-900 mb-3">Your request</h3>
           {product ? (
             <div className="text-sm space-y-1.5">
@@ -454,7 +454,7 @@ export default function CustomizeForm({
           <button
             onClick={submit}
             disabled={submitting || uploading}
-            className="mt-4 w-full bg-primary hover:bg-primary/90 text-white font-semibold py-3  disabled:opacity-50 flex items-center justify-center gap-2"
+            className="mt-4 w-full bg-primary hover:bg-primary/90 text-white font-semibold py-3 rounded-lg disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
             {submitting ? "Submitting…" : "Submit request"}
@@ -465,7 +465,7 @@ export default function CustomizeForm({
               href={`https://wa.me/${waNumber}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-2 w-full inline-flex items-center justify-center gap-2 border border-green-600 text-green-700 hover:bg-green-50 font-medium py-2.5  text-sm"
+              className="mt-2 w-full inline-flex items-center justify-center gap-2 border border-green-600 text-green-700 hover:bg-green-50 font-medium py-2.5 rounded-lg text-sm"
             >
               <MessageCircle className="w-4 h-4" /> Questions? WhatsApp us
             </a>
@@ -473,7 +473,7 @@ export default function CustomizeForm({
         </div>
 
         {settings.suggestions.length > 0 && (
-          <div className="border border-gray-200  p-5">
+          <div className="border border-gray-200 rounded-xl p-5">
             <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
               <Lightbulb className="w-4 h-4 text-primary" /> Our suggestions
             </h3>

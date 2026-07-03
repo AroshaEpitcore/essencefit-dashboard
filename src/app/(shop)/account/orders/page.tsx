@@ -32,14 +32,14 @@ export default async function MyOrdersPage() {
       <h1 className="text-2xl font-bold text-gray-900 mb-6">My orders</h1>
 
       {orders.length === 0 ? (
-        <div className="bg-white border border-gray-200  p-10 text-center text-gray-500">
+        <div className="bg-white border border-gray-200 rounded-xl p-10 text-center text-gray-500">
           <Package className="w-12 h-12 mx-auto text-gray-300 mb-3" />
           No orders yet. <Link href="/shop" className="text-primary font-medium">Start shopping</Link>
         </div>
       ) : (
         <div className="space-y-3">
           {orders.map((o) => (
-            <Link key={o.id} href={o.href} className="flex items-center gap-4 bg-white border border-gray-200  p-4 hover:border-primary">
+            <Link key={o.id} href={o.href} className="flex items-center gap-4 bg-white border border-gray-200 rounded-lg p-4 hover:border-primary">
               <div className="flex -space-x-3 shrink-0">
                 {o.thumbs.length > 0 ? (
                   o.thumbs.slice(0, 4).map((src, i) => (

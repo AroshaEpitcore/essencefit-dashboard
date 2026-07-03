@@ -62,7 +62,7 @@ export default async function OrderDetailPage({
       </Link>
 
       {placed && (
-        <div className="bg-green-50 border border-green-200 p-5 mb-6 flex items-start gap-3">
+        <div className="bg-green-50 border border-green-200 rounded-xl p-5 mb-6 flex items-start gap-3">
           <CheckCircle2 className="w-8 h-8 text-green-500 shrink-0" />
           <div>
             <h1 className="text-lg font-bold text-gray-900">Thank you for your order!</h1>
@@ -100,19 +100,19 @@ export default async function OrderDetailPage({
         </div>
       )}
       {canceled && (
-        <div className="bg-red-50 border border-red-200 p-4 mb-6 text-sm text-red-700">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 text-sm text-red-700">
           This order was canceled. If you think this is a mistake, please contact us.
         </div>
       )}
 
       {/* Items */}
-      <div className="bg-white border border-gray-200 p-5 mb-5">
+      <div className="bg-white border border-gray-200 rounded-xl p-5 mb-5">
         <h2 className="font-semibold text-gray-900 mb-4">Items ({items.length})</h2>
         <div className="space-y-3">
           {items.map((it, idx) => {
             const row = (
               <>
-                <div className="w-14 h-14 bg-gray-100 overflow-hidden shrink-0">
+                <div className="w-14 h-14 rounded-lg bg-gray-100 overflow-hidden shrink-0">
                   {it.ImageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={it.ImageUrl} alt="" className="w-full h-full object-cover" />
@@ -149,7 +149,7 @@ export default async function OrderDetailPage({
 
       <div className="grid sm:grid-cols-2 gap-5 mb-5">
         {/* Delivery / contact */}
-        <div className="bg-white border border-gray-200 p-5">
+        <div className="bg-white border border-gray-200 rounded-xl p-5">
           <h2 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><Truck className="w-4 h-4" /> Delivery details</h2>
           <div className="text-sm space-y-2 text-gray-700">
             <p className="flex gap-2"><MapPin className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" /> <span>{order.Address}{order.Province ? `, ${order.Province}` : ""}</span></p>
@@ -160,7 +160,7 @@ export default async function OrderDetailPage({
         </div>
 
         {/* Payment */}
-        <div className="bg-white border border-gray-200 p-5">
+        <div className="bg-white border border-gray-200 rounded-xl p-5">
           <h2 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><Landmark className="w-4 h-4" /> Payment</h2>
           <div className="text-sm space-y-1 text-gray-700">
             <p><span className="text-gray-500">Method:</span> {order.PaymentMethod === "BankTransfer" ? "Bank transfer" : order.PaymentMethod === "COD" ? "Cash on delivery" : order.PaymentMethod || "—"}</p>
@@ -189,7 +189,7 @@ export default async function OrderDetailPage({
 
       {/* Status history */}
       {logs.length > 0 && (
-        <div className="bg-white border border-gray-200 p-5 mb-5">
+        <div className="bg-white border border-gray-200 rounded-xl p-5 mb-5">
           <h2 className="font-semibold text-gray-900 mb-3">Status history</h2>
           <ol className="space-y-2">
             {logs.map((l, i) => (

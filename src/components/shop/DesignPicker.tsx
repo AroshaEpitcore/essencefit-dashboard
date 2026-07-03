@@ -158,7 +158,7 @@ export default function DesignPicker({
 
         {/* Qty + actions */}
         <div className="flex items-center gap-3 mb-4">
-          <div className="flex items-center border border-gray-300 rounded-sm">
+          <div className="flex items-center border border-gray-300 rounded-full">
             <button onClick={() => setQty((q) => Math.max(1, q - 1))} className="p-2.5 text-gray-600 hover:text-primary"><Minus className="w-4 h-4" /></button>
             <span className="w-10 text-center font-medium">{qty}</span>
             <button onClick={() => setQty((q) => (canAdd ? Math.min(stock, q + 1) : q + 1))} className="p-2.5 text-gray-600 hover:text-primary"><Plus className="w-4 h-4" /></button>

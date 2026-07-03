@@ -56,7 +56,7 @@ export default function Topbar({
       <div className="flex items-center gap-2">
         <button
           onClick={onToggleSidebar}
-          className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
         >
           <Menu className="h-5 w-5" />
         </button>
@@ -106,7 +106,7 @@ export default function Topbar({
         {/* Dark mode toggle */}
         <button
           onClick={() => setDarkMode(!darkMode)}
-          className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
         >
           {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
         </button>

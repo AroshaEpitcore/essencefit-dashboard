@@ -63,7 +63,7 @@ export default function ReviewsSection({
   );
 
   if (bare) {
-    return <section className="rounded-3xl bg-black px-5 sm:px-8 py-10">{inner}</section>;
+    return <section className="rounded-2xl bg-black px-5 sm:px-8 py-10">{inner}</section>;
   }
 
   return (
