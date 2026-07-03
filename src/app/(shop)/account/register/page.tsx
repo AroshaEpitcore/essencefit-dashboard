@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
+import { User, Mail, Lock } from "lucide-react";
+import { FloatingInput } from "@/components/shop/FloatingInput";
+import PhoneInput from "@/components/shop/PhoneInput";
 import { registerCustomer } from "../actions";
-
-const input = "w-full bg-white border border-gray-300 rounded-lg px-4 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/40";
 
 export default function CustomerRegisterPage() {
   const router = useRouter();
@@ -35,10 +36,19 @@ export default function CustomerRegisterPage() {
       <h1 className="text-2xl font-bold text-gray-900 mb-1">Create account</h1>
       <p className="text-gray-500 mb-6 text-sm">Track your orders and check out faster.</p>
       <form onSubmit={submit} className="space-y-4">
-        <input className={input} placeholder="Full name" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
-        <input className={input} placeholder="Email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
-        <input className={input} placeholder="Phone" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
-        <input className={input} type="password" placeholder="Password (min 6 chars)" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} />
+        <FloatingInput
+          id="register-name" label="Full name" leftAdornment={<User className="w-4 h-4 text-gray-400" />}
+          value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })}
+        />
+        <FloatingInput
+          id="register-email" label="Email" type="email" leftAdornment={<Mail className="w-4 h-4 text-gray-400" />}
+          value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })}
+        />
+        <PhoneInput id="register-phone" label="Phone" value={f.phone} onChange={(v) => setF({ ...f, phone: v })} />
+        <FloatingInput
+          id="register-password" label="Password (min 6 chars)" type="password" leftAdornment={<Lock className="w-4 h-4 text-gray-400" />}
+          value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })}
+        />
         <button disabled={busy} className="w-full bg-primary text-white py-3 rounded-lg font-semibold hover:bg-primary/90 disabled:opacity-50">
           {busy ? "Creating..." : "Create account"}
         </button>

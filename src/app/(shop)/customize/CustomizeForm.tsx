@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Upload, X, FileText, MessageCircle, Check, Loader2, Lightbulb } from "lucide-react";
+import { Upload, X, FileText, MessageCircle, Check, Loader2, Lightbulb, User, Mail, MapPin, Lock } from "lucide-react";
 import type { StoreProduct, StoreVariant } from "@/lib/storefront";
 import type { DtfPricingConfig } from "@/lib/dtfPricing";
 import type { DtfPageSettings } from "@/lib/dtfSettings";
 import { sizeRank } from "@/components/shop/format";
 import { resolveSwatch, cutLineColor } from "@/lib/colorHex";
+import { FloatingInput, FloatingTextarea } from "@/components/shop/FloatingInput";
+import PhoneInput from "@/components/shop/PhoneInput";
 import { createDtfOrder, getGarmentVariants, type DtfDesignInput } from "./actions";
 
 type AccountInfo = { name: string; phone: string | null; email: string | null } | null;
@@ -307,16 +309,11 @@ export default function CustomizeForm({
           )}
 
           {product && (
-            <div className="mt-5 w-32">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
-              <input
-                type="number"
-                min={1}
-                value={qty}
-                onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2.5"
-              />
-            </div>
+            <FloatingInput
+              id="dtf-qty" label="Quantity" type="number" min={1}
+              containerClassName="mt-5 w-32"
+              value={qty} onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))}
+            />
           )}
         </section>
 
@@ -387,12 +384,9 @@ export default function CustomizeForm({
         {/* 4. Note */}
         <section className="border border-gray-200 rounded-xl p-5">
           <h3 className="font-semibold text-gray-900 mb-3">4. Your note</h3>
-          <textarea
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            rows={3}
-            placeholder="Tell us print placement, sizing, colours, or anything else…"
-            className="w-full border border-gray-300 rounded-lg px-3 py-2.5 resize-none"
+          <FloatingTextarea
+            id="dtf-note" label="Tell us print placement, sizing, colours, or anything else…" rows={3}
+            value={note} onChange={(e) => setNote(e.target.value)}
           />
         </section>
 
@@ -400,11 +394,14 @@ export default function CustomizeForm({
         <section className="border border-gray-200 rounded-xl p-5">
           <h3 className="font-semibold text-gray-900 mb-3">5. Your details</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name *" className="border border-gray-300 rounded-lg px-3 py-2.5" />
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone *" className="border border-gray-300 rounded-lg px-3 py-2.5" />
-            <input value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="WhatsApp (optional)" className="border border-gray-300 rounded-lg px-3 py-2.5" />
-            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email (optional)" className="border border-gray-300 rounded-lg px-3 py-2.5" />
-            <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Delivery address (optional)" className="border border-gray-300 rounded-lg px-3 py-2.5 sm:col-span-2" />
+            <FloatingInput id="dtf-name" label="Full name *" leftAdornment={<User className="w-4 h-4 text-gray-400" />} value={name} onChange={(e) => setName(e.target.value)} />
+            <PhoneInput id="dtf-phone" label="Phone *" value={phone} onChange={setPhone} />
+            <PhoneInput id="dtf-whatsapp" label="WhatsApp (optional)" value={whatsapp} onChange={setWhatsapp} />
+            <FloatingInput id="dtf-email" label="Email (optional)" type="email" leftAdornment={<Mail className="w-4 h-4 text-gray-400" />} value={email} onChange={(e) => setEmail(e.target.value)} />
+            <FloatingInput
+              id="dtf-address" label="Delivery address (optional)" leftAdornment={<MapPin className="w-4 h-4 text-gray-400" />}
+              containerClassName="sm:col-span-2" value={address} onChange={(e) => setAddress(e.target.value)}
+            />
           </div>
 
           {loggedIn ? (
@@ -417,12 +414,10 @@ export default function CustomizeForm({
                   Already have an account? Log in
                 </Link>
               </div>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Choose a password (min 6 characters) *"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2.5"
+              <FloatingInput
+                id="dtf-password" label="Choose a password (min 6 characters) *" type="password"
+                leftAdornment={<Lock className="w-4 h-4 text-gray-400" />}
+                value={password} onChange={(e) => setPassword(e.target.value)}
               />
             </div>
           )}

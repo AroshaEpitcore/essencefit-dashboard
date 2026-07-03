@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import toast, { Toaster } from "react-hot-toast";
-import { Landmark, Truck, Upload, Check } from "lucide-react";
+import { Landmark, Truck, Upload, Check, ShoppingBag, Mail, User, Lock, ArrowRight } from "lucide-react";
 import { useCart } from "@/components/shop/CartContext";
 import Select from "@/components/shop/Select";
+import { FloatingInput, FloatingTextarea } from "@/components/shop/FloatingInput";
+import PhoneInput from "@/components/shop/PhoneInput";
 import { money } from "@/components/shop/format";
 import { getCheckoutConfig, createWebOrder, type CheckoutConfig } from "./actions";
 import { getMyAccount, logoutCustomer } from "../account/actions";
@@ -21,7 +23,16 @@ async function uploadSlip(file: File): Promise<string> {
   return data.url as string;
 }
 
-const input = "w-full bg-white border border-gray-300 rounded-lg px-4 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/40";
+const selectTrigger =
+  "peer w-full flex items-center justify-between gap-2 bg-white border border-gray-300 rounded-lg px-4 pt-5 pb-2 text-left text-gray-900 hover:border-gray-400 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors";
+
+function StepBadge({ n }: { n: number }) {
+  return (
+    <span className="w-7 h-7 rounded-full bg-primary text-white text-sm font-bold flex items-center justify-center shrink-0">
+      {n}
+    </span>
+  );
+}
 
 export default function CheckoutPage() {
   const { items, subtotal, clear, ready } = useCart();
@@ -124,30 +135,55 @@ export default function CheckoutPage() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <Toaster position="top-center" />
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Checkout</h1>
+      <div className="flex items-center gap-3 mb-1">
+        <ShoppingBag className="w-7 h-7 text-primary" />
+        <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Checkout</h1>
+      </div>
+      <p className="text-gray-500 mb-8">Almost there — fill in your details to complete the order.</p>
 
-      <div className="grid lg:grid-cols-[1fr_360px] gap-8">
+      <div className="grid lg:grid-cols-[1fr_380px] gap-8">
         {/* Form */}
         <div className="space-y-6">
-          <section className="bg-white border border-gray-200 rounded-xl p-5">
-            <h2 className="font-semibold text-gray-900 mb-4">Delivery details</h2>
+          <section className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+            <div className="flex items-center gap-3 mb-5">
+              <StepBadge n={1} />
+              <h2 className="text-lg font-bold text-gray-900">Delivery details</h2>
+            </div>
             <div className="grid sm:grid-cols-2 gap-4">
-              <input className={input} placeholder="Full name *" value={f.customer} onChange={(e) => setF({ ...f, customer: e.target.value })} />
-              <input className={input} placeholder="Phone number *" value={f.customerPhone} onChange={(e) => setF({ ...f, customerPhone: e.target.value })} />
-              <input className={input} placeholder="Secondary phone (optional)" value={f.secondaryPhone} onChange={(e) => setF({ ...f, secondaryPhone: e.target.value })} />
-              <input className={input} placeholder="Email (optional)" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
+              <FloatingInput
+                id="checkout-name" label="Full name *" leftAdornment={<User className="w-4 h-4 text-gray-400" />}
+                value={f.customer} onChange={(e) => setF({ ...f, customer: e.target.value })}
+              />
+              <PhoneInput
+                id="checkout-phone" label="Phone number *" required
+                value={f.customerPhone} onChange={(v) => setF({ ...f, customerPhone: v })}
+              />
+              <PhoneInput
+                id="checkout-phone2" label="Secondary phone (optional)"
+                value={f.secondaryPhone} onChange={(v) => setF({ ...f, secondaryPhone: v })}
+              />
+              <FloatingInput
+                id="checkout-email" label="Email (optional)" type="email" leftAdornment={<Mail className="w-4 h-4 text-gray-400" />}
+                value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })}
+              />
               {config && config.deliveryProvinces.length > 0 && (
                 <Select
                   ariaLabel="Province"
                   placeholder="Select province *"
                   value={f.province}
                   onChange={(v) => setF({ ...f, province: v })}
-                  triggerClassName={`${input} flex items-center justify-between gap-2 text-left`}
+                  triggerClassName={selectTrigger}
                   options={config.deliveryProvinces.map((p) => ({ value: p.name, label: `${p.name} — ${money(p.fee)}` }))}
                 />
               )}
-              <textarea className={`${input} sm:col-span-2 resize-none`} rows={3} placeholder="Delivery address *" value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })} />
-              <textarea className={`${input} sm:col-span-2 resize-none`} rows={2} placeholder="Order notes (optional)" value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} />
+              <FloatingTextarea
+                id="checkout-address" label="Delivery address *" rows={3} containerClassName="sm:col-span-2"
+                value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })}
+              />
+              <FloatingTextarea
+                id="checkout-notes" label="Order notes (optional)" rows={2} containerClassName="sm:col-span-2"
+                value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })}
+              />
             </div>
           </section>
 
@@ -163,42 +199,43 @@ export default function CheckoutPage() {
           )}
 
           {!loggedIn && (
-            <section className="bg-white border border-gray-200 rounded-xl p-5">
+            <section className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
               <div className="flex items-center justify-between mb-1">
                 <span className="font-semibold text-gray-900">Create an account to track your order</span>
                 <Link href="/account/login?next=/checkout" className="text-sm text-primary font-medium hover:underline">
                   Already have an account? Log in
                 </Link>
               </div>
-              <p className="text-sm text-gray-500 mb-3">
+              <p className="text-sm text-gray-500 mb-4">
                 We&apos;ll save your details so you can sign in (with your phone or email) and follow your order anytime.
               </p>
-              <input
-                className={input}
-                type="password"
-                placeholder="Choose a password (min 6 characters) *"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+              <FloatingInput
+                id="checkout-password" label="Choose a password (min 6 characters) *" type="password"
+                leftAdornment={<Lock className="w-4 h-4 text-gray-400" />}
+                value={password} onChange={(e) => setPassword(e.target.value)}
               />
             </section>
           )}
 
-          <section className="bg-white border border-gray-200 rounded-xl p-5">
-            <h2 className="font-semibold text-gray-900 mb-4">Payment method</h2>
+          <section className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+            <div className="flex items-center gap-3 mb-5">
+              <StepBadge n={2} />
+              <h2 className="text-lg font-bold text-gray-900">Payment method</h2>
+            </div>
             <div className="space-y-3">
-              <button onClick={() => setMethod("COD")} className={`w-full flex items-center gap-3 border rounded-lg p-4 text-left ${method === "COD" ? "border-primary bg-primary/5" : "border-gray-300"}`}>
+              <button onClick={() => setMethod("COD")} className={`w-full flex items-center gap-3 border-2 rounded-lg p-4 text-left transition-colors ${method === "COD" ? "border-primary bg-primary/5 ring-1 ring-primary/30" : "border-gray-200 hover:border-gray-300"}`}>
                 <Truck className="w-5 h-5 text-primary" />
                 <div className="flex-1">
-                  <p className="font-medium text-gray-900">Cash on delivery</p>
+                  <p className="font-semibold text-gray-900">Cash on delivery</p>
                   <p className="text-sm text-gray-500">Pay with cash when your order arrives.</p>
                 </div>
                 {method === "COD" && <Check className="w-5 h-5 text-primary" />}
               </button>
 
-              <button onClick={() => setMethod("BankTransfer")} className={`w-full flex items-center gap-3 border rounded-lg p-4 text-left ${method === "BankTransfer" ? "border-primary bg-primary/5" : "border-gray-300"}`}>
+              <button onClick={() => setMethod("BankTransfer")} className={`w-full flex items-center gap-3 border-2 rounded-lg p-4 text-left transition-colors ${method === "BankTransfer" ? "border-primary bg-primary/5 ring-1 ring-primary/30" : "border-gray-200 hover:border-gray-300"}`}>
                 <Landmark className="w-5 h-5 text-primary" />
                 <div className="flex-1">
-                  <p className="font-medium text-gray-900">Bank transfer</p>
+                  <p className="font-semibold text-gray-900">Bank transfer</p>
                   <p className="text-sm text-gray-500">Transfer to our account and upload the slip.</p>
                 </div>
                 {method === "BankTransfer" && <Check className="w-5 h-5 text-primary" />}
@@ -228,8 +265,8 @@ export default function CheckoutPage() {
         </div>
 
         {/* Summary */}
-        <div className="lg:sticky lg:top-24 h-max bg-gray-50 border border-gray-200 rounded-xl p-5">
-          <h2 className="font-semibold text-gray-900 mb-4">Your order</h2>
+        <div className="lg:sticky lg:top-24 h-max bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+          <h2 className="text-lg font-bold text-gray-900 mb-4">Your order</h2>
           <div className="space-y-3 max-h-64 overflow-y-auto mb-4">
             {items.map((it) => (
               <div key={it.variantId} className="flex gap-3 text-sm">
@@ -264,15 +301,15 @@ export default function CheckoutPage() {
                 Add {money(config.freeDeliveryOver - subtotal)} more for free delivery.
               </p>
             )}
-            <div className="flex justify-between text-base border-t border-gray-200 pt-2">
-              <span className="font-semibold">Total</span>
-              <span className="font-bold">{deliveryKnown ? money(total) : `${money(total)}+`}</span>
-            </div>
           </div>
-          <button onClick={place} disabled={placing} className="mt-5 w-full bg-primary text-white py-3 rounded-lg font-semibold hover:bg-primary/90 disabled:opacity-50">
-            {placing ? "Placing order..." : "Place order"}
+          <div className="flex justify-between items-baseline mt-3 pt-3 border-t border-gray-200">
+            <span className="text-base font-bold text-gray-900">Total</span>
+            <span className="text-2xl font-extrabold text-primary">{deliveryKnown ? money(total) : `${money(total)}+`}</span>
+          </div>
+          <button onClick={place} disabled={placing} className="mt-5 w-full bg-primary text-white py-3.5 rounded-lg font-bold text-base flex items-center justify-center gap-2 shadow-md shadow-primary/20 hover:bg-primary/90 active:scale-[0.99] transition-all disabled:opacity-50 disabled:active:scale-100">
+            {placing ? "Placing order..." : (<>Place order <ArrowRight className="w-4 h-4" /></>)}
           </button>
-          <Link href="/cart" className="mt-2 block text-center text-sm text-gray-500 hover:text-primary">Back to cart</Link>
+          <Link href="/cart" className="mt-3 block text-center text-sm text-gray-500 hover:text-primary">Back to cart</Link>
         </div>
       </div>
     </div>

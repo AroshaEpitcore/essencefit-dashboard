@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, User, Lock } from "lucide-react";
+import { FloatingInput, FloatingTextarea } from "@/components/shop/FloatingInput";
+import PhoneInput from "@/components/shop/PhoneInput";
 import { updateMyProfile } from "../actions";
-
-const input = "w-full bg-white border border-gray-300 rounded-lg px-4 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/40";
 
 export default function ProfileForm({ initial }: { initial: { name: string; phone: string; address: string } }) {
   const [f, setF] = useState({ ...initial, password: "" });
@@ -34,10 +34,20 @@ export default function ProfileForm({ initial }: { initial: { name: string; phon
       </Link>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Profile</h1>
       <form onSubmit={save} className="space-y-4">
-        <div><label className="block text-sm font-medium text-gray-600 mb-1">Name</label><input className={input} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></div>
-        <div><label className="block text-sm font-medium text-gray-600 mb-1">Phone</label><input className={input} value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} /></div>
-        <div><label className="block text-sm font-medium text-gray-600 mb-1">Address</label><textarea rows={3} className={`${input} resize-none`} value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })} /></div>
-        <div><label className="block text-sm font-medium text-gray-600 mb-1">New password</label><input type="password" className={input} placeholder="Leave blank to keep current" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} /></div>
+        <FloatingInput
+          id="profile-name" label="Name" leftAdornment={<User className="w-4 h-4 text-gray-400" />}
+          value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })}
+        />
+        <PhoneInput id="profile-phone" label="Phone" value={f.phone} onChange={(v) => setF({ ...f, phone: v })} />
+        <FloatingTextarea
+          id="profile-address" label="Address" rows={3}
+          value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })}
+        />
+        <FloatingInput
+          id="profile-password" label="New password (optional)" type="password"
+          leftAdornment={<Lock className="w-4 h-4 text-gray-400" />}
+          value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })}
+        />
         <button disabled={busy} className="w-full bg-primary text-white py-3 rounded-lg font-semibold hover:bg-primary/90 disabled:opacity-50">{busy ? "Saving..." : "Save changes"}</button>
       </form>
     </div>

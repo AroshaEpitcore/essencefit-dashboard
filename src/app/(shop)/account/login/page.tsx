@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
+import { User, Lock } from "lucide-react";
+import { FloatingInput } from "@/components/shop/FloatingInput";
 import { loginCustomer } from "../actions";
-
-const input = "w-full bg-white border border-gray-300 rounded-lg px-4 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/40";
 
 export default function CustomerLoginPage() {
   const router = useRouter();
@@ -36,8 +36,14 @@ export default function CustomerLoginPage() {
       <h1 className="text-2xl font-bold text-gray-900 mb-1">Sign in</h1>
       <p className="text-gray-500 mb-6 text-sm">Access your orders and faster checkout.</p>
       <form onSubmit={submit} className="space-y-4">
-        <input className={input} placeholder="Email or phone" value={identifier} onChange={(e) => setIdentifier(e.target.value)} />
-        <input className={input} type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        <FloatingInput
+          id="login-identifier" label="Email or phone" leftAdornment={<User className="w-4 h-4 text-gray-400" />}
+          value={identifier} onChange={(e) => setIdentifier(e.target.value)}
+        />
+        <FloatingInput
+          id="login-password" label="Password" type="password" leftAdornment={<Lock className="w-4 h-4 text-gray-400" />}
+          value={password} onChange={(e) => setPassword(e.target.value)}
+        />
         <button disabled={busy} className="w-full bg-primary text-white py-3 rounded-lg font-semibold hover:bg-primary/90 disabled:opacity-50">
           {busy ? "Signing in..." : "Sign in"}
         </button>
