@@ -54,8 +54,8 @@ export default function ProductCard({ p }: { p: StoreProduct }) {
 
   return (
     <div className="text-left flex flex-col h-full" onMouseEnter={preloadColors}>
-      {/* Image — compact portrait; hovering ONLY this area reveals the secondary image */}
-      <div className="group relative aspect-[4/5] bg-gray-100 overflow-hidden">
+      {/* Image — near-square; hovering ONLY this area reveals the secondary image */}
+      <div className="group relative aspect-square bg-gray-100 overflow-hidden">
         <Link href={href} className="block w-full h-full">
           {baseImage ? (
             <>

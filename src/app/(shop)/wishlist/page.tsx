@@ -33,7 +33,7 @@ export default function WishlistPage() {
           const pct = discountPct(it.price, it.compareAt);
           return (
             <div key={it.productId} className="border border-gray-200 bg-white flex flex-col">
-              <div className="relative aspect-[4/5] bg-gray-100 overflow-hidden">
+              <div className="relative aspect-square bg-gray-100 overflow-hidden">
                 <Link href={`/product/${it.slug}`} className="block w-full h-full">
                   {it.image ? (
                     // eslint-disable-next-line @next/next/no-img-element
