@@ -569,6 +569,24 @@ export async function createOrder(payload: OrderPayload) {
 
     await tx.commit();
 
+    const namedItems = await pool
+      .request()
+      .input("Ids", payload.Items.map((it) => it.VariantId))
+      .query(`
+        SELECT v.Id AS VariantId, p.Name AS ProductName, s.Name AS SizeName, c.Name AS ColorName
+        FROM ProductVariants v
+        JOIN Products p ON p.Id = v.ProductId
+        LEFT JOIN Sizes s ON s.Id = v.SizeId
+        LEFT JOIN Colors c ON c.Id = v.ColorId
+        WHERE v.Id = ANY(@Ids::uuid[])
+      `);
+    const nameByVariant = new Map(
+      namedItems.recordset.map((r: any) => [
+        r.VariantId,
+        [r.SizeName, r.ColorName].filter(Boolean).join(" / ") ? `${r.ProductName} (${[r.SizeName, r.ColorName].filter(Boolean).join(" / ")})` : r.ProductName,
+      ])
+    );
+
     await sendOrderNotification({
       subject: `New order entered — ${payload.Customer ?? "Customer"}`,
       heading: "New Admin-Entered Order",
@@ -577,6 +595,11 @@ export async function createOrder(payload: OrderPayload) {
         `Phone: ${payload.CustomerPhone ?? "—"}`,
         `Total: Rs ${Number(payload.Total).toFixed(2)}`,
       ],
+      items: payload.Items.map((it) => ({
+        name: nameByVariant.get(it.VariantId) ?? "Item",
+        qty: it.Qty,
+        price: it.SellingPrice,
+      })),
       adminPath: "/orders",
     });
 

@@ -5,7 +5,7 @@ import { getDb, sql } from "@/lib/db";
 import { getDtfGarment } from "@/lib/storefront";
 import { computeDtfEstimate } from "@/lib/dtfPricing";
 import { getCurrentCustomer, setSessionCookie } from "@/lib/customerAuth";
-import { sendOrderNotification } from "@/lib/orderNotify";
+import { sendOrderNotification, sendCustomerOrderConfirmation } from "@/lib/orderNotify";
 
 const { UniqueIdentifier, NVarChar, Int, Decimal } = sql;
 
@@ -165,6 +165,12 @@ export async function createDtfOrder(payload: DtfOrderPayload): Promise<{ id: st
 
     await tx.commit();
 
+    const chosenVariant = variantId ? garment.variants.find((x) => x.VariantId === variantId) : null;
+    const variantLabel = chosenVariant ? [chosenVariant.SizeName, chosenVariant.ColorName].filter(Boolean).join(" / ") : "";
+    const garmentLabel = variantLabel ? `${garment.product.Name} (${variantLabel})` : garment.product.Name;
+    const itemName = printNames.length ? `${garmentLabel} — ${printNames.join(", ")}` : garmentLabel;
+    const itemLines = [{ name: itemName, qty }];
+
     await sendOrderNotification({
       subject: `New DTF order — ${ref}`,
       heading: "New DTF Customization Order",
@@ -172,10 +178,22 @@ export async function createDtfOrder(payload: DtfOrderPayload): Promise<{ id: st
         `Ref: ${ref}`,
         `Customer: ${name}`,
         `Phone: ${phone}`,
-        `Estimated total: Rs ${estimate.total.toFixed(2)}`,
       ],
+      items: itemLines,
       adminPath: "/dtf-orders",
     });
+
+    const customerEmail = payload.email?.trim();
+    if (customerEmail) {
+      await sendCustomerOrderConfirmation({
+        to: customerEmail,
+        customerName: name,
+        subject: `Custom order received — ${ref}`,
+        heading: "Your customization request is in!",
+        lines: [`Reference: ${ref}`],
+        items: itemLines,
+      });
+    }
 
     // Auto-sign-in when a new account was created at submit time.
     if (createdAccount) {

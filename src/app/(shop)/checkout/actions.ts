@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import { getDb, sql } from "@/lib/db";
 import { getPublicStoreSettings } from "@/lib/storeSettings";
 import { getCurrentCustomer, setSessionCookie } from "@/lib/customerAuth";
-import { sendOrderNotification } from "@/lib/orderNotify";
+import { sendOrderNotification, sendCustomerOrderConfirmation } from "@/lib/orderNotify";
 
 const { UniqueIdentifier, NVarChar, Int, Decimal } = sql;
 
@@ -71,7 +71,7 @@ export async function createWebOrder(payload: WebOrderPayload): Promise<{ orderI
     await tx.begin();
 
     // 1) Re-read live price + stock for each variant; validate availability.
-    const priced: Array<{ variantId: string; qty: number; price: number }> = [];
+    const priced: Array<{ variantId: string; qty: number; price: number; name: string }> = [];
     let subtotal = 0;
 
     for (const it of payload.items) {
@@ -81,10 +81,14 @@ export async function createWebOrder(payload: WebOrderPayload): Promise<{ orderI
         .query(`
           SELECT COALESCE((SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(v.Id)), 0) AS Stock,
                  COALESCE(v.SellingPrice, p.SellingPrice) AS Price,
-                 prod.Name AS ProductName
+                 prod.Name AS ProductName,
+                 sz.Name AS SizeName,
+                 cl.Name AS ColorName
           FROM ProductVariants v
           JOIN Products prod ON prod.Id = v.ProductId
           JOIN Products p ON p.Id = v.ProductId
+          LEFT JOIN Sizes sz ON sz.Id = v.SizeId
+          LEFT JOIN Colors cl ON cl.Id = v.ColorId
           WHERE v.Id = @vid AND prod.IsActive = true
         `);
       const row = r.recordset[0];
@@ -94,7 +98,8 @@ export async function createWebOrder(payload: WebOrderPayload): Promise<{ orderI
       }
       const price = Number(row.Price);
       subtotal += price * it.qty;
-      priced.push({ variantId: it.variantId, qty: it.qty, price });
+      const variant = [row.SizeName, row.ColorName].filter(Boolean).join(" / ");
+      priced.push({ variantId: it.variantId, qty: it.qty, price, name: variant ? `${row.ProductName} (${variant})` : row.ProductName });
     }
 
     if (!priced.length) throw new Error("Your cart is empty.");
@@ -243,17 +248,37 @@ export async function createWebOrder(payload: WebOrderPayload): Promise<{ orderI
 
     await tx.commit();
 
+    const itemLines = priced.map((it) => ({ name: it.name, qty: it.qty, price: it.price }));
+
     await sendOrderNotification({
       subject: `New web order — ${name}`,
       heading: "New Website Order",
       lines: [
         `Customer: ${name}`,
         `Phone: ${phone}`,
+        `Delivery: ${address}`,
+        `Payment: ${payload.paymentMethod}`,
         `Total: Rs ${total.toFixed(2)}`,
-        `Items: ${priced.length}`,
       ],
+      items: itemLines,
       adminPath: "/web-orders",
     });
+
+    if (email) {
+      await sendCustomerOrderConfirmation({
+        to: email,
+        customerName: name,
+        subject: `Order confirmed — ${config.storeName}`,
+        heading: "Thanks for your order!",
+        lines: [
+          `Delivery address: ${address}`,
+          `Payment method: ${payload.paymentMethod}`,
+          `Delivery fee: Rs ${deliveryFee.toFixed(2)}`,
+        ],
+        items: itemLines,
+        total,
+      });
+    }
 
     // Auto-sign-in when an account was just created (so they land logged in)
     if (accountReady && wantsAccount) {
