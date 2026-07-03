@@ -166,10 +166,10 @@ export default function DesignPicker({
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3">
-          <button onClick={() => add(false)} disabled={!canAdd} className="flex-1 bg-gray-900 text-white py-3.5 font-semibold flex items-center justify-center gap-2 hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed">
+          <button onClick={() => add(false)} disabled={!canAdd} className="flex-1 rounded-lg bg-gray-900 text-white py-3.5 font-semibold flex items-center justify-center gap-2 hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed">
             <ShoppingCart className="w-5 h-5" /> Add to cart
           </button>
-          <button onClick={() => add(true)} disabled={!canAdd} className="flex-1 bg-primary text-white py-3.5 font-semibold hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed">
+          <button onClick={() => add(true)} disabled={!canAdd} className="flex-1 rounded-lg bg-primary text-white py-3.5 font-semibold hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed">
             Buy now
           </button>
         </div>

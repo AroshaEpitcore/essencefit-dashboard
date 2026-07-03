@@ -69,7 +69,7 @@ export default function CategorySlider({
             data-card
             className="group snap-start shrink-0 w-[80%] sm:w-[48%] lg:w-[32%]"
           >
-            <div className="relative aspect-square bg-black overflow-hidden">
+            <div className="relative aspect-square rounded-lg bg-black overflow-hidden">
               {c.ImageUrl && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img

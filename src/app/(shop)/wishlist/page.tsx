@@ -16,7 +16,7 @@ export default function WishlistPage() {
         <Heart className="w-16 h-16 mx-auto text-gray-300 mb-4" />
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Your wishlist is empty</h1>
         <p className="text-gray-500 mb-6">Tap the heart on any product to save it here.</p>
-        <Link href="/shop" className="inline-block bg-primary text-white px-8 py-3 rounded-full font-semibold hover:bg-primary/90">
+        <Link href="/shop" className="inline-block bg-primary text-white px-8 py-3 rounded-lg font-semibold hover:bg-primary/90">
           Browse products
         </Link>
       </div>
@@ -32,7 +32,7 @@ export default function WishlistPage() {
         {items.map((it) => {
           const pct = discountPct(it.price, it.compareAt);
           return (
-            <div key={it.productId} className="border border-gray-200 bg-white flex flex-col">
+            <div key={it.productId} className="border border-gray-200 rounded-lg bg-white flex flex-col overflow-hidden">
               <div className="relative aspect-[4/5] bg-gray-100 overflow-hidden">
                 <Link href={`/product/${it.slug}`} className="block w-full h-full">
                   {it.image ? (
@@ -62,7 +62,7 @@ export default function WishlistPage() {
                 <button
                   type="button"
                   onClick={() => openQuickView(it.productId)}
-                  className="mt-3 w-full border border-gray-900 text-gray-900 text-sm font-semibold py-2 flex items-center justify-center gap-2 hover:bg-gray-900 hover:text-white transition-colors"
+                  className="mt-3 w-full rounded-lg border border-gray-900 text-gray-900 text-sm font-semibold py-2 flex items-center justify-center gap-2 hover:bg-gray-900 hover:text-white transition-colors"
                 >
                   <ShoppingCart className="w-4 h-4" /> Add to cart
                 </button>

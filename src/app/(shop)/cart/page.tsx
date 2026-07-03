@@ -23,7 +23,7 @@ export default function CartPage() {
         <ShoppingBag className="w-16 h-16 mx-auto text-gray-300 mb-4" />
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Your cart is empty</h1>
         <p className="text-gray-500 mb-6">Looks like you haven&apos;t added anything yet.</p>
-        <Link href="/shop" className="inline-block bg-primary text-white px-8 py-3 rounded-full font-semibold hover:bg-primary/90">
+        <Link href="/shop" className="inline-block bg-primary text-white px-8 py-3 rounded-lg font-semibold hover:bg-primary/90">
           Start shopping
         </Link>
       </div>
@@ -91,7 +91,7 @@ export default function CartPage() {
             </div>
             <p className="text-xs text-gray-400 pt-1">Delivery is calculated by your province at checkout.</p>
           </div>
-          <Link href="/checkout" className="mt-5 w-full bg-primary text-white py-3 rounded-full font-semibold flex items-center justify-center gap-2 hover:bg-primary/90">
+          <Link href="/checkout" className="mt-5 w-full bg-primary text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-primary/90">
             Checkout <ArrowRight className="w-4 h-4" />
           </Link>
           <Link href="/shop" className="mt-2 block text-center text-sm text-gray-500 hover:text-primary">Continue shopping</Link>

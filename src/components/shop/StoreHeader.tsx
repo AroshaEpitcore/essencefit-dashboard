@@ -349,7 +349,7 @@ export default function StoreHeader({
                       <div className="flex flex-1 flex-wrap gap-6">
                         {rightItems.slice(0, 4).map((p) => (
                           <div key={p.Id} className="group w-[200px] shrink-0">
-                            <div className="relative aspect-[4/5] bg-gray-100 overflow-hidden">
+                            <div className="relative aspect-[4/5] rounded-lg bg-gray-100 overflow-hidden">
                               <Link href={`/product/${p.Slug}`} onClick={closeMenus} className="block w-full h-full">
                                 {p.ImageUrl ? (
                                   // eslint-disable-next-line @next/next/no-img-element
@@ -361,7 +361,7 @@ export default function StoreHeader({
                               <button
                                 type="button"
                                 onClick={() => { openQuickView(p.Id); closeMenus(); }}
-                                className="absolute inset-x-3 bottom-3 z-10 translate-y-3 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-200 bg-gray-900 text-white text-xs font-semibold py-2.5 flex items-center justify-center gap-1.5 hover:bg-black"
+                                className="absolute inset-x-3 bottom-3 z-10 translate-y-3 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-200 rounded-lg bg-gray-900 text-white text-xs font-semibold py-2.5 flex items-center justify-center gap-1.5 hover:bg-black"
                               >
                                 <ShoppingCart className="w-4 h-4" /> Add to cart
                               </button>
@@ -424,7 +424,7 @@ export default function StoreHeader({
                     <div className="flex flex-1 flex-wrap gap-6">
                       {allItems.slice(0, 4).map((p) => (
                         <Link key={p.Id} href="/customize" onClick={closeMenus} className="group w-[200px] shrink-0 block">
-                          <div className="relative aspect-[4/5] bg-gray-100 overflow-hidden">
+                          <div className="relative aspect-[4/5] rounded-lg bg-gray-100 overflow-hidden">
                             {p.ImageUrl ? (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img src={p.ImageUrl} alt={p.Name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
@@ -535,7 +535,7 @@ export default function StoreHeader({
                         <div className="divide-y divide-gray-100">
                           {results.map((p) => (
                             <Link key={p.Id} href={`/product/${p.Slug}`} onClick={closeMenus} className="flex items-center gap-3 py-2.5 -mx-2 px-2 rounded hover:bg-gray-50">
-                              <div className="w-12 h-14 bg-gray-100 overflow-hidden shrink-0">
+                              <div className="w-12 h-14 rounded-lg bg-gray-100 overflow-hidden shrink-0">
                                 {p.ImageUrl && (
                                   // eslint-disable-next-line @next/next/no-img-element
                                   <img src={p.ImageUrl} alt={p.Name} className="w-full h-full object-cover" />

@@ -87,7 +87,7 @@ export default function StickyProductBar({
             </div>
             <button
               onClick={onAddToCart}
-              className="shrink-0 bg-gray-900 text-white px-4 sm:px-6 py-2.5 text-sm font-semibold rounded-full flex items-center gap-2 hover:bg-gray-800 transition-colors"
+              className="shrink-0 bg-gray-900 text-white px-4 sm:px-6 py-2.5 text-sm font-semibold rounded-lg flex items-center gap-2 hover:bg-gray-800 transition-colors"
             >
               <ShoppingCart className="w-4 h-4" />
               <span className="hidden sm:inline">Add to cart</span>

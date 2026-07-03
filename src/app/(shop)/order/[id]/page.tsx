@@ -204,10 +204,10 @@ export default async function OrderDetailPage({
       )}
 
       <div className="flex flex-wrap gap-3">
-        <Link href="/shop" className="inline-block bg-primary text-white px-8 py-3 rounded-full font-semibold hover:bg-primary/90">
+        <Link href="/shop" className="inline-block bg-primary text-white px-8 py-3 rounded-lg font-semibold hover:bg-primary/90">
           Continue shopping
         </Link>
-        <Link href="/account/orders" className="inline-block border border-gray-300 text-gray-700 px-8 py-3 rounded-full font-semibold hover:border-primary hover:text-primary">
+        <Link href="/account/orders" className="inline-block border border-gray-300 text-gray-700 px-8 py-3 rounded-lg font-semibold hover:border-primary hover:text-primary">
           My orders
         </Link>
       </div>

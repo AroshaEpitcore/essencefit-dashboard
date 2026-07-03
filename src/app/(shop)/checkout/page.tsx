@@ -269,7 +269,7 @@ export default function CheckoutPage() {
               <span className="font-bold">{deliveryKnown ? money(total) : `${money(total)}+`}</span>
             </div>
           </div>
-          <button onClick={place} disabled={placing} className="mt-5 w-full bg-primary text-white py-3 rounded-full font-semibold hover:bg-primary/90 disabled:opacity-50">
+          <button onClick={place} disabled={placing} className="mt-5 w-full bg-primary text-white py-3 rounded-lg font-semibold hover:bg-primary/90 disabled:opacity-50">
             {placing ? "Placing order..." : "Place order"}
           </button>
           <Link href="/cart" className="mt-2 block text-center text-sm text-gray-500 hover:text-primary">Back to cart</Link>

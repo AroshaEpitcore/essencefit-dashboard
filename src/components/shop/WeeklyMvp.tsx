@@ -22,7 +22,7 @@ export default function WeeklyMvp({ product }: { product: StoreProduct }) {
       {/* PDP-style first section: image left, details right */}
       <div className="grid md:grid-cols-2 gap-8 lg:gap-12 items-start">
         <Link href={`/product/${product.Slug}`} className="block group">
-          <div className="relative aspect-square overflow-hidden bg-gray-100">
+          <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
             {product.ImageUrl && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -62,7 +62,7 @@ export default function WeeklyMvp({ product }: { product: StoreProduct }) {
 
           <Link
             href={`/product/${product.Slug}`}
-            className="inline-flex items-center gap-2 bg-gray-900 text-white px-8 py-3.5 font-semibold hover:bg-gray-800 transition-colors"
+            className="inline-flex items-center gap-2 rounded-lg bg-gray-900 text-white px-8 py-3.5 font-semibold hover:bg-gray-800 transition-colors"
           >
             Shop now <ArrowRight className="w-4 h-4" />
           </Link>

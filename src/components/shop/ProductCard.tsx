@@ -56,7 +56,7 @@ export default function ProductCard({ p }: { p: StoreProduct }) {
     <div className="text-left flex flex-col h-full" onMouseEnter={preloadColors}>
       {/* Image — 4:5, matching the reference card's real image ratio (1050x1313);
           hovering ONLY this area reveals the secondary image */}
-      <div className="group relative aspect-[4/5] bg-gray-100 overflow-hidden">
+      <div className="group relative aspect-[4/5] rounded-lg bg-gray-100 overflow-hidden">
         <Link href={href} className="block w-full h-full">
           {baseImage ? (
             <>
@@ -158,7 +158,7 @@ export default function ProductCard({ p }: { p: StoreProduct }) {
             type="button"
             onClick={() => openQuickView(p.Id)}
             disabled={outOfStock}
-            className="w-full border border-gray-900 bg-white text-gray-900 text-xs sm:text-sm font-semibold py-1.5 flex items-center justify-center gap-1.5 hover:bg-gray-900 hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-full rounded-lg border border-gray-900 bg-white text-gray-900 text-xs sm:text-sm font-semibold py-1.5 flex items-center justify-center gap-1.5 hover:bg-gray-900 hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <ShoppingCart className="w-3.5 h-3.5" /> Add to cart
           </button>

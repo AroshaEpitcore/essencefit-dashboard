@@ -25,7 +25,7 @@ export default function Hero({ slides, storeName }: { slides: HeroSlide[]; store
         <div className="max-w-2xl">
           <h1 className="text-white text-4xl sm:text-6xl font-extrabold tracking-tight">{storeName}</h1>
           <p className="text-white/80 mt-4 text-lg">Quality apparel, delivered island-wide.</p>
-          <Link href="/shop" className="mt-8 inline-block bg-white text-gray-900 px-9 py-3.5 rounded-full font-semibold hover:bg-gray-100 transition-colors">
+          <Link href="/shop" className="mt-8 inline-block bg-white text-gray-900 px-9 py-3.5 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
             Shop now
           </Link>
         </div>
@@ -86,7 +86,7 @@ export default function Hero({ slides, storeName }: { slides: HeroSlide[]; store
           {s.ctaText && s.ctaLink && (
             <Link
               href={s.ctaLink}
-              className="mt-7 inline-block bg-white text-gray-900 px-9 py-3.5 rounded-full font-semibold hover:bg-gray-100 transition-colors"
+              className="mt-7 inline-block bg-white text-gray-900 px-9 py-3.5 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
             >
               {s.ctaText}
             </Link>
