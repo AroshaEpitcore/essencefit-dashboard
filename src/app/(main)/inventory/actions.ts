@@ -1,6 +1,7 @@
 "use server";
 
 import { getDb } from "@/lib/db";
+import { sortBySize } from "@/lib/sizeOrder";
 
 /**
  * Get base lookups for dropdowns (Categories, Sizes, Colors)
@@ -29,7 +30,7 @@ export async function getLookups() {
 
   return {
     categories: cats.recordset ?? [],
-    sizes: sizes.recordset ?? [],
+    sizes: sortBySize((sizes.recordset ?? []) as { Id: string; Name: string }[], (s) => s.Name),
     colors: colors.recordset ?? [],
   };
 }

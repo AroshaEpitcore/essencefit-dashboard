@@ -1,4 +1,5 @@
 import { getDb, sql } from "@/lib/db";
+import { sortBySize } from "@/lib/sizeOrder";
 
 /* Read-only catalog helpers for the public storefront.
    Safe to call from server components. Only returns active/published data. */
@@ -233,7 +234,7 @@ export async function getFilterOptions() {
     pool.request().query(`SELECT Id, Name FROM Colors ORDER BY Name`),
   ]);
   return {
-    sizes: sizes.recordset as { Id: string; Name: string }[],
+    sizes: sortBySize(sizes.recordset as { Id: string; Name: string }[], (s) => s.Name),
     colors: colors.recordset as { Id: string; Name: string }[],
   };
 }
@@ -417,7 +418,8 @@ export async function getProductVariants(productId: string): Promise<StoreVarian
       WHERE v.ProductId = @pid
       ORDER BY s.Name, c.Name
     `);
-  return res.recordset as StoreVariant[];
+  // Small→large size order (the Sizes table has no sort column).
+  return sortBySize(res.recordset as StoreVariant[], (v) => v.SizeName);
 }
 
 export type QuickView = {

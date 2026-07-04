@@ -1,6 +1,7 @@
 "use server";
 
 import { getDb } from "@/lib/db";
+import { sortBySize } from "@/lib/sizeOrder";
 import sql from "@/lib/sqlShim";
 
 export async function getCategories() {
@@ -55,7 +56,7 @@ export async function getAllColors() {
 export async function getAllSizes() {
   const pool = await getDb();
   const res = await pool.request().query(`SELECT Id, Name FROM Sizes ORDER BY Name`);
-  return res.recordset as { Id: string; Name: string }[];
+  return sortBySize(res.recordset as { Id: string; Name: string }[], (s) => s.Name);
 }
 
 export async function getColorRequests() {

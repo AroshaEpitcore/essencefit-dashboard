@@ -1,6 +1,7 @@
 "use server";
 
 import { getDb } from "@/lib/db";
+import { sortBySize } from "@/lib/sizeOrder";
 
 /** Load Categories */
 export async function getCategories() {
@@ -42,7 +43,7 @@ export async function getSizes() {
     FROM Sizes
     ORDER BY Name
   `);
-  return result.recordset as Array<{ Id: string; Name: string }>;
+  return sortBySize(result.recordset as Array<{ Id: string; Name: string }>, (s) => s.Name);
 }
 
 /** Load Colors */
