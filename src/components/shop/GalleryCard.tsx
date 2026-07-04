@@ -64,8 +64,8 @@ export default function GalleryCard({ item, onDark = false }: { item: GalleryIte
         </div>
 
         <div className="mt-2.5">
-          <p className={`text-sm font-bold transition-colors group-hover:text-primary ${onDark ? "text-white" : "text-gray-900"}`}>{item.CustomerName}</p>
-          {item.Caption && <p className={`text-sm line-clamp-2 ${onDark ? "text-white/60" : "text-gray-500"}`}>{item.Caption}</p>}
+          <p className={`text-sm font-bold truncate transition-colors group-hover:text-primary ${onDark ? "text-white" : "text-gray-900"}`}>{item.CustomerName}</p>
+          {item.Caption && <p className={`text-sm truncate ${onDark ? "text-white/60" : "text-gray-500"}`}>{item.Caption}</p>}
         </div>
       </button>
 
