@@ -5,36 +5,40 @@ import { Images } from "lucide-react";
 import GalleryLightbox from "./GalleryLightbox";
 import type { GalleryItem } from "@/lib/storefront";
 
-/* Card for one custom order: the first final-product photo (hover swaps to
-   the second when present), the customer's name + optional caption, a small
-   inset thumbnail of the artwork the customer sent, and an image-count badge.
-   Clicking opens the lightbox over all final photos plus the artwork.
-   `onDark` switches the text colors for the black home page panel. */
+/* Card for one custom order: the main photo (hover shows the next one, like
+   the product card), the customer's name + optional caption, then a row of
+   small square thumbnails of every image (final photos + artworks) —
+   hovering a thumbnail swaps the main photo to it, clicking opens the
+   lightbox at that image. A small inset shows the customer's artwork.
+   `onDark` switches the text/border colors for the black home page panel. */
 export default function GalleryCard({ item, onDark = false }: { item: GalleryItem; onDark?: boolean }) {
   const [lightbox, setLightbox] = useState<number | null>(null);
+  const [active, setActive] = useState(0);
 
-  const cover = item.Images[0];
-  const hoverImage = item.Images[1];
-  const lightboxImages = [...item.Images, ...item.Artworks];
-  const count = lightboxImages.length;
+  const allImages = [...item.Images, ...item.Artworks];
+  const count = allImages.length;
+  if (count === 0) return null;
 
-  if (!cover) return null;
+  const idx = Math.min(active, count - 1);
+  const cover = allImages[idx];
+  const hoverImage = count > 1 ? allImages[(idx + 1) % count] : null;
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setLightbox(0)}
-        className="group block w-full text-left"
-        aria-label={`View ${item.CustomerName}'s custom order`}
-      >
-        <div className="relative aspect-square rounded-lg bg-gray-100 overflow-hidden">
+      <div className="group/card w-full text-left">
+        {/* Main image — click zooms; hovering shows the next image */}
+        <button
+          type="button"
+          onClick={() => setLightbox(idx)}
+          className="group relative block w-full aspect-square rounded-lg bg-gray-100 overflow-hidden"
+          aria-label={`View ${item.CustomerName}'s custom order`}
+        >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={cover}
             alt={`${item.CustomerName}'s custom order`}
             loading="lazy"
-            className={`w-full h-full object-cover transition-all duration-500 group-hover:scale-105 ${hoverImage ? "group-hover:opacity-0" : ""}`}
+            className={`absolute inset-0 w-full h-full object-cover transition-all duration-500 group-hover:scale-105 ${hoverImage ? "group-hover:opacity-0" : ""}`}
           />
           {hoverImage && (
             // eslint-disable-next-line @next/next/no-img-element
@@ -49,10 +53,10 @@ export default function GalleryCard({ item, onDark = false }: { item: GalleryIte
 
           {/* Customer's artwork inset (first artwork; the rest are in the lightbox) */}
           {item.Artworks.length > 0 && (
-            <div className="absolute bottom-2 left-2 w-14 h-14 rounded-lg overflow-hidden border-2 border-white shadow-md bg-white">
+            <span className="absolute bottom-2 left-2 block w-14 h-14 rounded-lg overflow-hidden border-2 border-white shadow-md bg-white">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={item.Artworks[0]} alt="Customer's artwork" loading="lazy" className="w-full h-full object-cover" />
-            </div>
+            </span>
           )}
 
           {/* Image count badge */}
@@ -61,16 +65,40 @@ export default function GalleryCard({ item, onDark = false }: { item: GalleryIte
               <Images className="w-3 h-3" /> {count}
             </span>
           )}
-        </div>
+        </button>
 
         <div className="mt-2.5">
-          <p className={`text-base font-bold truncate transition-colors group-hover:text-primary ${onDark ? "text-white" : "text-gray-900"}`}>{item.CustomerName}</p>
+          <p className={`text-base font-bold truncate transition-colors group-hover/card:text-primary ${onDark ? "text-white" : "text-gray-900"}`}>{item.CustomerName}</p>
           {item.Caption && <p className={`text-sm line-clamp-3 ${onDark ? "text-white/60" : "text-gray-500"}`}>{item.Caption}</p>}
+
+          {/* Thumbnail squares — hover previews on the card, click zooms (like the product card's chips) */}
+          {count > 1 && (
+            <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+              {allImages.slice(0, 5).map((url, i) => (
+                <button
+                  key={url + i}
+                  type="button"
+                  onMouseEnter={() => setActive(i)}
+                  onClick={() => { setActive(i); setLightbox(i); }}
+                  aria-label={`View image ${i + 1}`}
+                  className={`w-9 h-9 rounded-sm overflow-hidden border transition-colors ${
+                    idx === i
+                      ? onDark ? "border-white ring-1 ring-white" : "border-gray-900 ring-1 ring-gray-900"
+                      : onDark ? "border-white/25 hover:border-white/60" : "border-gray-300 hover:border-gray-500"
+                  }`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt="" loading="lazy" className="w-full h-full object-cover" />
+                </button>
+              ))}
+              {count > 5 && <span className={`text-[11px] ${onDark ? "text-white/40" : "text-gray-400"}`}>+{count - 5}</span>}
+            </div>
+          )}
         </div>
-      </button>
+      </div>
 
       {lightbox !== null && (
-        <GalleryLightbox images={lightboxImages} startIndex={lightbox} onClose={() => setLightbox(null)} />
+        <GalleryLightbox images={allImages} startIndex={lightbox} onClose={() => setLightbox(null)} />
       )}
     </>
   );
