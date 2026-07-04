@@ -22,7 +22,9 @@ export default async function GalleryPage({
 }) {
   const sp = await searchParams;
   const q = sp.q?.trim() || undefined;
-  const show = Math.max(PAGE_SIZE, Number(sp.show) || PAGE_SIZE);
+  // Cap the user-controllable limit so a crafted ?show= can't force an
+  // unbounded LIMIT + oversized IN(...) in attachGalleryImages.
+  const show = Math.min(120, Math.max(PAGE_SIZE, Number(sp.show) || PAGE_SIZE));
 
   const { items, total } = await getGalleryItems({ q, limit: show });
 
