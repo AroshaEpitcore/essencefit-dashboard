@@ -22,7 +22,7 @@ export default function GallerySection({ items, title }: { items: GalleryItem[];
       {/* Continuous flow — duplicate the cards and translate -50% so it loops seamlessly. */}
       <div className="marquee-pause overflow-hidden -mx-1">
         <div
-          className="flex w-max items-start animate-marquee"
+          className="flex w-max items-start animate-marquee transform-gpu will-change-transform [backface-visibility:hidden]"
           style={{ animationDuration: `${Math.max(items.length, 4) * 8}s` }}
         >
           {[...items, ...items].map((item, i) => (

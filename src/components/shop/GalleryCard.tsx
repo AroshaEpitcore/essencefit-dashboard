@@ -75,7 +75,7 @@ export default function GalleryCard({
           <img
             src={cover}
             alt={`${item.CustomerName}'s custom order`}
-            loading="lazy"
+            loading={onDark ? "eager" : "lazy"}
             className={`absolute inset-0 w-full h-full object-cover transition-all duration-500 group-hover:scale-105 ${hoverImage ? "group-hover:opacity-0" : ""}`}
           />
           {hoverImage && (
@@ -84,7 +84,7 @@ export default function GalleryCard({
               src={hoverImage}
               alt=""
               aria-hidden
-              loading="lazy"
+              loading={onDark ? "eager" : "lazy"}
               className="absolute inset-0 w-full h-full object-cover opacity-0 transition-all duration-500 group-hover:opacity-100 group-hover:scale-105"
             />
           )}
@@ -95,7 +95,7 @@ export default function GalleryCard({
               {item.Artworks.slice(0, 3).map((url, i) => (
                 <span key={url + i} className="block w-14 h-14 rounded-lg overflow-hidden border-2 border-white shadow-md bg-white">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={url} alt="Customer's artwork" loading="lazy" className="w-full h-full object-cover" />
+                  <img src={url} alt="Customer's artwork" loading={onDark ? "eager" : "lazy"} className="w-full h-full object-cover" />
                 </span>
               ))}
               {item.Artworks.length > 3 && (
@@ -150,7 +150,7 @@ export default function GalleryCard({
                   }`}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={url} alt="" loading="lazy" className="w-full h-full object-cover" />
+                  <img src={url} alt="" loading={onDark ? "eager" : "lazy"} className="w-full h-full object-cover" />
                 </button>
               ))}
               {item.Images.length > 5 && <span className={`text-[11px] ${onDark ? "text-white/40" : "text-gray-400"}`}>+{item.Images.length - 5}</span>}
