@@ -18,14 +18,21 @@ export default function AutoScroller({ children, speed = 40 }: { children: React
     let raf = 0;
     let last = performance.now();
     let resumeTimer: ReturnType<typeof setTimeout>;
+    // Float position accumulator: scrollLeft rounds to whole pixels, so
+    // read-add-write of sub-pixel steps (~0.7px/frame) would stall forever.
+    let pos = el.scrollLeft;
 
     const tick = (now: number) => {
       const dt = Math.min((now - last) / 1000, 0.1);
       last = now;
-      if (!paused.current && el.scrollWidth > el.clientWidth) {
-        el.scrollLeft += speed * dt;
+      if (paused.current) {
+        // Follow manual scrolling so we resume from wherever the user left it.
+        pos = el.scrollLeft;
+      } else if (el.scrollWidth > el.clientWidth) {
+        pos += speed * dt;
         const half = el.scrollWidth / 2;
-        if (el.scrollLeft >= half) el.scrollLeft -= half;
+        if (pos >= half) pos -= half;
+        el.scrollLeft = pos;
       }
       raf = requestAnimationFrame(tick);
     };
@@ -37,24 +44,38 @@ export default function AutoScroller({ children, speed = 40 }: { children: React
     };
     const resumeSoon = () => {
       clearTimeout(resumeTimer);
-      resumeTimer = setTimeout(() => (paused.current = false), 1200);
+      resumeTimer = setTimeout(() => {
+        pos = el.scrollLeft;
+        paused.current = false;
+      }, 1200);
     };
     const resumeNow = () => {
       clearTimeout(resumeTimer);
+      pos = el.scrollLeft;
       paused.current = false;
     };
-    el.addEventListener("mouseenter", pause);
-    el.addEventListener("mouseleave", resumeNow);
+    // Only a REAL mouse pauses on hover — after a tap, browsers fire a
+    // synthetic mouseenter with no mouseleave, which would pause forever.
+    const onPointerEnter = (e: PointerEvent) => {
+      if (e.pointerType === "mouse") pause();
+    };
+    const onPointerLeave = (e: PointerEvent) => {
+      if (e.pointerType === "mouse") resumeNow();
+    };
+    el.addEventListener("pointerenter", onPointerEnter);
+    el.addEventListener("pointerleave", onPointerLeave);
     el.addEventListener("touchstart", pause, { passive: true });
     el.addEventListener("touchend", resumeSoon);
+    el.addEventListener("touchcancel", resumeSoon);
 
     return () => {
       cancelAnimationFrame(raf);
       clearTimeout(resumeTimer);
-      el.removeEventListener("mouseenter", pause);
-      el.removeEventListener("mouseleave", resumeNow);
+      el.removeEventListener("pointerenter", onPointerEnter);
+      el.removeEventListener("pointerleave", onPointerLeave);
       el.removeEventListener("touchstart", pause);
       el.removeEventListener("touchend", resumeSoon);
+      el.removeEventListener("touchcancel", resumeSoon);
     };
   }, [speed]);
 
