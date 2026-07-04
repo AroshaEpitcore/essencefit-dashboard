@@ -32,7 +32,7 @@ export async function getAdminGalleryItems(): Promise<AdminGalleryItem[]> {
            (SELECT COUNT(*) FROM GalleryImages gi WHERE gi.GalleryItemId = g.Id AND gi.Kind = 'final') AS ImageCount,
            (SELECT COUNT(*) FROM GalleryImages gi WHERE gi.GalleryItemId = g.Id AND gi.Kind = 'artwork') AS ArtworkCount
     FROM GalleryItems g
-    ORDER BY g.IsFeatured DESC, g.SortOrder, g.CreatedAt DESC
+    ORDER BY g.IsFeatured DESC, CASE WHEN g.SortOrder = 0 THEN 2147483647 ELSE g.SortOrder END, g.CreatedAt DESC
   `);
   return res.recordset as AdminGalleryItem[];
 }

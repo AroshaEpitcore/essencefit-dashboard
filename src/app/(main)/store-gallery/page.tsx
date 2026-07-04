@@ -181,7 +181,7 @@ export default function GalleryAdminPage() {
             Published
           </label>
           <div>
-            <label className="block text-sm font-medium mb-1">Sort order</label>
+            <label className="block text-sm font-medium mb-1">Sort order <span className="text-gray-400">(1 = first, 0 = auto)</span></label>
             <input type="number" className={`${input} w-28`} value={f.sortOrder} onChange={(e) => set("sortOrder", Number(e.target.value) || 0)} />
           </div>
         </div>

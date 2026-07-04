@@ -639,7 +639,7 @@ export async function getLatestGalleryItems(limit = 6): Promise<GalleryItem[]> {
     .query(`
       ${GALLERY_SELECT}
       WHERE IsPublished = true
-      ORDER BY IsFeatured DESC, SortOrder, CreatedAt DESC
+      ORDER BY IsFeatured DESC, CASE WHEN SortOrder = 0 THEN 2147483647 ELSE SortOrder END, CreatedAt DESC
       LIMIT @n OFFSET 0
     `);
   return attachGalleryImages(pool, res.recordset as GalleryItem[]);
@@ -660,7 +660,7 @@ export async function getGalleryItems(opts: { q?: string; limit: number }): Prom
   const res = await req.query(`
     ${GALLERY_SELECT}
     ${where}
-    ORDER BY IsFeatured DESC, SortOrder, CreatedAt DESC
+    ORDER BY IsFeatured DESC, CASE WHEN SortOrder = 0 THEN 2147483647 ELSE SortOrder END, CreatedAt DESC
     LIMIT @n OFFSET 0
   `);
   const items = await attachGalleryImages(pool, res.recordset as GalleryItem[]);
@@ -690,7 +690,7 @@ export async function getLatestFeedback(limit = 10): Promise<FeedbackItem[]> {
       SELECT Id, CustomerName, ImageUrl, CreatedAt
       FROM FeedbackItems
       WHERE IsPublished = true
-      ORDER BY SortOrder, CreatedAt DESC
+      ORDER BY CASE WHEN SortOrder = 0 THEN 2147483647 ELSE SortOrder END, CreatedAt DESC
       LIMIT @n OFFSET 0
     `);
   return res.recordset as FeedbackItem[];
@@ -709,7 +709,7 @@ export async function getFeedbackItems(opts: { limit: number }): Promise<{ items
       SELECT Id, CustomerName, ImageUrl, CreatedAt
       FROM FeedbackItems
       WHERE IsPublished = true
-      ORDER BY SortOrder, CreatedAt DESC
+      ORDER BY CASE WHEN SortOrder = 0 THEN 2147483647 ELSE SortOrder END, CreatedAt DESC
       LIMIT @n OFFSET 0
     `);
   return { items: res.recordset as FeedbackItem[], total };

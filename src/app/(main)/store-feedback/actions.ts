@@ -23,7 +23,7 @@ export async function getAdminFeedbackItems(): Promise<AdminFeedbackItem[]> {
   const res = await pool.request().query(`
     SELECT Id, CustomerName, ImageUrl, IsPublished, SortOrder, CreatedAt
     FROM FeedbackItems
-    ORDER BY SortOrder, CreatedAt DESC
+    ORDER BY CASE WHEN SortOrder = 0 THEN 2147483647 ELSE SortOrder END, CreatedAt DESC
   `);
   return res.recordset as AdminFeedbackItem[];
 }
