@@ -204,6 +204,9 @@ export default function StoreHeader({
               >
                 Deals
               </Link>
+              <Link href="/gallery" onMouseEnter={() => setOpenMenu(null)} className={linkCls}>
+                Gallery
+              </Link>
             </nav>
           </div>
 
@@ -471,6 +474,9 @@ export default function StoreHeader({
               ))}
               <Link href="/customize" onClick={closeMenus} className="flex items-center justify-between py-3 text-[15px] text-gray-600 border-b border-gray-100">
                 Customize &amp; DTF Print <ChevronRight className="w-4 h-4 text-gray-400" />
+              </Link>
+              <Link href="/gallery" onClick={closeMenus} className="flex items-center justify-between py-3 text-[15px] text-gray-600 border-b border-gray-100">
+                Gallery <ChevronRight className="w-4 h-4 text-gray-400" />
               </Link>
               <Link href="/deals" onClick={closeMenus} className="flex items-center justify-between py-3 text-[15px] font-bold text-primary">
                 Deals <ChevronRight className="w-4 h-4" />

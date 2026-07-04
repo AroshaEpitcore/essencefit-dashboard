@@ -575,3 +575,86 @@ export async function getLatestReviews(limit = 12): Promise<StoreReview[]> {
     `);
   return attachReviewImages(pool, res.recordset as StoreReview[]);
 }
+
+/* ============================================================
+   CUSTOM-ORDERS GALLERY (storefront reads)
+   Each gallery item pairs the customer's submitted artwork with
+   photos of the delivered product (GalleryImages child table).
+   ============================================================ */
+
+export type GalleryItem = {
+  Id: string;
+  CustomerName: string;
+  ArtworkUrl: string | null;
+  Caption: string | null;
+  IsFeatured: boolean;
+  CreatedAt: string;
+  Images: string[]; // final product photos, ordered
+};
+
+// Batched second query: item id -> image urls (no N+1), mirrors attachReviewImages.
+async function attachGalleryImages(
+  pool: Awaited<ReturnType<typeof getDb>>,
+  rows: GalleryItem[]
+): Promise<GalleryItem[]> {
+  rows.forEach((r) => (r.Images = []));
+  if (rows.length === 0) return rows;
+  const req = pool.request();
+  const params = rows.map((r, i) => {
+    req.input(`g${i}`, sql.UniqueIdentifier, r.Id);
+    return `@g${i}`;
+  });
+  const res = await req.query(`
+    SELECT GalleryItemId AS GalleryItemId, Url FROM GalleryImages
+    WHERE GalleryItemId IN (${params.join(",")})
+    ORDER BY SortOrder, CreatedAt
+  `);
+  const byItem: Record<string, string[]> = {};
+  for (const row of res.recordset as { GalleryItemId: string; Url: string }[]) {
+    (byItem[row.GalleryItemId] ||= []).push(row.Url);
+  }
+  for (const r of rows) r.Images = byItem[r.Id] ?? [];
+  return rows;
+}
+
+const GALLERY_SELECT = `
+  SELECT Id, CustomerName, ArtworkUrl AS ArtworkUrl, Caption AS Caption,
+         IsFeatured, CreatedAt
+  FROM GalleryItems
+`;
+
+export async function getLatestGalleryItems(limit = 6): Promise<GalleryItem[]> {
+  const pool = await getDb();
+  const res = await pool
+    .request()
+    .input("n", sql.Int, limit)
+    .query(`
+      ${GALLERY_SELECT}
+      WHERE IsPublished = true
+      ORDER BY IsFeatured DESC, SortOrder, CreatedAt DESC
+      LIMIT @n OFFSET 0
+    `);
+  return attachGalleryImages(pool, res.recordset as GalleryItem[]);
+}
+
+// /gallery page: customer-name search + incremental "load more" cap.
+export async function getGalleryItems(opts: { q?: string; limit: number }): Promise<{ items: GalleryItem[]; total: number }> {
+  const pool = await getDb();
+  const where = opts.q ? `WHERE IsPublished = true AND CustomerName ILIKE @q` : `WHERE IsPublished = true`;
+
+  const countReq = pool.request();
+  if (opts.q) countReq.input("q", sql.NVarChar(200), `%${opts.q}%`);
+  const countRes = await countReq.query(`SELECT COUNT(*) AS cnt FROM GalleryItems ${where}`);
+  const total = Number((countRes.recordset[0] as { cnt: number | string })?.cnt ?? 0);
+
+  const req = pool.request().input("n", sql.Int, opts.limit);
+  if (opts.q) req.input("q", sql.NVarChar(200), `%${opts.q}%`);
+  const res = await req.query(`
+    ${GALLERY_SELECT}
+    ${where}
+    ORDER BY IsFeatured DESC, SortOrder, CreatedAt DESC
+    LIMIT @n OFFSET 0
+  `);
+  const items = await attachGalleryImages(pool, res.recordset as GalleryItem[]);
+  return { items, total };
+}

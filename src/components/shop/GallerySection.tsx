@@ -1,0 +1,37 @@
+import Link from "next/link";
+import GalleryCard from "./GalleryCard";
+import type { GalleryItem } from "@/lib/storefront";
+
+/* Home page "Custom Orders" band — rounded black panel styled like the
+   reviews section: uppercase heading with a primary underline, a grid of up
+   to 6 gallery cards, and a "View the full gallery" CTA to /gallery.
+   Renders nothing when there are no published items. */
+export default function GallerySection({ items, title }: { items: GalleryItem[]; title: string }) {
+  if (!items.length) return null;
+
+  return (
+    <section className="rounded-2xl bg-black px-5 sm:px-8 py-10">
+      <div className="mb-8">
+        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary mb-2">Custom orders</p>
+        <h2 className="text-2xl md:text-3xl font-bold uppercase tracking-wide text-white inline-block border-b-2 border-primary pb-1">
+          {title}
+        </h2>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        {items.slice(0, 6).map((item) => (
+          <GalleryCard key={item.Id} item={item} onDark />
+        ))}
+      </div>
+
+      <div className="mt-8 text-center">
+        <Link
+          href="/gallery"
+          className="inline-block rounded-lg bg-primary text-white font-semibold px-6 py-3 hover:bg-primary/90 transition-colors"
+        >
+          View the full gallery
+        </Link>
+      </div>
+    </section>
+  );
+}

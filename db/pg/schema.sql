@@ -368,6 +368,28 @@ CREATE TABLE IF NOT EXISTS reviewimages (
   createdat timestamp NOT NULL DEFAULT now()
 );
 
+-- Admin-managed custom-orders gallery: each item is a customer's order with
+-- the artwork they sent (artworkurl) and photos of the delivered product in
+-- the galleryimages child table.
+CREATE TABLE IF NOT EXISTS galleryitems (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  customername text NOT NULL,
+  artworkurl text,
+  caption text,
+  isfeatured boolean NOT NULL DEFAULT false,
+  ispublished boolean NOT NULL DEFAULT true,
+  sortorder integer NOT NULL DEFAULT 0,
+  createdat timestamp NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS galleryimages (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  galleryitemid uuid NOT NULL,
+  url text NOT NULL,
+  sortorder integer NOT NULL DEFAULT 0,
+  createdat timestamp NOT NULL DEFAULT now()
+);
+
 -- ============================ INDEXES ============================
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_customers_phone ON customers (phone) WHERE phone IS NOT NULL;
@@ -386,6 +408,7 @@ CREATE INDEX IF NOT EXISTS ix_sales_orderid ON sales (orderid);
 CREATE INDEX IF NOT EXISTS ix_sales_dtforderid ON sales (dtforderid);
 CREATE INDEX IF NOT EXISTS ix_reviews_productid ON reviews (productid);
 CREATE INDEX IF NOT EXISTS ix_reviewimages_reviewid ON reviewimages (reviewid);
+CREATE INDEX IF NOT EXISTS ix_galleryimages_galleryitemid ON galleryimages (galleryitemid);
 
 -- ============================ FOREIGN KEYS ============================
 

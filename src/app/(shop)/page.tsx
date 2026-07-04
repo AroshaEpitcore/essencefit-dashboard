@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
-import { getFeaturedProducts, getDeals, getActiveCategories, getNewProducts, getNewArrivals, getLatestReviews } from "@/lib/storefront";
+import { getFeaturedProducts, getDeals, getActiveCategories, getNewProducts, getNewArrivals, getLatestReviews, getLatestGalleryItems } from "@/lib/storefront";
 import { getPublicStoreSettings } from "@/lib/storeSettings";
 import ProductSlider from "@/components/shop/ProductSlider";
 import CategorySlider from "@/components/shop/CategorySlider";
 import WeeklyMvp from "@/components/shop/WeeklyMvp";
 import ReviewsSection from "@/components/shop/ReviewsSection";
+import GallerySection from "@/components/shop/GallerySection";
 import Hero from "@/components/shop/Hero";
 import { SITE_NAME } from "@/lib/seo";
 
@@ -28,7 +29,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function HomePage() {
-  const [settings, categories, featured, deals, latest, newArrivals, reviews] = await Promise.all([
+  const [settings, categories, featured, deals, latest, newArrivals, reviews, galleryItems] = await Promise.all([
     getPublicStoreSettings(),
     getActiveCategories(),
     getFeaturedProducts(8),
@@ -36,6 +37,7 @@ export default async function HomePage() {
     getNewProducts(8),
     getNewArrivals(12),
     getLatestReviews(12),
+    getLatestGalleryItems(6),
   ]);
 
   return (
@@ -54,6 +56,13 @@ export default async function HomePage() {
       {deals.length > 0 && <ProductSlider title="🔥 Deals" href="/deals" products={deals} />}
       {featured.length > 0 && <ProductSlider title="Best of the Best" href="/shop" products={featured} />}
       {latest.length > 0 && <ProductSlider title="Just In" href="/shop?sort=new" products={latest} />}
+
+      {/* Custom orders gallery — latest published items, featured first */}
+      {galleryItems.length > 0 && (
+        <div className="max-w-[1920px] mx-auto px-4 sm:px-6 py-10">
+          <GallerySection items={galleryItems} title="Custom orders, made real" />
+        </div>
+      )}
 
       {/* What customers say — latest published reviews (rounded black panel, like the PDP) */}
       <div className="max-w-[1920px] mx-auto px-4 sm:px-6 py-10">
