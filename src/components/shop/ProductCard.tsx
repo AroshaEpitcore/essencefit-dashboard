@@ -64,7 +64,7 @@ export default function ProductCard({ p }: { p: StoreProduct }) {
               <img
                 src={baseImage}
                 alt={p.Name}
-                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-200 ${hoverImage ? "group-hover:opacity-0" : ""}`}
+                className={`absolute inset-0 w-full h-full object-cover transition-all duration-500 group-hover:scale-105 ${hoverImage ? "group-hover:opacity-0" : ""}`}
               />
               {hoverImage && (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -72,7 +72,7 @@ export default function ProductCard({ p }: { p: StoreProduct }) {
                   src={hoverImage}
                   alt=""
                   aria-hidden
-                  className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                  className="absolute inset-0 w-full h-full object-cover opacity-0 transition-all duration-500 group-hover:opacity-100 group-hover:scale-105"
                 />
               )}
             </>
