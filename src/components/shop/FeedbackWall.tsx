@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import GalleryLightbox from "./GalleryLightbox";
+import AutoScroller from "./AutoScroller";
 import type { FeedbackItem } from "@/lib/storefront";
 
 /* Screenshot-first display for customer feedback (WhatsApp chats etc.).
@@ -51,18 +52,16 @@ export default function FeedbackWall({
   return (
     <>
       {variant === "marquee" ? (
-        // Continuous flow — duplicate the cards and translate -50% so it loops seamlessly.
-        <div className="marquee-pause overflow-hidden -mx-1">
-          <div
-            className="flex w-max items-stretch animate-marquee transform-gpu will-change-transform [backface-visibility:hidden]"
-            style={{ animationDuration: `${Math.max(items.length, 4) * 8}s` }}
-          >
+        // Continuous flow — native-scroll auto-slider (duplicated track wraps
+        // at the halfway point); pauses on hover/touch, swipeable by hand.
+        <div className="-mx-1">
+          <AutoScroller>
             {[...items, ...items].map((f, i) => (
               <div key={`${f.Id}-${i}`} className="h-64 sm:h-72 shrink-0 px-1.5">
                 {card(f, i, "h-full")}
               </div>
             ))}
-          </div>
+          </AutoScroller>
         </div>
       ) : (
         <div className="columns-2 sm:columns-3 lg:columns-4 gap-4 [&>*]:mb-4 [&>*]:break-inside-avoid [&>*]:block [&>*]:w-full">

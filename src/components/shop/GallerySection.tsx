@@ -1,5 +1,6 @@
 import Link from "next/link";
 import GalleryCard from "./GalleryCard";
+import AutoScroller from "./AutoScroller";
 import type { GalleryItem } from "@/lib/storefront";
 
 /* Home page "Custom Orders" band — rounded black panel styled like the
@@ -19,18 +20,16 @@ export default function GallerySection({ items, title }: { items: GalleryItem[];
         </h2>
       </div>
 
-      {/* Continuous flow — duplicate the cards and translate -50% so it loops seamlessly. */}
-      <div className="marquee-pause overflow-hidden -mx-1">
-        <div
-          className="flex w-max items-start animate-marquee transform-gpu will-change-transform [backface-visibility:hidden]"
-          style={{ animationDuration: `${Math.max(items.length, 4) * 8}s` }}
-        >
+      {/* Continuous flow — native-scroll auto-slider (duplicated track wraps
+          at the halfway point); pauses on hover/touch, swipeable by hand. */}
+      <div className="-mx-1">
+        <AutoScroller>
           {[...items, ...items].map((item, i) => (
             <div key={`${item.Id}-${i}`} className="w-[240px] sm:w-[280px] shrink-0 px-1.5">
               <GalleryCard item={item} onDark />
             </div>
           ))}
-        </div>
+        </AutoScroller>
       </div>
 
       <div className="mt-8 text-center">
