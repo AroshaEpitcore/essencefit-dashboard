@@ -19,8 +19,8 @@ export default function WeeklyMvp({ product }: { product: StoreProduct }) {
         </h2>
       </div>
 
-      {/* PDP-style first section: image left, details right */}
-      <div className="grid md:grid-cols-2 gap-8 lg:gap-12 items-start">
+      {/* PDP-style first section: image left (capped width), details right */}
+      <div className="grid md:grid-cols-[minmax(0,540px)_1fr] gap-8 lg:gap-12 items-center">
         <Link href={`/product/${product.Slug}`} className="block group">
           <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
             {product.ImageUrl && (
