@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Images } from "lucide-react";
+import { Images, Share2, Check } from "lucide-react";
 import GalleryLightbox from "./GalleryLightbox";
 import type { GalleryItem } from "@/lib/storefront";
 
@@ -10,10 +10,44 @@ import type { GalleryItem } from "@/lib/storefront";
    small square thumbnails of every image (final photos + artworks) —
    hovering a thumbnail swaps the main photo to it, clicking opens the
    lightbox at that image. A small inset shows the customer's artwork.
-   `onDark` switches the text/border colors for the black home page panel. */
-export default function GalleryCard({ item, onDark = false }: { item: GalleryItem; onDark?: boolean }) {
-  const [lightbox, setLightbox] = useState<number | null>(null);
+   `onDark` switches the text/border colors for the black home page panel.
+   `shareable` (used on /gallery only) adds a share button — native share
+   sheet when available, else copy-link; shared URLs (?item=<id>) auto-open
+   the lightbox via `autoOpen`. */
+export default function GalleryCard({
+  item,
+  onDark = false,
+  shareable = false,
+  autoOpen = false,
+}: {
+  item: GalleryItem;
+  onDark?: boolean;
+  shareable?: boolean;
+  autoOpen?: boolean;
+}) {
+  const [lightbox, setLightbox] = useState<number | null>(autoOpen ? 0 : null);
   const [active, setActive] = useState(0);
+  const [copied, setCopied] = useState(false);
+
+  async function share() {
+    const url = `${window.location.origin}/gallery?item=${item.Id}`;
+    const data = { title: `${item.CustomerName} — Custom Order`, text: item.Caption || `Check out ${item.CustomerName}'s custom order`, url };
+    if (typeof navigator.share === "function") {
+      try {
+        await navigator.share(data);
+      } catch {
+        /* user dismissed the share sheet */
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(url);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      } catch {
+        /* clipboard unavailable */
+      }
+    }
+  }
 
   const allImages = [...item.Images, ...item.Artworks];
   const count = allImages.length;
@@ -26,6 +60,7 @@ export default function GalleryCard({ item, onDark = false }: { item: GalleryIte
   return (
     <>
       <div className="group/card w-full text-left">
+        <div className="relative">
         {/* Main image — click zooms; hovering shows the next image */}
         <button
           type="button"
@@ -75,6 +110,20 @@ export default function GalleryCard({ item, onDark = false }: { item: GalleryIte
             </span>
           )}
         </button>
+
+        {/* Share (gallery page only) — sibling of the image button, overlaid top-left */}
+        {shareable && (
+          <button
+            type="button"
+            onClick={share}
+            aria-label={copied ? "Link copied" : `Share ${item.CustomerName}'s custom order`}
+            title={copied ? "Link copied!" : "Share"}
+            className="absolute top-2 left-2 z-10 w-8 h-8 rounded-full bg-white/85 backdrop-blur-sm flex items-center justify-center text-gray-700 hover:text-primary shadow-sm"
+          >
+            {copied ? <Check className="w-4 h-4 text-green-600" /> : <Share2 className="w-4 h-4" />}
+          </button>
+        )}
+        </div>
 
         <div className="mt-2.5">
           <p className={`text-base font-bold truncate transition-colors group-hover/card:text-primary ${onDark ? "text-white" : "text-gray-900"}`}>{item.CustomerName}</p>

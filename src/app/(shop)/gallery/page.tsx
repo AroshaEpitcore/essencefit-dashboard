@@ -51,7 +51,7 @@ export default async function GalleryPage({
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8">
             {items.map((item) => (
-              <GalleryCard key={item.Id} item={item} />
+              <GalleryCard key={item.Id} item={item} shareable autoOpen={sp.item === item.Id} />
             ))}
           </div>
 
