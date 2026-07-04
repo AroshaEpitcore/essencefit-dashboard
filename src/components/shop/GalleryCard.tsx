@@ -53,9 +53,12 @@ export default function GalleryCard({
   const count = allImages.length;
   if (count === 0) return null;
 
-  const idx = Math.min(active, count - 1);
-  const cover = allImages[idx];
-  const hoverImage = count > 1 ? allImages[(idx + 1) % count] : null;
+  // Cover + hover-preview cycle through the FINAL product photos only —
+  // artworks stay in the insets and at the end of the lightbox.
+  const finals = item.Images.length ? item.Images : allImages;
+  const idx = Math.min(active, finals.length - 1);
+  const cover = finals[idx];
+  const hoverImage = finals.length > 1 ? finals[(idx + 1) % finals.length] : null;
 
   return (
     <>

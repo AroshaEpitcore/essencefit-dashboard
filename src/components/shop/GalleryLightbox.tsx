@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 
 /* Full-screen image lightbox for gallery items (adapted from the PDP's
@@ -36,9 +37,12 @@ export default function GalleryLightbox({
     };
   }, [onClose, next, prev]);
 
-  if (images.length === 0) return null;
+  if (images.length === 0 || typeof document === "undefined") return null;
 
-  return (
+  // Portal to <body>: position:fixed breaks inside the marquee track's CSS
+  // transform (the overlay would render inside the moving strip), so the
+  // lightbox must escape any transformed ancestor.
+  return createPortal(
     <div
       className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center"
       onClick={onClose}
@@ -94,6 +98,7 @@ export default function GalleryLightbox({
           <ChevronRight className="w-8 h-8 sm:w-10 sm:h-10" />
         </button>
       )}
-    </div>
+    </div>,
+    document.body
   );
 }
