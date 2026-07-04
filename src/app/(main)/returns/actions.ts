@@ -2,6 +2,7 @@
 
 import { getDb } from "@/lib/db";
 import sql from "@/lib/sqlShim";
+import { sortBySize } from "@/lib/sizeOrder";
 
 /* ---------- Lookups ---------- */
 
@@ -49,9 +50,8 @@ export async function getSizesByProduct(productId: string) {
       FROM ProductVariants v
       JOIN Sizes s ON v.SizeId = s.Id
       WHERE v.ProductId=@pid
-      ORDER BY s.Name
     `);
-  return res.recordset;
+  return sortBySize(res.recordset as { Id: string; Name: string }[], (s) => s.Name);
 }
 
 export async function getColorsByProductAndSize(productId: string, sizeId: string) {

@@ -2,6 +2,7 @@
 
 import { getDb } from "@/lib/db";
 import sql from "@/lib/sqlShim";
+import { sortBySize } from "@/lib/sizeOrder";
 
 export async function getLookups() {
   const pool = await getDb();
@@ -28,9 +29,8 @@ export async function getSizes(productId: string) {
       FROM ProductVariants v
       JOIN Sizes s ON s.Id = v.SizeId
       WHERE v.ProductId=@pid
-      ORDER BY s.Name
     `);
-  return res.recordset;
+  return sortBySize(res.recordset as { Id: string; Name: string }[], (s) => s.Name);
 }
 
 export async function getVariantsByProductAndSize(productId: string, sizeId: string) {

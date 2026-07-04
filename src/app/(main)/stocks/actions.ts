@@ -1,7 +1,7 @@
 "use server";
 
 import { getDb } from "@/lib/db";
-import { sortBySize } from "@/lib/sizeOrder";
+import { sortBySize, sizeRank } from "@/lib/sizeOrder";
 
 // ---------- LOOKUPS ----------
 export async function getLookups() {
@@ -297,9 +297,16 @@ export async function getStockItems() {
     LEFT JOIN Colors c ON pv.ColorId = c.Id
     INNER JOIN Categories cat ON p.CategoryId = cat.Id
     WHERE pv.Qty > 0
-    ORDER BY cat.Name, p.Name, s.Name, c.Name
+    ORDER BY cat.Name, p.Name, c.Name
   `);
-  return res.recordset;
+  // Order sizes S→XXL within each product (SQL sorts them alphabetically).
+  return (res.recordset as any[]).sort(
+    (a, b) =>
+      String(a.CategoryName).localeCompare(String(b.CategoryName)) ||
+      String(a.ProductName).localeCompare(String(b.ProductName)) ||
+      sizeRank(a.SizeName) - sizeRank(b.SizeName) ||
+      String(a.ColorName).localeCompare(String(b.ColorName))
+  );
 }
 
 // ---------- TRANSFER STOCK ----------

@@ -3,6 +3,7 @@
 import { getDb } from "@/lib/db";
 import sql, { NVarChar, UniqueIdentifier, Int, Decimal, Transaction } from "@/lib/sqlShim";
 import { sendOrderNotification } from "@/lib/orderNotify";
+import { sortBySize } from "@/lib/sizeOrder";
 
 type OrderStatus = "Pending" | "Paid" | "Partial" | "Completed" | "Canceled";
 export type OrderRange = "today" | "yesterday" | "last7" | "last30" | "all";
@@ -61,9 +62,8 @@ export async function getSizesByProduct(productId: string) {
       FROM ProductVariants v
       JOIN Sizes s ON s.Id = v.SizeId
       WHERE v.ProductId=@pid
-      ORDER BY s.Name
     `);
-  return res.recordset as { Id: string; Name: string }[];
+  return sortBySize(res.recordset as { Id: string; Name: string }[], (s) => s.Name);
 }
 
 export async function getColorsByProductAndSize(productId: string, sizeId: string) {

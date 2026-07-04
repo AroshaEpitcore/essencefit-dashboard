@@ -1,7 +1,7 @@
 "use server";
 
 import { getDb } from "@/lib/db";
-import { sortBySize } from "@/lib/sizeOrder";
+import { sortBySize, sizeRank } from "@/lib/sizeOrder";
 
 /**
  * Get base lookups for dropdowns (Categories, Sizes, Colors)
@@ -166,15 +166,15 @@ export async function getSizeQuantitiesByCategory(categoryId: string) {
       INNER JOIN Sizes s ON s.Id = v.SizeId
       WHERE p.CategoryId = @catId
       GROUP BY s.Name, s.Id
-      ORDER BY s.Name
     `);
 
-  return (res.recordset ?? [])
+  const rows = (res.recordset ?? [])
     .map((r: any) => ({
       Size: r.Size,
       Qty: Number(r.Qty ?? 0),
     }))
     .filter((r: { Size: string; Qty: number }) => r.Qty > 0);
+  return sortBySize(rows, (r) => r.Size);
 }
 
 /**
@@ -201,14 +201,22 @@ export async function searchColorQuantities(colorName: string) {
       INNER JOIN Categories cat ON cat.Id = p.CategoryId
       WHERE c.Name ILIKE @colorName
       GROUP BY c.Name, s.Name, p.Name, cat.Name
-      ORDER BY c.Name, cat.Name, p.Name, s.Name
+      ORDER BY c.Name, cat.Name, p.Name
     `);
 
-  return (res.recordset ?? []).map((r: any) => ({
+  const rows = (res.recordset ?? []).map((r: any) => ({
     Color: r.Color,
     Size: r.Size,
     Product: r.Product,
     Category: r.Category,
     Qty: Number(r.Qty ?? 0),
   }));
+  // Keep the SQL grouping but order sizes S→XXL within each product.
+  return rows.sort(
+    (a, b) =>
+      a.Color.localeCompare(b.Color) ||
+      a.Category.localeCompare(b.Category) ||
+      a.Product.localeCompare(b.Product) ||
+      sizeRank(a.Size) - sizeRank(b.Size)
+  );
 }
