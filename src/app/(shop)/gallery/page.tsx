@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Search } from "lucide-react";
 import { getGalleryItems } from "@/lib/storefront";
 import GalleryCard from "@/components/shop/GalleryCard";
+import GallerySearch from "@/components/shop/GallerySearch";
 
 export const dynamic = "force-dynamic";
 
@@ -35,19 +35,8 @@ export default async function GalleryPage({
         Real orders, real customers — their artwork, our print.
       </p>
 
-      {/* Customer-name search (plain GET form, server-filtered) */}
-      <form method="GET" action="/gallery" className="relative max-w-sm mb-8">
-        <input
-          type="text"
-          name="q"
-          defaultValue={q || ""}
-          placeholder="Search by customer name..."
-          className="w-full bg-gray-100 rounded-lg pl-4 pr-10 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary/40"
-        />
-        <button type="submit" aria-label="Search" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700">
-          <Search className="w-4 h-4" />
-        </button>
-      </form>
+      {/* Customer-name search — live (debounced) as you type, server-filtered */}
+      <GallerySearch initialQ={q || ""} />
 
       {items.length === 0 ? (
         <div className="text-center py-20 text-gray-500">

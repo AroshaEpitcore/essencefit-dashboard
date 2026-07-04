@@ -3,8 +3,9 @@ import GalleryCard from "./GalleryCard";
 import type { GalleryItem } from "@/lib/storefront";
 
 /* Home page "Custom Orders" band — rounded black panel styled like the
-   reviews section: uppercase heading with a primary underline, a grid of up
-   to 6 gallery cards, and a "View the full gallery" CTA to /gallery.
+   reviews section: uppercase heading with a primary underline, a continuous
+   marquee of gallery cards (duplicated track, paused on hover — same idiom
+   as the reviews carousel), and a "View the full gallery" CTA to /gallery.
    Renders nothing when there are no published items. */
 export default function GallerySection({ items, title }: { items: GalleryItem[]; title: string }) {
   if (!items.length) return null;
@@ -18,10 +19,18 @@ export default function GallerySection({ items, title }: { items: GalleryItem[];
         </h2>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-        {items.slice(0, 6).map((item) => (
-          <GalleryCard key={item.Id} item={item} onDark />
-        ))}
+      {/* Continuous flow — duplicate the cards and translate -50% so it loops seamlessly. */}
+      <div className="marquee-pause overflow-hidden -mx-1">
+        <div
+          className="flex w-max items-start animate-marquee"
+          style={{ animationDuration: `${Math.max(items.length, 4) * 8}s` }}
+        >
+          {[...items, ...items].map((item, i) => (
+            <div key={`${item.Id}-${i}`} className="w-[240px] sm:w-[280px] shrink-0 px-1.5">
+              <GalleryCard item={item} onDark />
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="mt-8 text-center">
