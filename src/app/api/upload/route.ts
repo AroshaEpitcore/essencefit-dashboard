@@ -23,7 +23,7 @@ const DOC_TYPES = new Set(["application/pdf"]);
 const MAX_IMAGE = 5 * 1024 * 1024; // 5MB
 const MAX_VIDEO = 60 * 1024 * 1024; // 60MB
 const MAX_DESIGN = 25 * 1024 * 1024; // 25MB — customer DTF artwork (image or PDF)
-const SAFE_FOLDERS = new Set(["products", "categories", "slips", "store", "hero", "designs", "reviews", "gallery", "misc"]);
+const SAFE_FOLDERS = new Set(["products", "categories", "slips", "store", "hero", "designs", "reviews", "gallery", "feedback", "misc"]);
 
 export const runtime = "nodejs";
 

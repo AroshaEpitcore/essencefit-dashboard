@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import { getFeaturedProducts, getDeals, getActiveCategories, getNewProducts, getNewArrivals, getLatestReviews, getLatestGalleryItems } from "@/lib/storefront";
+import { getFeaturedProducts, getDeals, getActiveCategories, getNewProducts, getNewArrivals, getLatestReviews, getLatestGalleryItems, getLatestFeedback } from "@/lib/storefront";
 import { getPublicStoreSettings } from "@/lib/storeSettings";
 import ProductSlider from "@/components/shop/ProductSlider";
 import CategorySlider from "@/components/shop/CategorySlider";
 import WeeklyMvp from "@/components/shop/WeeklyMvp";
 import ReviewsSection from "@/components/shop/ReviewsSection";
 import GallerySection from "@/components/shop/GallerySection";
+import FeedbackSection from "@/components/shop/FeedbackSection";
 import Hero from "@/components/shop/Hero";
 import { SITE_NAME } from "@/lib/seo";
 
@@ -29,7 +30,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function HomePage() {
-  const [settings, categories, featured, deals, latest, newArrivals, reviews, galleryItems] = await Promise.all([
+  const [settings, categories, featured, deals, latest, newArrivals, reviews, galleryItems, feedback] = await Promise.all([
     getPublicStoreSettings(),
     getActiveCategories(),
     getFeaturedProducts(8),
@@ -38,6 +39,7 @@ export default async function HomePage() {
     getNewArrivals(12),
     getLatestReviews(12),
     getLatestGalleryItems(6),
+    getLatestFeedback(10),
   ]);
 
   return (
@@ -68,6 +70,13 @@ export default async function HomePage() {
       <div className="max-w-[1920px] mx-auto px-4 sm:px-6 py-10">
         <ReviewsSection reviews={reviews} title="What our customers say" variant="carousel" showProduct bare logo={settings.logoLight || settings.logo} />
       </div>
+
+      {/* Customer feedback wall — screenshot marquee (rounded black panel) */}
+      {feedback.length > 0 && (
+        <div className="max-w-[1920px] mx-auto px-4 sm:px-6 py-10">
+          <FeedbackSection items={feedback} title="Straight from our customers" />
+        </div>
+      )}
 
       {featured.length === 0 && deals.length === 0 && latest.length === 0 && (
         <div className="max-w-[1920px] mx-auto px-4 sm:px-6 py-20 text-center text-gray-500">

@@ -50,6 +50,7 @@ export default function StoreFooter({
             <ul className="space-y-2.5 text-sm">
               <li><Link href="/shop" className={linkClass}>All products</Link></li>
               <li><Link href="/deals" className={linkClass}>Deals</Link></li>
+              <li><Link href="/feedback" className={linkClass}>Customer feedback</Link></li>
               {categories.slice(0, 4).map((c) => (
                 <li key={c.Id}><Link href={`/category/${c.Slug}`} className={linkClass}>{c.Name}</Link></li>
               ))}

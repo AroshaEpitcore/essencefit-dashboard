@@ -390,6 +390,18 @@ CREATE TABLE IF NOT EXISTS galleryimages (
   createdat timestamp NOT NULL DEFAULT now()
 );
 
+-- Admin-managed feedback wall: each item is one customer-feedback screenshot
+-- (WhatsApp chat etc.) with an optional customer name. Screenshot-first:
+-- no product link, rating, or message.
+CREATE TABLE IF NOT EXISTS feedbackitems (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  customername text,
+  imageurl text NOT NULL,
+  ispublished boolean NOT NULL DEFAULT true,
+  sortorder integer NOT NULL DEFAULT 0,
+  createdat timestamp NOT NULL DEFAULT now()
+);
+
 -- ============================ INDEXES ============================
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_customers_phone ON customers (phone) WHERE phone IS NOT NULL;

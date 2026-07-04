@@ -658,3 +658,51 @@ export async function getGalleryItems(opts: { q?: string; limit: number }): Prom
   const items = await attachGalleryImages(pool, res.recordset as GalleryItem[]);
   return { items, total };
 }
+
+/* ============================================================
+   CUSTOMER FEEDBACK WALL (storefront reads)
+   Each item is one customer-feedback screenshot (WhatsApp chat
+   etc.) with an optional customer name — screenshot-first, no
+   product link / rating / message.
+   ============================================================ */
+
+export type FeedbackItem = {
+  Id: string;
+  CustomerName: string | null;
+  ImageUrl: string;
+  CreatedAt: string;
+};
+
+export async function getLatestFeedback(limit = 10): Promise<FeedbackItem[]> {
+  const pool = await getDb();
+  const res = await pool
+    .request()
+    .input("n", sql.Int, limit)
+    .query(`
+      SELECT Id, CustomerName, ImageUrl, CreatedAt
+      FROM FeedbackItems
+      WHERE IsPublished = true
+      ORDER BY SortOrder, CreatedAt DESC
+      LIMIT @n OFFSET 0
+    `);
+  return res.recordset as FeedbackItem[];
+}
+
+// /feedback page: incremental "load more" cap + total for the button.
+export async function getFeedbackItems(opts: { limit: number }): Promise<{ items: FeedbackItem[]; total: number }> {
+  const pool = await getDb();
+  const countRes = await pool.request().query(`SELECT COUNT(*) AS cnt FROM FeedbackItems WHERE IsPublished = true`);
+  const total = Number((countRes.recordset[0] as { cnt: number | string })?.cnt ?? 0);
+
+  const res = await pool
+    .request()
+    .input("n", sql.Int, opts.limit)
+    .query(`
+      SELECT Id, CustomerName, ImageUrl, CreatedAt
+      FROM FeedbackItems
+      WHERE IsPublished = true
+      ORDER BY SortOrder, CreatedAt DESC
+      LIMIT @n OFFSET 0
+    `);
+  return { items: res.recordset as FeedbackItem[], total };
+}
