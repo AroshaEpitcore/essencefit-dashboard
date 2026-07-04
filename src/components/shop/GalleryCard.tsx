@@ -80,10 +80,11 @@ export default function GalleryCard({ item, onDark = false }: { item: GalleryIte
           <p className={`text-base font-bold truncate transition-colors group-hover/card:text-primary ${onDark ? "text-white" : "text-gray-900"}`}>{item.CustomerName}</p>
           {item.Caption && <p className={`text-sm line-clamp-3 ${onDark ? "text-white/60" : "text-gray-500"}`}>{item.Caption}</p>}
 
-          {/* Thumbnail squares — hover previews on the card, click zooms (like the product card's chips) */}
-          {count > 1 && (
+          {/* Thumbnail squares — final product photos only (artworks stay as
+              insets + in the lightbox); hover previews, click zooms */}
+          {item.Images.length > 1 && (
             <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-              {allImages.slice(0, 5).map((url, i) => (
+              {item.Images.slice(0, 5).map((url, i) => (
                 <button
                   key={url + i}
                   type="button"
@@ -100,7 +101,7 @@ export default function GalleryCard({ item, onDark = false }: { item: GalleryIte
                   <img src={url} alt="" loading="lazy" className="w-full h-full object-cover" />
                 </button>
               ))}
-              {count > 5 && <span className={`text-[11px] ${onDark ? "text-white/40" : "text-gray-400"}`}>+{count - 5}</span>}
+              {item.Images.length > 5 && <span className={`text-[11px] ${onDark ? "text-white/40" : "text-gray-400"}`}>+{item.Images.length - 5}</span>}
             </div>
           )}
         </div>
