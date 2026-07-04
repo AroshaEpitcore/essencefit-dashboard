@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
-import { MessageSquareQuote, Save, Trash2, ImagePlus, Pencil } from "lucide-react";
+import { MessageSquareQuote, Save, Trash2, ImagePlus, Pencil, X } from "lucide-react";
 import {
   getAdminFeedbackItems,
   addFeedbackItems,
@@ -39,6 +39,8 @@ export default function FeedbackAdminPage() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<AdminFeedbackItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   async function refresh() {
     setItems(await getAdminFeedbackItems());
@@ -75,7 +77,6 @@ export default function FeedbackAdminPage() {
       isPublished: f.IsPublished,
       sortOrder: f.SortOrder,
     });
-    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function save() {
@@ -99,14 +100,17 @@ export default function FeedbackAdminPage() {
   }
 
   async function remove(id: string) {
-    if (!confirm("Delete this feedback screenshot?")) return;
+    setDeleting(true);
     try {
       await deleteFeedbackItem(id);
       toast.success("Feedback item deleted");
       if (edit?.id === id) setEdit(null);
+      setConfirmDelete(null);
       await refresh();
     } catch (e: any) {
       toast.error(e.message || "Delete failed");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -132,14 +136,20 @@ export default function FeedbackAdminPage() {
         </label>
       </div>
 
-      {/* Inline editor (appears when editing an item) */}
+      {/* Edit modal (large) */}
       {edit && (
-        <div className={card}>
-          <h2 className="font-semibold mb-4">Edit feedback item</h2>
+        <div className="fixed inset-0 z-[90] bg-black/50 flex items-center justify-center p-4" onClick={() => setEdit(null)} role="dialog" aria-modal="true">
+        <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-800 rounded-xl p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-lg font-semibold">Edit feedback item</h2>
+            <button onClick={() => setEdit(null)} className="p-1 text-gray-400 hover:text-gray-700 dark:hover:text-white" aria-label="Close">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
           <div className="flex flex-wrap items-start gap-5">
-            <div className="w-24 h-24 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-700 shrink-0">
+            <div className="w-40 max-h-72 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-700 shrink-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={edit.imageUrl} alt="" className="w-full h-full object-cover" />
+              <img src={edit.imageUrl} alt="" className="w-full h-auto object-contain" />
             </div>
             <div className="flex-1 min-w-[240px] grid sm:grid-cols-2 gap-4">
               <div>
@@ -166,6 +176,7 @@ export default function FeedbackAdminPage() {
               Cancel
             </button>
           </div>
+        </div>
         </div>
       )}
 
@@ -195,13 +206,44 @@ export default function FeedbackAdminPage() {
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <button onClick={() => startEdit(f)} className="p-2 text-gray-400 hover:text-primary" aria-label="Edit"><Pencil className="w-4 h-4" /></button>
-                  <button onClick={() => remove(f.Id)} className="p-2 text-gray-400 hover:text-red-500" aria-label="Delete"><Trash2 className="w-4 h-4" /></button>
+                  <button onClick={() => setConfirmDelete(f)} className="p-2 text-gray-400 hover:text-red-500" aria-label="Delete"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Delete confirmation (styled, replaces the browser alert) */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-[95] bg-black/50 flex items-center justify-center p-4" onClick={() => setConfirmDelete(null)} role="dialog" aria-modal="true">
+          <div className="w-full max-w-sm bg-white dark:bg-gray-800 rounded-xl p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-500/15 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-red-500" />
+              </div>
+              <div>
+                <h3 className="font-semibold">Delete feedback screenshot?</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  {confirmDelete.CustomerName ? `${confirmDelete.CustomerName}'s screenshot` : "This screenshot"} will be removed from the website. This cannot be undone.
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button onClick={() => setConfirmDelete(null)} className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm font-medium">
+                Cancel
+              </button>
+              <button
+                onClick={() => remove(confirmDelete.Id)}
+                disabled={deleting}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleting ? "Deleting…" : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

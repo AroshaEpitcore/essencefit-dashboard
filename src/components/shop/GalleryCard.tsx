@@ -51,11 +51,20 @@ export default function GalleryCard({ item, onDark = false }: { item: GalleryIte
             />
           )}
 
-          {/* Customer's artwork inset (first artwork; the rest are in the lightbox) */}
+          {/* Customer's artwork insets — all artworks side by side */}
           {item.Artworks.length > 0 && (
-            <span className="absolute bottom-2 left-2 block w-14 h-14 rounded-lg overflow-hidden border-2 border-white shadow-md bg-white">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={item.Artworks[0]} alt="Customer's artwork" loading="lazy" className="w-full h-full object-cover" />
+            <span className="absolute bottom-2 left-2 flex gap-1.5">
+              {item.Artworks.slice(0, 3).map((url, i) => (
+                <span key={url + i} className="block w-14 h-14 rounded-lg overflow-hidden border-2 border-white shadow-md bg-white">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt="Customer's artwork" loading="lazy" className="w-full h-full object-cover" />
+                </span>
+              ))}
+              {item.Artworks.length > 3 && (
+                <span className="w-14 h-14 rounded-lg border-2 border-white shadow-md bg-black/60 text-white flex items-center justify-center text-xs font-semibold">
+                  +{item.Artworks.length - 3}
+                </span>
+              )}
             </span>
           )}
 
