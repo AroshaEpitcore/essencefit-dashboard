@@ -5,6 +5,7 @@ import { getCurrentCustomer } from "@/lib/customerAuth";
 import { getMyDtfOrder } from "../../account/actions";
 import { getDtfPageSettings } from "@/lib/dtfSettings";
 import { money } from "@/components/shop/format";
+import { sizeLabel } from "@/lib/sizeOrder";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Custom order" };
@@ -71,7 +72,7 @@ export default async function DtfOrderTrackingPage({ params }: { params: Promise
         <h2 className="font-semibold text-gray-900 mb-3">Order details</h2>
         <div className="text-sm space-y-1 text-gray-700">
           <p><span className="text-gray-500">Garment:</span> {order.ProductName || "—"}</p>
-          <p><span className="text-gray-500">Size / colour:</span> {[order.SizeName, order.ColorName].filter(Boolean).join(" / ") || "—"}</p>
+          <p><span className="text-gray-500">Size / colour:</span> {[sizeLabel(order.SizeName), order.ColorName].filter(Boolean).join(" / ") || "—"}</p>
           <p><span className="text-gray-500">Quantity:</span> {order.Qty}</p>
           {order.PrintOptions && <p><span className="text-gray-500">Prints:</span> {order.PrintOptions}</p>}
           {order.CustomerNote && <p><span className="text-gray-500">Your note:</span> {order.CustomerNote}</p>}

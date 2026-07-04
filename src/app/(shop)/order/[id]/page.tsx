@@ -5,6 +5,7 @@ import { getCurrentCustomer } from "@/lib/customerAuth";
 import { getMyOrder } from "../../account/actions";
 import { getPublicStoreSettings } from "@/lib/storeSettings";
 import { money } from "@/components/shop/format";
+import { sizeLabel } from "@/lib/sizeOrder";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Order details" };
@@ -121,7 +122,7 @@ export default async function OrderDetailPage({
                 <div className="flex-1">
                   <p className="text-gray-800">{it.ProductName}</p>
                   <p className="text-gray-400 text-xs">
-                    {[it.SizeName, it.ColorName].filter(Boolean).join(" / ") || "—"} × {it.Qty}
+                    {[sizeLabel(it.SizeName), it.ColorName].filter(Boolean).join(" / ") || "—"} × {it.Qty}
                   </p>
                 </div>
                 <span className="font-medium">{money(it.SellingPrice * it.Qty)}</span>

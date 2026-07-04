@@ -6,7 +6,7 @@ import { Upload, X, FileText, MessageCircle, Check, Loader2, Lightbulb } from "l
 import type { StoreProduct, StoreVariant } from "@/lib/storefront";
 import type { DtfPricingConfig } from "@/lib/dtfPricing";
 import type { DtfPageSettings } from "@/lib/dtfSettings";
-import { sizeRank } from "@/components/shop/format";
+import { sizeRank, sizeLabel } from "@/lib/sizeOrder";
 import { resolveSwatch, cutLineColor } from "@/lib/colorHex";
 import { LabeledInput, LabeledTextarea } from "@/components/shop/LabeledInput";
 import { formatPhone, cleanPhoneInput } from "@/lib/phoneMask";
@@ -265,8 +265,8 @@ export default function CustomizeForm({
                       title={c.name + (avail ? "" : " — sold out")}
                       onClick={() => setColorId(c.id)}
                       className={`relative w-11 h-11 rounded-sm border-2 overflow-hidden transition-[border-color] ${
-                        selected ? "border-gray-900" : "border-gray-200"
-                      } ${!avail ? "cursor-not-allowed opacity-70" : "hover:border-gray-400"}`}
+                        selected ? "border-primary" : "border-gray-200"
+                      } ${!avail ? "cursor-not-allowed opacity-70" : selected ? "" : "hover:border-gray-400"}`}
                     >
                       <span
                         className="absolute inset-0"
@@ -299,11 +299,11 @@ export default function CustomizeForm({
                         !avail
                           ? "border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed"
                           : selected
-                          ? "border-gray-900 text-gray-900"
+                          ? "border-primary text-primary"
                           : "border-gray-200 text-gray-700 hover:border-gray-400"
                       }`}
                     >
-                      {s.name}
+                      {sizeLabel(s.name)}
                     </button>
                   );
                 })}

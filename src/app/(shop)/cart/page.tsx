@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Minus, Plus, Trash2, ShoppingBag, ArrowRight } from "lucide-react";
 import { useCart } from "@/components/shop/CartContext";
 import { money } from "@/components/shop/format";
+import { sizeLabel } from "@/lib/sizeOrder";
 import { getCheckoutConfig, type CheckoutConfig } from "../checkout/actions";
 
 export default function CartPage() {
@@ -58,7 +59,7 @@ export default function CartPage() {
               <div className="flex-1 min-w-0">
                 <Link href={`/product/${it.slug}`} className="font-bold text-gray-900 hover:text-primary line-clamp-2">{it.name}</Link>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  {[it.size, it.color].filter(Boolean).join(" / ") || "—"}
+                  {[sizeLabel(it.size), it.color].filter(Boolean).join(" / ") || "—"}
                 </p>
                 <p className="text-base font-bold text-primary mt-1">{money(it.price)}</p>
 

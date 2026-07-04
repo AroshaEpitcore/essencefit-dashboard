@@ -25,6 +25,30 @@ const RANK: Record<string, number> = {
   "6XL": 10,
 };
 
+/* Short display labels for the storefront: size chips and cart lines show
+   "M", not "Medium". Names the map doesn't know (Free Size, 32, …) are
+   shown as typed. Admin pages keep the full stored names. */
+const LABEL: Record<string, string> = {
+  "EXTRA SMALL": "XS",
+  SMALL: "S",
+  SM: "S",
+  MEDIUM: "M",
+  MD: "M",
+  LARGE: "L",
+  LG: "L",
+  "EXTRA LARGE": "XL",
+  "2XL": "XXL",
+  "3XL": "XXXL",
+};
+
+export function sizeLabel(name: string | null | undefined): string {
+  if (!name) return "";
+  const n = name.trim().toUpperCase();
+  if (LABEL[n]) return LABEL[n];
+  if (n in RANK) return n; // already a short letter size (S, XL, XXL, …)
+  return name.trim(); // unknown (Free Size, 32, …) — show as typed
+}
+
 export function sizeRank(name: string | null | undefined): number {
   if (!name) return 9999;
   const n = name.trim().toUpperCase();

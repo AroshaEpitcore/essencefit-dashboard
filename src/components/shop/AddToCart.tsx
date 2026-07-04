@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import toast, { Toaster } from "react-hot-toast";
 import { Minus, Plus, ShoppingCart } from "lucide-react";
 import { useCart } from "./CartContext";
-import { sizeRank } from "./format";
+import { sizeRank, sizeLabel } from "@/lib/sizeOrder";
 import { resolveSwatch, cutLineColor } from "@/lib/colorHex";
 import type { StoreVariant } from "@/lib/storefront";
 
@@ -185,8 +185,8 @@ export default function AddToCart({
                   title={c.name + (avail ? "" : " — sold out")}
                   onClick={() => pickColor(c.id)}
                   className={`relative w-11 h-11 rounded-sm border-2 overflow-hidden transition-[border-color] ${
-                    selected ? "border-gray-900" : "border-gray-200"
-                  } ${!avail ? "cursor-not-allowed opacity-70" : "hover:border-gray-400"}`}
+                    selected ? "border-primary" : "border-gray-200"
+                  } ${!avail ? "cursor-not-allowed opacity-70" : selected ? "" : "hover:border-gray-400"}`}
                 >
                   <span
                     className="absolute inset-0"
@@ -223,11 +223,11 @@ export default function AddToCart({
                     !avail
                       ? "border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed"
                       : selected
-                      ? "border-gray-900 text-gray-900"
+                      ? "border-primary text-primary"
                       : "border-gray-200 text-gray-700 hover:border-gray-400"
                   }`}
                 >
-                  {s.name}
+                  {sizeLabel(s.name)}
                 </button>
               );
             })}

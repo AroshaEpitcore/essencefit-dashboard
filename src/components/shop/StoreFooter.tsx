@@ -2,6 +2,16 @@ import Link from "next/link";
 import { Facebook, Instagram, Phone, Mail, MessageCircle, Truck, Banknote, ShieldCheck } from "lucide-react";
 import type { StoreCategory } from "@/lib/storefront";
 import type { StoreSettings } from "@/lib/storeSettings";
+import { waHref } from "@/lib/wa";
+
+// lucide has no TikTok brand icon, so it's inlined (simple-icons path).
+function TikTokIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className={className}>
+      <path d="M12.53.02C13.84 0 15.14.01 16.44 0c.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z" />
+    </svg>
+  );
+}
 
 /* Premium storefront footer: prominent brand block with socials + WhatsApp
    CTA, four link columns, a delivery/COD/quality trust row, and the
@@ -19,9 +29,9 @@ export default function StoreFooter({
   const linkClass = "text-gray-400 hover:text-white transition-colors";
   const headingClass = "text-white text-sm font-semibold uppercase tracking-[0.15em] mb-4";
 
-  // WhatsApp deep link from the store phone (Sri Lanka: leading 0 -> 94).
-  const waDigits = (settings.contactPhone || "").replace(/\D/g, "");
-  const waLink = waDigits ? `https://wa.me/${waDigits.startsWith("0") ? "94" + waDigits.slice(1) : waDigits}` : null;
+  // WhatsApp deep link — prefer the dedicated WhatsApp number from settings,
+  // fall back to the store phone.
+  const waLink = waHref(settings.social.whatsapp || settings.contactPhone);
 
   return (
     <footer className="relative overflow-hidden bg-black text-gray-400 mt-20">
@@ -51,6 +61,9 @@ export default function StoreFooter({
               )}
               {settings.social.instagram && (
                 <a href={settings.social.instagram} target="_blank" rel="noopener noreferrer" className={socialClass} aria-label="Instagram"><Instagram className="w-4 h-4" /></a>
+              )}
+              {settings.social.tiktok && (
+                <a href={settings.social.tiktok} target="_blank" rel="noopener noreferrer" className={socialClass} aria-label="TikTok"><TikTokIcon className="w-4 h-4" /></a>
               )}
               {waLink && (
                 <a
@@ -84,6 +97,8 @@ export default function StoreFooter({
               <li><Link href="/customize" className={linkClass}>Customize &amp; DTF print</Link></li>
               <li><Link href="/gallery" className={linkClass}>Custom orders gallery</Link></li>
               <li><Link href="/feedback" className={linkClass}>Customer feedback</Link></li>
+              <li><Link href="/about" className={linkClass}>About us</Link></li>
+              <li><Link href="/contact" className={linkClass}>Contact us</Link></li>
             </ul>
           </div>
 

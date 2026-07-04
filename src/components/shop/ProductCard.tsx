@@ -128,7 +128,7 @@ export default function ProductCard({ p }: { p: StoreProduct }) {
                   onMouseEnter={() => { preloadImg(c.ImageUrl); preloadImg(c.ImageUrl2); }}
                   onTouchStart={() => { preloadImg(c.ImageUrl); preloadImg(c.ImageUrl2); }}
                   onClick={() => setActiveColor((cur) => (cur === c.Id ? null : c.Id))}
-                  className={`relative w-7 h-7 rounded-sm overflow-hidden border ${selected ? "border-gray-900 ring-1 ring-gray-900" : "border-gray-300"} hover:border-gray-500`}
+                  className={`relative w-7 h-7 rounded-sm overflow-hidden border ${selected ? "border-primary ring-1 ring-primary" : "border-gray-300 hover:border-gray-500"}`}
                 >
                   <span
                     className="absolute inset-0"

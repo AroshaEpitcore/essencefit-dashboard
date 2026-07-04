@@ -10,6 +10,7 @@ import Select from "@/components/shop/Select";
 import { LabeledInput, LabeledTextarea } from "@/components/shop/LabeledInput";
 import { money } from "@/components/shop/format";
 import { formatPhone, cleanPhoneInput } from "@/lib/phoneMask";
+import { sizeLabel } from "@/lib/sizeOrder";
 import { getCheckoutConfig, createWebOrder, type CheckoutConfig } from "./actions";
 import { getMyAccount, logoutCustomer } from "../account/actions";
 
@@ -280,7 +281,7 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-gray-800 line-clamp-1">{it.name}</p>
-                  <p className="text-gray-400 text-xs">{[it.size, it.color].filter(Boolean).join(" / ")} × {it.qty}</p>
+                  <p className="text-gray-400 text-xs">{[sizeLabel(it.size), it.color].filter(Boolean).join(" / ")} × {it.qty}</p>
                 </div>
                 <span className="font-medium">{money(it.price * it.qty)}</span>
               </div>
