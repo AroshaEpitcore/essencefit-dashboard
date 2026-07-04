@@ -3,6 +3,7 @@ import { getDtfPricingConfig } from "@/lib/dtfPricing";
 import { getDtfPageSettings } from "@/lib/dtfSettings";
 import { getCurrentCustomer } from "@/lib/customerAuth";
 import CustomizeForm from "./CustomizeForm";
+import GalleryBand from "@/components/shop/GalleryBand";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Customize & DTF Print" };
@@ -32,6 +33,8 @@ export default async function CustomizePage() {
         settings={settings}
         account={account ? { name: account.Name, phone: account.Phone, email: account.Email } : null}
       />
+
+      <GalleryBand title="Custom orders we've delivered" />
     </div>
   );
 }

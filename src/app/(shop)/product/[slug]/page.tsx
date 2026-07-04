@@ -7,6 +7,7 @@ import DesignPicker from "@/components/shop/DesignPicker";
 import ProductCard from "@/components/shop/ProductCard";
 import ProductTags from "@/components/shop/ProductTags";
 import ReviewsSection from "@/components/shop/ReviewsSection";
+import GalleryBand from "@/components/shop/GalleryBand";
 import ReviewStars from "@/components/shop/ReviewStars";
 import { getPublicStoreSettings } from "@/lib/storeSettings";
 import SizeChartButton from "@/components/shop/SizeChartButton";
@@ -191,6 +192,8 @@ export default async function ProductPage({
           </div>
         </section>
       )}
+
+      <GalleryBand />
     </div>
   );
 }

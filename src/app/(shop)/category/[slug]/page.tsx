@@ -5,6 +5,7 @@ import { getCategoryBySlug, searchProducts, getReviewsByCategory } from "@/lib/s
 import { getPublicStoreSettings } from "@/lib/storeSettings";
 import ProductCard from "@/components/shop/ProductCard";
 import ReviewsSection from "@/components/shop/ReviewsSection";
+import GalleryBand from "@/components/shop/GalleryBand";
 import { ChevronRight } from "lucide-react";
 import { buildCategoryDescription, breadcrumbJsonLd } from "@/lib/seo";
 
@@ -67,6 +68,8 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
           <ReviewsSection reviews={reviews} title={`Reviews in ${cat.Name}`} showProduct bare logo={settings.logoLight || settings.logo} />
         </div>
       )}
+
+      <GalleryBand />
     </div>
   );
 }

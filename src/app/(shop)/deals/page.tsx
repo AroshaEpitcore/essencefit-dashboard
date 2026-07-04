@@ -1,5 +1,6 @@
 import { getDeals } from "@/lib/storefront";
 import ProductCard from "@/components/shop/ProductCard";
+import GalleryBand from "@/components/shop/GalleryBand";
 import { Tag } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -26,6 +27,8 @@ export default async function DealsPage() {
           {deals.map((p) => <ProductCard key={p.Id} p={p} />)}
         </div>
       )}
+
+      <GalleryBand />
     </div>
   );
 }

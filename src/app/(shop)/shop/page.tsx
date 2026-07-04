@@ -1,6 +1,7 @@
 import { searchProducts, getFilterOptions, getActiveCategories, type ProductQuery } from "@/lib/storefront";
 import ProductCard from "@/components/shop/ProductCard";
 import ShopFilters from "@/components/shop/ShopFilters";
+import GalleryBand from "@/components/shop/GalleryBand";
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +57,8 @@ export default async function ShopPage({
           )}
         </div>
       </div>
+
+      <GalleryBand />
     </div>
   );
 }

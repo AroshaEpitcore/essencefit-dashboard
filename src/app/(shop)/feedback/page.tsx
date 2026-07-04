@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getFeedbackItems } from "@/lib/storefront";
 import FeedbackWall from "@/components/shop/FeedbackWall";
+import GalleryBand from "@/components/shop/GalleryBand";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +55,8 @@ export default async function FeedbackPage({
           )}
         </>
       )}
+
+      <GalleryBand />
     </div>
   );
 }
