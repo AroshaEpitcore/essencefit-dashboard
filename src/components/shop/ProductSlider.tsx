@@ -32,7 +32,7 @@ export default function ProductSlider({
   }
 
   return (
-    <section className="max-w-[1920px] mx-auto px-4 sm:px-6 py-10">
+    <section className="max-w-[1920px] mx-auto px-4 sm:px-6 py-14">
       {/* Top row — title left, arrows + shop-all right (see reference design) */}
       <div className="flex items-end justify-between mb-10">
         <h2 className="text-2xl md:text-3xl font-bold uppercase tracking-wide text-gray-900 inline-block border-b-2 border-primary pb-1">

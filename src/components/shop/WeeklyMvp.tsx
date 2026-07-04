@@ -10,7 +10,7 @@ export default function WeeklyMvp({ product }: { product: StoreProduct }) {
   const pct = discountPct(product.SellingPrice, product.CompareAtPrice);
 
   return (
-    <section className="max-w-[1920px] mx-auto px-4 sm:px-6 py-10">
+    <section className="max-w-[1920px] mx-auto px-4 sm:px-6 py-14">
       {/* Section heading — matches the other home sections */}
       <div className="mb-6">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400 mb-1">Our Selection</p>

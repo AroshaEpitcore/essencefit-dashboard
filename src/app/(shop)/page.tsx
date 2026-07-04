@@ -59,23 +59,24 @@ export default async function HomePage() {
       {/* Deals — full-width black band (copy left, swipeable deal cards right) */}
       <DealsBanner deals={deals} />
       {featured.length > 0 && <ProductSlider title="Best of the Best" href="/shop" products={featured} />}
-      {latest.length > 0 && <ProductSlider title="Just In" href="/shop?sort=new" products={latest} />}
 
-      {/* Custom orders gallery — latest published items, featured first */}
+      {/* Custom orders gallery — right under Best of the Best */}
       {galleryItems.length > 0 && (
-        <div className="max-w-[1920px] mx-auto px-4 sm:px-6 py-10">
+        <div className="max-w-[1920px] mx-auto px-4 sm:px-6 py-14">
           <GallerySection items={galleryItems} title="Custom orders, made real" />
         </div>
       )}
 
+      {latest.length > 0 && <ProductSlider title="Just In" href="/shop?sort=new" products={latest} />}
+
       {/* What customers say — latest published reviews (rounded black panel, like the PDP) */}
-      <div className="max-w-[1920px] mx-auto px-4 sm:px-6 py-10">
+      <div className="max-w-[1920px] mx-auto px-4 sm:px-6 py-14">
         <ReviewsSection reviews={reviews} title="What our customers say" variant="carousel" showProduct bare logo={settings.logoLight || settings.logo} />
       </div>
 
       {/* Customer feedback wall — screenshot marquee (rounded black panel) */}
       {feedback.length > 0 && (
-        <div className="max-w-[1920px] mx-auto px-4 sm:px-6 py-10">
+        <div className="max-w-[1920px] mx-auto px-4 sm:px-6 py-14">
           <FeedbackSection items={feedback} title="Straight from our customers" />
         </div>
       )}
