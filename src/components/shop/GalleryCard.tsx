@@ -68,7 +68,7 @@ export default function GalleryCard({
         <button
           type="button"
           onClick={() => setLightbox(idx)}
-          className="group relative block w-full aspect-square rounded-lg bg-gray-100 overflow-hidden"
+          className={`group relative block w-full aspect-square rounded-lg overflow-hidden outline-none [-webkit-tap-highlight-color:transparent] ${onDark ? "bg-white/10" : "bg-gray-100"}`}
           aria-label={`View ${item.CustomerName}'s custom order`}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -59,7 +59,11 @@ export default function AutoScroller({ children, speed = 40 }: { children: React
   }, [speed]);
 
   return (
-    <div ref={ref} className="flex overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div
+      ref={ref}
+      tabIndex={-1}
+      className="flex overflow-x-auto outline-none [-webkit-tap-highlight-color:transparent] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    >
       {children}
     </div>
   );
