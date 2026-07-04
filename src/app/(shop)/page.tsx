@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getFeaturedProducts, getDeals, getActiveCategories, getNewProducts, getNewArrivals, getLatestReviews, getLatestGalleryItems, getLatestFeedback } from "@/lib/storefront";
+import { getFeaturedProducts, getDeals, getActiveCategories, getNewProducts, getNewArrivals, getLatestReviews, getLatestGalleryItems, getLatestFeedback, getProductVariants, getProductImagesByColor, getProductRatingSummary } from "@/lib/storefront";
 import { getPublicStoreSettings } from "@/lib/storeSettings";
 import ProductSlider from "@/components/shop/ProductSlider";
 import CategorySlider from "@/components/shop/CategorySlider";
@@ -43,6 +43,16 @@ export default async function HomePage() {
     getLatestFeedback(10),
   ]);
 
+  // Weekly MVP = newest product, with the PDP buy-box data (variants/images/rating).
+  const mvp = latest[0] ?? null;
+  const [mvpVariants, mvpImages, mvpRating] = mvp
+    ? await Promise.all([
+        getProductVariants(mvp.Id),
+        getProductImagesByColor(mvp.Id),
+        getProductRatingSummary(mvp.Id),
+      ])
+    : [[], { shared: [], byColor: {} }, { avg: 0, count: 0 }];
+
   return (
     <div>
       <Hero slides={settings.heroSlides} storeName={settings.storeName} />
@@ -53,8 +63,8 @@ export default async function HomePage() {
       {/* Categories — large black image tiles */}
       <CategorySlider categories={categories} title="Shop by Category" />
 
-      {/* Weekly MVP — spotlight on the newest product, PDP-style */}
-      {latest.length > 0 && <WeeklyMvp product={latest[0]} />}
+      {/* Weekly MVP — spotlight on the newest product with the PDP buy box */}
+      {mvp && <WeeklyMvp product={mvp} variants={mvpVariants} images={mvpImages} rating={mvpRating} />}
 
       {/* Deals — full-width black band (copy left, swipeable deal cards right) */}
       <DealsBanner deals={deals} />
