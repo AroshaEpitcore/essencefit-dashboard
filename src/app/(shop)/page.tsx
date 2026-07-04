@@ -6,6 +6,7 @@ import CategorySlider from "@/components/shop/CategorySlider";
 import WeeklyMvp from "@/components/shop/WeeklyMvp";
 import ReviewsSection from "@/components/shop/ReviewsSection";
 import GallerySection from "@/components/shop/GallerySection";
+import DealsBanner from "@/components/shop/DealsBanner";
 import FeedbackSection from "@/components/shop/FeedbackSection";
 import Hero from "@/components/shop/Hero";
 import { SITE_NAME } from "@/lib/seo";
@@ -55,7 +56,8 @@ export default async function HomePage() {
       {/* Weekly MVP — spotlight on the newest product, PDP-style */}
       {latest.length > 0 && <WeeklyMvp product={latest[0]} />}
 
-      {deals.length > 0 && <ProductSlider title="🔥 Deals" href="/deals" products={deals} />}
+      {/* Deals — full-width black band (copy left, swipeable deal cards right) */}
+      <DealsBanner deals={deals} />
       {featured.length > 0 && <ProductSlider title="Best of the Best" href="/shop" products={featured} />}
       {latest.length > 0 && <ProductSlider title="Just In" href="/shop?sort=new" products={latest} />}
 
