@@ -4,7 +4,6 @@ import { useMemo, useRef, useState } from "react";
 import ProductGallery from "./ProductGallery";
 import AddToCart, { type AddToCartActions } from "./AddToCart";
 import StickyProductBar from "./StickyProductBar";
-import TryOn from "./TryOn";
 import type { StoreVariant, ProductImagesByColor } from "@/lib/storefront";
 
 type ProductLite = {
@@ -27,7 +26,6 @@ export default function ProductView({
   header,
   footer,
   stacked = false,
-  tryOnEnabled = false,
 }: {
   product: ProductLite;
   variants: StoreVariant[];
@@ -36,7 +34,6 @@ export default function ProductView({
   header?: React.ReactNode;
   footer?: React.ReactNode;
   stacked?: boolean;
-  tryOnEnabled?: boolean;
 }) {
   const hasColors = variants.some((v) => v.ColorId);
   const validInitial =
@@ -89,7 +86,6 @@ export default function ProductView({
           <div>
             {header}
             <AddToCart product={product} variants={variants} colorId={colorId} setColorId={setColorId} currentImage={currentImage} actionsRef={actionsRef} />
-            {tryOnEnabled && currentImage && <TryOn productImage={currentImage} productName={product.Name} />}
             {footer}
           </div>
         </div>
@@ -120,7 +116,6 @@ export default function ProductView({
           <div className="md:sticky" style={{ top: "calc(var(--header-h, 132px) + 1.5rem)" }}>
             {header}
             <AddToCart product={product} variants={variants} colorId={colorId} setColorId={setColorId} currentImage={currentImage} actionsRef={actionsRef} />
-            {tryOnEnabled && currentImage && <TryOn productImage={currentImage} productName={product.Name} />}
             {footer}
           </div>
         </div>

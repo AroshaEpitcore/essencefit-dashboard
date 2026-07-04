@@ -175,7 +175,6 @@ export default async function ProductPage({
           initialColorId={color ?? null}
           header={headerSlot}
           footer={footerSlot}
-          tryOnEnabled={Boolean(process.env.GEMINI_API_KEY)}
         />
       )}
 

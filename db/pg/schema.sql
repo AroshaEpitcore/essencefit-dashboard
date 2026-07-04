@@ -480,13 +480,3 @@ BEGIN
   RETURN v_res;
 END;
 $$ LANGUAGE plpgsql STABLE;
-
--- ============================ VIRTUAL TRY-ON ============================
--- Usage log: one row per generation attempt, used only to enforce per-IP and
--- global daily caps on the /api/tryon route. No customer photo is ever stored.
-CREATE TABLE IF NOT EXISTS tryonusage (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  ip text NOT NULL,
-  createdat timestamp NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS idx_tryonusage_created ON tryonusage (createdat);

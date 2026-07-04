@@ -1,7 +1,7 @@
 ---
 date: 2026-07-04
 slug: virtual-try-on-pdp
-status: approved   # user approved plan→implement in one run ("go"); defaults accepted (Gemini provider, no photo persistence, IP+global daily caps, standard products only)
+status: removed   # implemented in 1e5c7da, then removed same day — user cannot enable Gemini billing yet; restore with: git revert <removal-commit> or cherry-pick 1e5c7da
 surfaces: [db, api, storefront]
 research: workflow/research/2026-07-04-virtual-try-on-pdp.md
 estimated_manual_effort: 1h 20m
