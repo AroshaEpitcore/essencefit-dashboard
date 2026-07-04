@@ -15,7 +15,7 @@ export default function GalleryCard({ item, onDark = false }: { item: GalleryIte
 
   const cover = item.Images[0];
   const hoverImage = item.Images[1];
-  const lightboxImages = item.ArtworkUrl ? [...item.Images, item.ArtworkUrl] : item.Images;
+  const lightboxImages = [...item.Images, ...item.Artworks];
   const count = lightboxImages.length;
 
   if (!cover) return null;
@@ -47,11 +47,11 @@ export default function GalleryCard({ item, onDark = false }: { item: GalleryIte
             />
           )}
 
-          {/* Customer's artwork inset */}
-          {item.ArtworkUrl && (
+          {/* Customer's artwork inset (first artwork; the rest are in the lightbox) */}
+          {item.Artworks.length > 0 && (
             <div className="absolute bottom-2 left-2 w-14 h-14 rounded-lg overflow-hidden border-2 border-white shadow-md bg-white">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={item.ArtworkUrl} alt="Customer's artwork" loading="lazy" className="w-full h-full object-cover" />
+              <img src={item.Artworks[0]} alt="Customer's artwork" loading="lazy" className="w-full h-full object-cover" />
             </div>
           )}
 
@@ -64,8 +64,8 @@ export default function GalleryCard({ item, onDark = false }: { item: GalleryIte
         </div>
 
         <div className="mt-2.5">
-          <p className={`text-sm font-bold truncate transition-colors group-hover:text-primary ${onDark ? "text-white" : "text-gray-900"}`}>{item.CustomerName}</p>
-          {item.Caption && <p className={`text-sm truncate ${onDark ? "text-white/60" : "text-gray-500"}`}>{item.Caption}</p>}
+          <p className={`text-base font-bold truncate transition-colors group-hover:text-primary ${onDark ? "text-white" : "text-gray-900"}`}>{item.CustomerName}</p>
+          {item.Caption && <p className={`text-sm line-clamp-3 ${onDark ? "text-white/60" : "text-gray-500"}`}>{item.Caption}</p>}
         </div>
       </button>
 

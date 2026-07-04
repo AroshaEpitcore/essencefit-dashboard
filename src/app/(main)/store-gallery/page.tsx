@@ -28,7 +28,7 @@ const card = "bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gr
 type FormState = {
   id: string | null;
   customerName: string;
-  artworkUrl: string | null;
+  artworks: string[];
   caption: string;
   isFeatured: boolean;
   isPublished: boolean;
@@ -39,7 +39,7 @@ type FormState = {
 const EMPTY: FormState = {
   id: null,
   customerName: "",
-  artworkUrl: null,
+  artworks: [],
   caption: "",
   isFeatured: false,
   isPublished: true,
@@ -74,12 +74,13 @@ export default function GalleryAdminPage() {
     setF(EMPTY);
   }
 
-  async function onArtwork(file: File | null) {
-    if (!file) return;
+  async function onArtworks(files: FileList | null) {
+    if (!files || files.length === 0) return;
     setUploadingArtwork(true);
     try {
-      set("artworkUrl", await uploadFile(file));
-      toast.success("Artwork uploaded");
+      const urls = await Promise.all(Array.from(files).map((file) => uploadFile(file)));
+      setF((prev) => ({ ...prev, artworks: [...prev.artworks, ...urls] }));
+      toast.success(`${urls.length} artwork image${urls.length > 1 ? "s" : ""} added`);
     } catch (e: any) {
       toast.error(e.message || "Upload failed");
     } finally {
@@ -108,7 +109,7 @@ export default function GalleryAdminPage() {
       setF({
         id: g.Id,
         customerName: g.CustomerName,
-        artworkUrl: g.ArtworkUrl,
+        artworks: g.Artworks,
         caption: g.Caption || "",
         isFeatured: g.IsFeatured,
         isPublished: g.IsPublished,
@@ -127,7 +128,7 @@ export default function GalleryAdminPage() {
       await saveGalleryItem({
         id: f.id,
         customerName: f.customerName,
-        artworkUrl: f.artworkUrl,
+        artworks: f.artworks,
         caption: f.caption,
         isFeatured: f.isFeatured,
         isPublished: f.isPublished,
@@ -195,26 +196,27 @@ export default function GalleryAdminPage() {
           </div>
 
           {/* Customer's artwork */}
-          <div>
-            <label className="block text-sm font-medium mb-1">Customer&apos;s artwork <span className="text-gray-400">(optional)</span></label>
-            <div className="flex items-center gap-3">
-              <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-700 flex items-center justify-center shrink-0">
-                {f.artworkUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={f.artworkUrl} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-xs text-gray-500">N/A</span>
-                )}
-              </div>
-              <label className="px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 cursor-pointer text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center gap-2">
-                <ImagePlus className="w-4 h-4" /> {uploadingArtwork ? "Uploading…" : "Upload"}
-                <input type="file" accept="image/*" hidden onChange={(e) => onArtwork(e.target.files?.[0] || null)} />
+          <div className="sm:col-span-2">
+            <label className="block text-sm font-medium mb-1">Customer&apos;s artwork <span className="text-gray-400">(optional, multiple)</span></label>
+            <div className="flex flex-wrap items-center gap-3">
+              {f.artworks.map((url, i) => (
+                <div key={url + i} className="relative w-16 h-16 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-700">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt="" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setF((prev) => ({ ...prev, artworks: prev.artworks.filter((_, idx) => idx !== i) }))}
+                    className="absolute top-0.5 right-0.5 bg-black/60 text-white rounded-full p-0.5"
+                    aria-label="Remove artwork"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+              <label className="w-16 h-16 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center cursor-pointer hover:border-primary text-gray-400">
+                {uploadingArtwork ? <span className="text-[10px]">…</span> : <ImagePlus className="w-5 h-5" />}
+                <input type="file" accept="image/*" multiple hidden onChange={(e) => onArtworks(e.target.files)} />
               </label>
-              {f.artworkUrl && (
-                <button type="button" onClick={() => set("artworkUrl", null)} className="text-gray-400 hover:text-red-500" aria-label="Remove artwork">
-                  <X className="w-4 h-4" />
-                </button>
-              )}
             </div>
           </div>
 
@@ -283,7 +285,7 @@ export default function GalleryAdminPage() {
                   </div>
                   {g.Caption && <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">{g.Caption}</p>}
                   <p className="text-xs text-gray-400 mt-0.5">
-                    {g.ImageCount} photo{g.ImageCount !== 1 ? "s" : ""}{g.ArtworkUrl ? " · artwork attached" : ""}
+                    {g.ImageCount} photo{g.ImageCount !== 1 ? "s" : ""}{g.ArtworkCount > 0 ? ` · ${g.ArtworkCount} artwork${g.ArtworkCount > 1 ? "s" : ""}` : ""}
                   </p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">

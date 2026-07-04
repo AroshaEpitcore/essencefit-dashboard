@@ -369,8 +369,10 @@ CREATE TABLE IF NOT EXISTS reviewimages (
 );
 
 -- Admin-managed custom-orders gallery: each item is a customer's order with
--- the artwork they sent (artworkurl) and photos of the delivered product in
--- the galleryimages child table.
+-- the artwork they sent and photos of the delivered product, both in the
+-- galleryimages child table (kind = 'artwork' | 'final').
+-- galleryitems.artworkurl is legacy (superseded by kind='artwork' rows;
+-- migrated by db/28, no longer written).
 CREATE TABLE IF NOT EXISTS galleryitems (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   customername text NOT NULL,
@@ -386,6 +388,7 @@ CREATE TABLE IF NOT EXISTS galleryimages (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   galleryitemid uuid NOT NULL,
   url text NOT NULL,
+  kind text NOT NULL DEFAULT 'final',
   sortorder integer NOT NULL DEFAULT 0,
   createdat timestamp NOT NULL DEFAULT now()
 );

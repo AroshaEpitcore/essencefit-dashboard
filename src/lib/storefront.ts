@@ -585,19 +585,23 @@ export async function getLatestReviews(limit = 12): Promise<StoreReview[]> {
 export type GalleryItem = {
   Id: string;
   CustomerName: string;
-  ArtworkUrl: string | null;
   Caption: string | null;
   IsFeatured: boolean;
   CreatedAt: string;
   Images: string[]; // final product photos, ordered
+  Artworks: string[]; // customer's submitted artwork images, ordered
 };
 
 // Batched second query: item id -> image urls (no N+1), mirrors attachReviewImages.
+// Splits by kind: 'final' → Images, 'artwork' → Artworks.
 async function attachGalleryImages(
   pool: Awaited<ReturnType<typeof getDb>>,
   rows: GalleryItem[]
 ): Promise<GalleryItem[]> {
-  rows.forEach((r) => (r.Images = []));
+  rows.forEach((r) => {
+    r.Images = [];
+    r.Artworks = [];
+  });
   if (rows.length === 0) return rows;
   const req = pool.request();
   const params = rows.map((r, i) => {
@@ -605,20 +609,24 @@ async function attachGalleryImages(
     return `@g${i}`;
   });
   const res = await req.query(`
-    SELECT GalleryItemId AS GalleryItemId, Url FROM GalleryImages
+    SELECT GalleryItemId AS GalleryItemId, Url, Kind FROM GalleryImages
     WHERE GalleryItemId IN (${params.join(",")})
     ORDER BY SortOrder, CreatedAt
   `);
-  const byItem: Record<string, string[]> = {};
-  for (const row of res.recordset as { GalleryItemId: string; Url: string }[]) {
-    (byItem[row.GalleryItemId] ||= []).push(row.Url);
+  const byItem: Record<string, { finals: string[]; artworks: string[] }> = {};
+  for (const row of res.recordset as { GalleryItemId: string; Url: string; Kind: string }[]) {
+    const bucket = (byItem[row.GalleryItemId] ||= { finals: [], artworks: [] });
+    (row.Kind === "artwork" ? bucket.artworks : bucket.finals).push(row.Url);
   }
-  for (const r of rows) r.Images = byItem[r.Id] ?? [];
+  for (const r of rows) {
+    r.Images = byItem[r.Id]?.finals ?? [];
+    r.Artworks = byItem[r.Id]?.artworks ?? [];
+  }
   return rows;
 }
 
 const GALLERY_SELECT = `
-  SELECT Id, CustomerName, ArtworkUrl AS ArtworkUrl, Caption AS Caption,
+  SELECT Id, CustomerName, Caption AS Caption,
          IsFeatured, CreatedAt
   FROM GalleryItems
 `;
