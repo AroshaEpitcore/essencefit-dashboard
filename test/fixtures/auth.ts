@@ -31,9 +31,9 @@ export async function loginContextAsCustomer(context: BrowserContext, baseURL: s
   ]);
 }
 
-/* Admin auth is localStorage-only (src/lib/useAuth.ts + (main)/layout.tsx) —
-   seeding `authUser` before any page loads is exactly what the real login
-   page does, no server session involved. */
+/* Admin auth = signed `ef_admin` cookie (src/lib/adminAuth.ts, enforced by
+   middleware + requireAdmin() in every admin action) plus a localStorage
+   `authUser` copy that the (main) layout uses for its client-side gate. */
 export const TEST_ADMIN = {
   Id: "AAAAAAAA-0000-0000-0000-000000000001",
   Username: "autotest-admin",
@@ -41,13 +41,35 @@ export const TEST_ADMIN = {
   Role: "Admin",
 };
 
+export function mintAdminCookie(user: { Id: string; Username: string; Role: string }): string {
+  const body = JSON.stringify({
+    uid: user.Id,
+    un: user.Username,
+    role: user.Role,
+    exp: Date.now() + 60 * 60 * 24 * 7 * 1000,
+  });
+  const b64 = Buffer.from(body).toString("base64url");
+  return `${b64}.${sign(b64)}`;
+}
+
 type Fixtures = {
-  /** Context pre-authenticated as an admin (localStorage authUser). */
+  /** Context pre-authenticated as an admin (session cookie + localStorage). */
   asAdmin: BrowserContext;
 };
 
 export const test = base.extend<Fixtures>({
-  asAdmin: async ({ context }, use) => {
+  asAdmin: async ({ context, baseURL }, use) => {
+    const host = new URL(baseURL || "http://localhost:3100").hostname;
+    await context.addCookies([
+      {
+        name: "ef_admin",
+        value: mintAdminCookie(TEST_ADMIN),
+        domain: host,
+        path: "/",
+        httpOnly: true,
+        sameSite: "Lax",
+      },
+    ]);
     await context.addInitScript((user) => {
       window.localStorage.setItem("authUser", JSON.stringify(user));
     }, TEST_ADMIN);

@@ -1,4 +1,6 @@
 "use server";
+
+import { requireAdmin } from "@/lib/adminAuth";
 import { getDb } from "@/lib/db";
 import sql from "@/lib/sqlShim";
 
@@ -11,6 +13,7 @@ export async function getStockHistory(filters?: {
   from?: string;
   to?: string;
 }) {
+  await requireAdmin();
   const db = await getDb();
   const req = db.request();
 

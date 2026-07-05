@@ -1,11 +1,14 @@
 "use server";
 
+import { requireAdmin } from "@/lib/adminAuth";
+
 import { getDb } from "@/lib/db";
 import sql, { NVarChar, UniqueIdentifier } from "@/lib/sqlShim";
 
 /* ---------- Sync all pending orders (with waybill) into DispatchMessages ---------- */
 
 export async function syncPendingToDispatch() {
+  await requireAdmin();
   const pool = await getDb();
 
   // Insert new pending orders not yet in DispatchMessages
@@ -46,6 +49,7 @@ export async function syncPendingToDispatch() {
 /* ---------- Get Dispatch Messages (with order status) ---------- */
 
 export async function getDispatchMessages() {
+  await requireAdmin();
   const pool = await getDb();
 
   // Auto-delete messages older than 7 days
@@ -81,6 +85,7 @@ export async function getDispatchMessages() {
 /* ---------- Delete a single dispatch message ---------- */
 
 export async function deleteDispatchMessage(id: string) {
+  await requireAdmin();
   const pool = await getDb();
   await pool
     .request()
@@ -96,6 +101,7 @@ export async function createDispatchMessage(
   customerName: string | null,
   customerPhone: string | null
 ) {
+  await requireAdmin();
   const pool = await getDb();
   const id = crypto.randomUUID();
 

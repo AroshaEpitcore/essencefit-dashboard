@@ -1,9 +1,12 @@
 "use server";
 
+import { requireAdmin } from "@/lib/adminAuth";
+
 import { getDb } from "@/lib/db";
 
 // Fetch all users
 export async function getUsers() {
+  await requireAdmin();
   const pool = await getDb();
   const result = await pool.request().query(`
     SELECT Id, Username, Email, Role, CreatedAt
@@ -15,6 +18,7 @@ export async function getUsers() {
 
 // Add new user
 export async function addUser(username: string, email: string, passwordHash: string, role: string) {
+  await requireAdmin();
   const pool = await getDb();
   const result = await pool.request()
     .input("username", username)
@@ -31,6 +35,7 @@ export async function addUser(username: string, email: string, passwordHash: str
 
 // Update user (without changing password here)
 export async function updateUser(id: string, username: string, email: string, role: string) {
+  await requireAdmin();
   const pool = await getDb();
   const result = await pool.request()
     .input("id", id)
@@ -48,6 +53,7 @@ export async function updateUser(id: string, username: string, email: string, ro
 
 // Delete user
 export async function deleteUser(id: string) {
+  await requireAdmin();
   const pool = await getDb();
   await pool.request().input("id", id).query(`DELETE FROM Users WHERE Id = @id`);
   return { success: true };

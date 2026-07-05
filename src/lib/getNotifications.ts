@@ -1,5 +1,7 @@
 "use server";
 
+import { requireAdmin } from "@/lib/adminAuth";
+
 import { getDb } from "@/lib/db";
 
 export type NotificationItem = {
@@ -11,6 +13,7 @@ export type NotificationItem = {
 };
 
 export async function getNotifications(): Promise<NotificationItem[]> {
+  await requireAdmin();
   const pool = await getDb();
   const items: NotificationItem[] = [];
 

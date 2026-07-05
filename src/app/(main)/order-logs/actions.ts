@@ -1,5 +1,7 @@
 "use server";
 
+import { requireAdmin } from "@/lib/adminAuth";
+
 import { getDb } from "@/lib/db";
 import sql, { UniqueIdentifier, NVarChar, Int, Transaction } from "@/lib/sqlShim";
 
@@ -26,6 +28,7 @@ export async function getOrderLogs(options: {
   status?: string;
   orderId?: string;
 }) {
+  await requireAdmin();
   const pool = await getDb();
   const { limit = 100, offset = 0, fromDate, toDate, status, orderId } = options;
 
@@ -90,6 +93,7 @@ export async function getOrderLogs(options: {
  * Get summary stats for order logs
  */
 export async function getOrderLogStats(fromDate?: string, toDate?: string) {
+  await requireAdmin();
   const pool = await getDb();
   const req = pool.request();
 
@@ -130,6 +134,7 @@ export async function logOrderStatusChange(
   newStatus: string,
   changedBy?: string | null
 ) {
+  await requireAdmin();
   await new sql.Request(tx)
     .input("Id", UniqueIdentifier, crypto.randomUUID())
     .input("OrderId", UniqueIdentifier, orderId)

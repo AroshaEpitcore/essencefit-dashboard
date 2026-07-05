@@ -1,5 +1,7 @@
 "use server";
 
+import { requireAdmin } from "@/lib/adminAuth";
+
 import { getDb } from "@/lib/db";
 import sql from "@/lib/sqlShim";
 import {
@@ -10,6 +12,7 @@ import {
 
 // ✅ Get all settings
 export async function getSettings() {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool.request().query(`
     SELECT Id, key, value, UpdatedAt 
@@ -20,6 +23,7 @@ export async function getSettings() {
 
 // ✅ Get setting by key
 export async function getSetting(key: string) {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool
     .request()
@@ -30,6 +34,7 @@ export async function getSetting(key: string) {
 
 // ✅ Upsert (create/update) setting
 export async function saveSetting(key: string, value: string | null) {
+  await requireAdmin();
   const pool = await getDb();
 
   await pool
@@ -47,6 +52,7 @@ export async function saveSetting(key: string, value: string | null) {
 
 // ✅ Delete setting
 export async function deleteSetting(id: string) {
+  await requireAdmin();
   const pool = await getDb();
   await pool.request()
     .input("Id", sql.UniqueIdentifier, id)
@@ -60,11 +66,13 @@ export async function deleteSetting(id: string) {
 
 // Read all store settings (for the admin form)
 export async function getStoreSettings(): Promise<StoreSettings> {
+  await requireAdmin();
   return getPublicStoreSettings();
 }
 
 // Save the full store settings object (one upsert per key)
 export async function saveStoreSettings(s: StoreSettings) {
+  await requireAdmin();
   const pairs: Array<[string, string | null]> = [
     [STORE_KEYS.storeName, s.storeName ?? ""],
     [STORE_KEYS.logo, s.logo ?? ""],

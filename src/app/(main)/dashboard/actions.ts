@@ -1,8 +1,11 @@
 "use server";
 
+import { requireAdmin } from "@/lib/adminAuth";
+
 import { getDb } from "@/lib/db";
 
 export async function getDashboardStats() {
+  await requireAdmin();
   const pool = await getDb();
 
   const result = await pool.request().query(`
@@ -91,6 +94,7 @@ export async function getDashboardStats() {
 }
 
 export async function getLowStockItems() {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool.request().query(`
     SELECT
@@ -110,6 +114,7 @@ export async function getLowStockItems() {
 }
 
 export async function getChartData() {
+  await requireAdmin();
   const pool = await getDb();
 
   // ✅ Monthly (Net) Sales + (Net) Profit
@@ -174,6 +179,7 @@ export async function getChartData() {
 }
 
 export async function getAnalyticsData() {
+  await requireAdmin();
   const pool = await getDb();
 
   // Weekly sales trend (last 8 weeks)

@@ -1,5 +1,7 @@
 "use server";
 
+import { requireAdmin } from "@/lib/adminAuth";
+
 import { getDb, sql } from "@/lib/db";
 
 const { UniqueIdentifier, NVarChar, Int, Decimal } = sql;
@@ -14,6 +16,7 @@ export type DtfOrderStatus =
 
 /* ---------- List ---------- */
 export async function getDtfOrders() {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool.request().query(`
     SELECT
@@ -30,6 +33,7 @@ export async function getDtfOrders() {
 
 /* ---------- Detail ---------- */
 export async function getDtfOrderDetails(id: string) {
+  await requireAdmin();
   const pool = await getDb();
   const header = await pool
     .request()
@@ -62,6 +66,7 @@ export async function updateDtfOrderPricing(
   advanceAmount: number | null,
   adminNote: string | null
 ) {
+  await requireAdmin();
   const pool = await getDb();
   await pool
     .request()
@@ -77,6 +82,7 @@ export async function updateDtfOrderPricing(
 
 /* ---------- Confirm (reserve stock) ---------- */
 export async function confirmDtfOrder(id: string) {
+  await requireAdmin();
   const pool = await getDb();
   const tx = new sql.Transaction(pool);
   try {
@@ -195,6 +201,7 @@ async function syncDtfOrderSales(requestFactory: () => any, dtfOrderId: string) 
 
 /* ---------- Status change (incl. Cancel → restore stock) ---------- */
 export async function setDtfOrderStatus(id: string, status: DtfOrderStatus) {
+  await requireAdmin();
   const pool = await getDb();
   const tx = new sql.Transaction(pool);
   try {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { logoutUser } from "@/app/(auth)/login/actions";
 
 export type AuthUser = {
   Id: string;
@@ -49,6 +50,8 @@ export function useAuth() {
   function logout() {
     localStorage.removeItem("authUser");
     setUser(null);
+    // Also invalidate the server-side session cookie (fire-and-forget).
+    logoutUser().catch(() => {});
   }
 
   return { user, role, isAdmin, loading, canAccess, logout };

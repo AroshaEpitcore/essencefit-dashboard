@@ -1,10 +1,13 @@
 "use server";
 
+import { requireAdmin } from "@/lib/adminAuth";
+
 import { getDb } from "@/lib/db";
 import { sortBySize, sizeRank } from "@/lib/sizeOrder";
 
 // ---------- LOOKUPS ----------
 export async function getLookups() {
+  await requireAdmin();
   const pool = await getDb();
   const [categories, sizes, colors] = await Promise.all([
     pool.request().query("SELECT Id, Name FROM Categories ORDER BY Name"),
@@ -20,48 +23,58 @@ export async function getLookups() {
 
 // ---------- CATEGORY CRUD ----------
 export async function addCategory(name: string) {
+  await requireAdmin();
   const pool = await getDb();
   await pool.request().input("Name", name).query("INSERT INTO Categories (Name) VALUES (@Name)");
 }
 export async function updateCategory(id: string, name: string) {
+  await requireAdmin();
   const pool = await getDb();
   await pool.request().input("Id", id).input("Name", name).query("UPDATE Categories SET Name=@Name WHERE Id=@Id");
 }
 export async function deleteCategory(id: string) {
+  await requireAdmin();
   const pool = await getDb();
   await pool.request().input("Id", id).query("DELETE FROM Categories WHERE Id=@Id");
 }
 
 // ---------- SIZE CRUD ----------
 export async function addSize(name: string) {
+  await requireAdmin();
   const pool = await getDb();
   await pool.request().input("Name", name).query("INSERT INTO Sizes (Name) VALUES (@Name)");
 }
 export async function updateSize(id: string, name: string) {
+  await requireAdmin();
   const pool = await getDb();
   await pool.request().input("Id", id).input("Name", name).query("UPDATE Sizes SET Name=@Name WHERE Id=@Id");
 }
 export async function deleteSize(id: string) {
+  await requireAdmin();
   const pool = await getDb();
   await pool.request().input("Id", id).query("DELETE FROM Sizes WHERE Id=@Id");
 }
 
 // ---------- COLOR CRUD ----------
 export async function addColor(name: string) {
+  await requireAdmin();
   const pool = await getDb();
   await pool.request().input("Name", name).query("INSERT INTO Colors (Name) VALUES (@Name)");
 }
 export async function updateColor(id: string, name: string) {
+  await requireAdmin();
   const pool = await getDb();
   await pool.request().input("Id", id).input("Name", name).query("UPDATE Colors SET Name=@Name WHERE Id=@Id");
 }
 export async function deleteColor(id: string) {
+  await requireAdmin();
   const pool = await getDb();
   await pool.request().input("Id", id).query("DELETE FROM Colors WHERE Id=@Id");
 }
 
 // ---------- PRODUCT CRUD ----------
 export async function getProductsByCategory(categoryId: string) {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool
     .request()
@@ -76,6 +89,7 @@ export async function getProductsByCategory(categoryId: string) {
 // no-size/no-colour variant (using the product's prices) if missing, else add
 // to its quantity. Logs the stock-in. Idempotent (one null/null variant max).
 export async function addOneOffStock(productId: string, qty: number) {
+  await requireAdmin();
   const pool = await getDb();
   const q = Math.max(1, Math.floor(Number(qty) || 1));
 
@@ -128,6 +142,7 @@ export async function addProduct(
   qty: number = 0,
   utilities: number = 0
 ) {
+  await requireAdmin();
   const pool = await getDb();
   const sku = `${name.replace(/\s+/g, "-").toUpperCase()}-${Date.now()}`;
   const ins = await pool
@@ -165,6 +180,7 @@ export async function addProduct(
   }
 }
 export async function updateProduct(id: string, name: string, cost: number, sell: number, utilities: number = 0) {
+  await requireAdmin();
   const pool = await getDb();
   await pool
     .request()
@@ -188,6 +204,7 @@ export async function updateProduct(id: string, name: string, cost: number, sell
     `);
 }
 export async function deleteProduct(id: string) {
+  await requireAdmin();
   const pool = await getDb();
   await pool.request().input("Id", id).query("DELETE FROM Products WHERE Id=@Id");
 }
@@ -202,6 +219,7 @@ export async function quickStock(
   sellingPrice: number,
   action: "add" | "remove"
 ) {
+  await requireAdmin();
   const pool = await getDb();
 
   // Find or create variant
@@ -277,6 +295,7 @@ export async function quickStock(
 
 // ---------- GET STOCK ITEMS ----------
 export async function getStockItems() {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool.request().query(`
     SELECT 
@@ -321,6 +340,7 @@ export async function transferStock(
   toCostOverride: number = 0,
   toSellOverride: number = 0
 ) {
+  await requireAdmin();
   const pool = await getDb();
 
   // Get source variant
@@ -434,6 +454,7 @@ export async function updateVariantPrices(
   costPrice: number,
   sellingPrice: number
 ) {
+  await requireAdmin();
   const pool = await getDb();
   
   // Build dynamic query based on which prices are provided

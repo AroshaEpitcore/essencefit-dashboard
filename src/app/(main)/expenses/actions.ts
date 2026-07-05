@@ -1,8 +1,11 @@
 "use server";
 
+import { requireAdmin } from "@/lib/adminAuth";
+
 import { getDb } from "@/lib/db";
 
 export async function getExpenses() {
+  await requireAdmin();
   const pool = await getDb();
   const result = await pool.request().query(`
     SELECT Id, Category, Description, Amount, ExpenseDate
@@ -18,6 +21,7 @@ export async function addExpense(exp: {
   amount: string;
   date: string;
 }) {
+  await requireAdmin();
   const pool = await getDb();
   await pool
     .request()
@@ -35,6 +39,7 @@ export async function updateExpense(
   id: string,
   exp: { category: string; description: string; amount: string; date: string }
 ) {
+  await requireAdmin();
   const pool = await getDb();
   await pool
     .request()
@@ -51,6 +56,7 @@ export async function updateExpense(
 }
 
 export async function deleteExpense(id: string) {
+  await requireAdmin();
   const pool = await getDb();
   await pool.request().input("id", id).query(`DELETE FROM Expenses WHERE Id=@id`);
 }

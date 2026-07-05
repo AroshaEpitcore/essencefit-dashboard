@@ -1,16 +1,20 @@
 "use server";
 
+import { requireAdmin } from "@/lib/adminAuth";
+
 import { getDb } from "@/lib/db";
 import { sortBySize } from "@/lib/sizeOrder";
 import sql from "@/lib/sqlShim";
 
 export async function getCategories() {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool.request().query(`SELECT Id, Name FROM Categories ORDER BY Name`);
   return res.recordset as { Id: string; Name: string }[];
 }
 
 export async function getProductsByCategory(categoryId: string) {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool.request()
     .input("cat", sql.UniqueIdentifier, categoryId)
@@ -19,6 +23,7 @@ export async function getProductsByCategory(categoryId: string) {
 }
 
 export async function getSizesByProduct(productId: string) {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool.request()
     .input("pid", sql.UniqueIdentifier, productId)
@@ -32,6 +37,7 @@ export async function getSizesByProduct(productId: string) {
 }
 
 export async function getColorsByProductAndSize(productId: string, sizeId: string) {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool.request()
     .input("pid", sql.UniqueIdentifier, productId)
@@ -47,18 +53,21 @@ export async function getColorsByProductAndSize(productId: string, sizeId: strin
 }
 
 export async function getAllColors() {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool.request().query(`SELECT Id, Name FROM Colors ORDER BY Name`);
   return res.recordset as { Id: string; Name: string }[];
 }
 
 export async function getAllSizes() {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool.request().query(`SELECT Id, Name FROM Sizes ORDER BY Name`);
   return sortBySize(res.recordset as { Id: string; Name: string }[], (s) => s.Name);
 }
 
 export async function getColorRequests() {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool.request().query(`
     SELECT Id, CustomerName, Phone, ProductName, ColorName, SizeName, Notes, Status, CreatedAt
@@ -76,6 +85,7 @@ export async function createColorRequest(
   sizeName: string | null,
   notes: string | null
 ) {
+  await requireAdmin();
   const pool = await getDb();
   const id = crypto.randomUUID();
 
@@ -106,6 +116,7 @@ export async function updateColorRequest(
   sizeName: string | null,
   notes: string | null
 ) {
+  await requireAdmin();
   const pool = await getDb();
   await pool.request()
     .input("Id", sql.UniqueIdentifier, id)
@@ -125,6 +136,7 @@ export async function updateColorRequest(
 }
 
 export async function updateColorRequestStatus(id: string, status: string) {
+  await requireAdmin();
   const pool = await getDb();
   await pool.request()
     .input("Id", sql.UniqueIdentifier, id)
@@ -134,6 +146,7 @@ export async function updateColorRequestStatus(id: string, status: string) {
 }
 
 export async function deleteColorRequest(id: string) {
+  await requireAdmin();
   const pool = await getDb();
   await pool.request()
     .input("Id", sql.UniqueIdentifier, id)

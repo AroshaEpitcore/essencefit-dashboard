@@ -1,10 +1,13 @@
 "use server";
 
+import { requireAdmin } from "@/lib/adminAuth";
+
 import { getDb } from "@/lib/db";
 import sql from "@/lib/sqlShim";
 
 // ✅ Get all suppliers
 export async function getSuppliers() {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool.request().query(`
     SELECT Id, Name, Contact, Notes, CreatedAt
@@ -16,6 +19,7 @@ export async function getSuppliers() {
 
 // ✅ Create supplier
 export async function createSupplier(name: string, contact: string | null, notes: string | null) {
+  await requireAdmin();
   const pool = await getDb();
   const id = crypto.randomUUID();
 
@@ -35,6 +39,7 @@ export async function createSupplier(name: string, contact: string | null, notes
 
 // ✅ Update supplier
 export async function updateSupplier(id: string, name: string, contact: string | null, notes: string | null) {
+  await requireAdmin();
   const pool = await getDb();
   await pool.request()
     .input("Id", sql.UniqueIdentifier, id)
@@ -51,6 +56,7 @@ export async function updateSupplier(id: string, name: string, contact: string |
 
 // ✅ Delete supplier
 export async function deleteSupplier(id: string) {
+  await requireAdmin();
   const pool = await getDb();
   await pool.request()
     .input("Id", sql.UniqueIdentifier, id)
@@ -60,6 +66,7 @@ export async function deleteSupplier(id: string) {
 
 // ✅ Get single supplier (for edit form)
 export async function getSupplierById(id: string) {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool.request()
     .input("Id", sql.UniqueIdentifier, id)

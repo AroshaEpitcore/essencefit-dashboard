@@ -1,5 +1,7 @@
 "use server";
 
+import { requireAdmin } from "@/lib/adminAuth";
+
 import { getDb, sql } from "@/lib/db";
 
 /* ============================================================
@@ -24,6 +26,7 @@ export type AdminReview = {
 };
 
 export async function getAdminReviews(): Promise<AdminReview[]> {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool.request().query(`
     SELECT r.Id, r.ProductId, p.Name AS ProductName, r.CustomerName, r.CustomerImage,
@@ -49,6 +52,7 @@ export type ReviewForEdit = {
 };
 
 export async function getReviewForEdit(id: string): Promise<ReviewForEdit | null> {
+  await requireAdmin();
   const pool = await getDb();
   const r = await pool
     .request()
@@ -67,6 +71,7 @@ export async function getReviewForEdit(id: string): Promise<ReviewForEdit | null
 export type ReviewProductOption = { Id: string; Name: string; CategoryName: string };
 
 export async function getReviewProductOptions(): Promise<ReviewProductOption[]> {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool.request().query(`
     SELECT p.Id, p.Name, COALESCE(cat.Name, '') AS CategoryName
@@ -90,6 +95,7 @@ export type SaveReviewInput = {
 };
 
 export async function saveReview(inp: SaveReviewInput): Promise<{ id: string }> {
+  await requireAdmin();
   if (!inp.productId) throw new Error("Please choose a product.");
   if (!inp.customerName.trim()) throw new Error("Please enter the customer name.");
   if (!inp.message.trim()) throw new Error("Please enter the review message.");
@@ -142,6 +148,7 @@ export async function saveReview(inp: SaveReviewInput): Promise<{ id: string }> 
 }
 
 export async function deleteReview(id: string): Promise<{ ok: true }> {
+  await requireAdmin();
   const pool = await getDb();
   await pool.request().input("Id", sql.UniqueIdentifier, id).query(`DELETE FROM ReviewImages WHERE ReviewId=@Id`);
   await pool.request().input("Id", sql.UniqueIdentifier, id).query(`DELETE FROM Reviews WHERE Id=@Id`);

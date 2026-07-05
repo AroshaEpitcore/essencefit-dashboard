@@ -1,5 +1,7 @@
 "use server";
 
+import { requireAdmin } from "@/lib/adminAuth";
+
 import { getDb, sql } from "@/lib/db";
 import { DTF_KEYS, getDtfPageSettings as readDtfPageSettings, type DtfPageSettings } from "@/lib/dtfSettings";
 
@@ -17,6 +19,7 @@ export type PriceItemInput = {
 };
 
 export async function getPriceItems() {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool.request().query(`
     SELECT Id, Category, Name, Amount, Unit, SortOrder, IsActive, UpdatedAt
@@ -35,6 +38,7 @@ export async function getPriceItems() {
 }
 
 export async function addPriceItem(item: PriceItemInput) {
+  await requireAdmin();
   const pool = await getDb();
   await pool
     .request()
@@ -51,6 +55,7 @@ export async function addPriceItem(item: PriceItemInput) {
 }
 
 export async function updatePriceItem(id: string, item: PriceItemInput) {
+  await requireAdmin();
   const pool = await getDb();
   await pool
     .request()
@@ -70,6 +75,7 @@ export async function updatePriceItem(id: string, item: PriceItemInput) {
 }
 
 export async function deletePriceItem(id: string) {
+  await requireAdmin();
   const pool = await getDb();
   await pool
     .request()
@@ -104,6 +110,7 @@ export type QuoteInput = {
 };
 
 export async function getQuotes() {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool.request().query(`
     SELECT Id, QuoteRef, CustomerName, CustomerPhone, GarmentName, PrintNames,
@@ -117,6 +124,7 @@ export async function getQuotes() {
 }
 
 export async function saveQuote(q: QuoteInput) {
+  await requireAdmin();
   const pool = await getDb();
 
   // Generate next ref like DTF-1001
@@ -162,6 +170,7 @@ export async function saveQuote(q: QuoteInput) {
 }
 
 export async function deleteQuote(id: string) {
+  await requireAdmin();
   const pool = await getDb();
   await pool
     .request()
@@ -184,6 +193,7 @@ export type TemplateInput = {
 };
 
 export async function getTemplates() {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool.request().query(`
     SELECT Id, Title, Content, Category, Language, SortOrder, IsActive, CreatedAt, UpdatedAt
@@ -194,6 +204,7 @@ export async function getTemplates() {
 }
 
 export async function addTemplate(t: TemplateInput) {
+  await requireAdmin();
   const pool = await getDb();
   await pool
     .request()
@@ -210,6 +221,7 @@ export async function addTemplate(t: TemplateInput) {
 }
 
 export async function updateTemplate(id: string, t: TemplateInput) {
+  await requireAdmin();
   const pool = await getDb();
   await pool
     .request()
@@ -228,6 +240,7 @@ export async function updateTemplate(id: string, t: TemplateInput) {
 }
 
 export async function deleteTemplate(id: string) {
+  await requireAdmin();
   const pool = await getDb();
   await pool
     .request()
@@ -242,10 +255,12 @@ export async function deleteTemplate(id: string) {
    ============================================================ */
 
 export async function getDtfPageSettings(): Promise<DtfPageSettings> {
+  await requireAdmin();
   return readDtfPageSettings();
 }
 
 export async function saveDtfPageSettings(introNote: string, suggestions: string[]) {
+  await requireAdmin();
   const pool = await getDb();
   const clean = (suggestions || []).map((s) => s.trim()).filter(Boolean);
   const pairs: Array<[string, string]> = [

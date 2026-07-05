@@ -1,5 +1,7 @@
 "use server";
 
+import { requireAdmin } from "@/lib/adminAuth";
+
 import { getDb } from "@/lib/db";
 import sql from "@/lib/sqlShim";
 import { sortBySize } from "@/lib/sizeOrder";
@@ -7,6 +9,7 @@ import { sortBySize } from "@/lib/sizeOrder";
 /* ---------- Lookups ---------- */
 
 export async function getCategories() {
+  await requireAdmin();
   const db = await getDb();
   const res = await db.request().query(`
     SELECT Id, Name FROM Categories ORDER BY Name
@@ -15,6 +18,7 @@ export async function getCategories() {
 }
 
 export async function getProductsByCategory(categoryId: string) {
+  await requireAdmin();
   const db = await getDb();
   const res = await db
     .request()
@@ -26,6 +30,7 @@ export async function getProductsByCategory(categoryId: string) {
 }
 
 export async function getOrdersForReturn() {
+  await requireAdmin();
   const db = await getDb();
   const res = await db.request().query(`
     SELECT Id,
@@ -41,6 +46,7 @@ export async function getOrdersForReturn() {
 }
 
 export async function getSizesByProduct(productId: string) {
+  await requireAdmin();
   const db = await getDb();
   const res = await db
     .request()
@@ -55,6 +61,7 @@ export async function getSizesByProduct(productId: string) {
 }
 
 export async function getColorsByProductAndSize(productId: string, sizeId: string) {
+  await requireAdmin();
   const db = await getDb();
   const res = await db
     .request()
@@ -71,6 +78,7 @@ export async function getColorsByProductAndSize(productId: string, sizeId: strin
 }
 
 export async function getVariant(productId: string, sizeId: string, colorId: string) {
+  await requireAdmin();
   const db = await getDb();
   const res = await db
     .request()
@@ -92,6 +100,7 @@ export async function createSalesReturn(
   reason: string,
   items: { VariantId: string; Qty: number }[]
 ) {
+  await requireAdmin();
   if (!orderId) throw new Error("OrderId is required");
   if (!items.length) throw new Error("No return items");
   if (!reason?.trim()) throw new Error("Reason is required");
@@ -158,6 +167,7 @@ export async function createSalesReturn(
 }
 
 export async function getRecentReturns(limit: number = 10) {
+  await requireAdmin();
   const db = await getDb();
   const res = await db
     .request()

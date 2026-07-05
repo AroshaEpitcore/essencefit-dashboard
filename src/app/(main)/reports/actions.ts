@@ -1,10 +1,13 @@
 "use server";
 
+import { requireAdmin } from "@/lib/adminAuth";
+
 import { getDb } from "@/lib/db";
 import { sortBySize } from "@/lib/sizeOrder";
 
 /** Load Categories */
 export async function getCategories() {
+  await requireAdmin();
   const pool = await getDb();
   const result = await pool.request().query(`
     SELECT Id, Name
@@ -16,6 +19,7 @@ export async function getCategories() {
 
 /** Load Products; optionally filter by CategoryId */
 export async function getProducts(categoryId?: string) {
+  await requireAdmin();
   const pool = await getDb();
   const req = pool.request();
 
@@ -37,6 +41,7 @@ export async function getProducts(categoryId?: string) {
 
 /** Load Sizes */
 export async function getSizes() {
+  await requireAdmin();
   const pool = await getDb();
   const result = await pool.request().query(`
     SELECT Id, Name
@@ -48,6 +53,7 @@ export async function getSizes() {
 
 /** Load Colors */
 export async function getColors() {
+  await requireAdmin();
   const pool = await getDb();
   const result = await pool.request().query(`
     SELECT Id, Name
@@ -59,6 +65,7 @@ export async function getColors() {
 
 /** Inventory report */
 export async function runInventoryReport(filters: any) {
+  await requireAdmin();
   const pool = await getDb();
   const result = await pool
     .request()
@@ -94,6 +101,7 @@ export async function runInventoryReport(filters: any) {
  * proportionally across products by their gross share per day.
  */
 export async function runSalesReport(filters: any) {
+  await requireAdmin();
   const pool = await getDb();
 
   const result = await pool
@@ -177,6 +185,7 @@ export async function runSalesReport(filters: any) {
  * ✅ Expenses report (same as before)
  */
 export async function runExpensesReport(filters: any) {
+  await requireAdmin();
   const pool = await getDb();
   const result = await pool
     .request()
@@ -200,6 +209,7 @@ export async function runExpensesReport(filters: any) {
  * GrossProfit = Revenue - COGS
  */
 export async function runPnLReport(from?: string, to?: string) {
+  await requireAdmin();
   const pool = await getDb();
   const result = await pool
     .request()
@@ -252,6 +262,7 @@ export async function runPnLReport(from?: string, to?: string) {
 
 /** Dead Stock */
 export async function runDeadStockReport(filters: any) {
+  await requireAdmin();
   const pool = await getDb();
   const result = await pool
     .request()
@@ -274,6 +285,7 @@ export async function runDeadStockReport(filters: any) {
  * Shows best-selling colors ranked by quantity sold
  */
 export async function runTopColorsReport(filters: any) {
+  await requireAdmin();
   const pool = await getDb();
   const result = await pool
     .request()

@@ -1,5 +1,7 @@
 "use server";
 
+import { requireAdmin } from "@/lib/adminAuth";
+
 import { getDb } from "@/lib/db";
 import sql, { NVarChar, UniqueIdentifier, Int, Decimal, Transaction } from "@/lib/sqlShim";
 import { sendOrderNotification } from "@/lib/orderNotify";
@@ -11,6 +13,7 @@ export type OrderRange = "today" | "yesterday" | "last7" | "last30" | "all";
 /* ---------- Lookups ---------- */
 
 export async function getCategories() {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool.request().query(`
     SELECT Id, Name FROM Categories ORDER BY Name
@@ -19,6 +22,7 @@ export async function getCategories() {
 }
 
 export async function getProductsByCategory(categoryId: string) {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool
     .request()
@@ -35,6 +39,7 @@ export async function getProductsByCategory(categoryId: string) {
    its image (size/colour NULL). Used by the admin order picker to add a design
    line directly (no size/colour cascade). Stock is blank-resolved. */
 export async function getDesignsByProduct(productId: string) {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool
     .request()
@@ -53,6 +58,7 @@ export async function getDesignsByProduct(productId: string) {
 }
 
 export async function getSizesByProduct(productId: string) {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool
     .request()
@@ -67,6 +73,7 @@ export async function getSizesByProduct(productId: string) {
 }
 
 export async function getColorsByProductAndSize(productId: string, sizeId: string) {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool
     .request()
@@ -83,6 +90,7 @@ export async function getColorsByProductAndSize(productId: string, sizeId: strin
 }
 
 export async function getVariant(productId: string, sizeId: string, colorId: string) {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool
     .request()
@@ -107,6 +115,7 @@ export async function getVariantStockByProductAndSize(
   productId: string,
   sizeId: string
 ): Promise<Record<string, number>> {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool
     .request()
@@ -128,6 +137,7 @@ export async function getVariantStockByProductAndSize(
 }
 
 export async function getProductInfo(productId: string) {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool
     .request()
@@ -191,6 +201,7 @@ function rangeToFromTo(range: OrderRange): { from: Date | null; to: Date | null 
 /* ---------- Recent Orders ---------- */
 
 export async function getRecentOrders(limit: number = 20, range: OrderRange = "all") {
+  await requireAdmin();
   const pool = await getDb();
   const { from, to } = rangeToFromTo(range);
 
@@ -232,6 +243,7 @@ export async function getRecentOrders(limit: number = 20, range: OrderRange = "a
 /* ---------- Order Details ---------- */
 
 export async function getOrderDetails(orderId: string) {
+  await requireAdmin();
   const pool = await getDb();
 
   const header = await pool
@@ -492,6 +504,7 @@ async function deleteSalesForOrder(tx: Transaction, orderId: string) {
 /* ---------- CREATE Order ---------- */
 
 export async function createOrder(payload: OrderPayload) {
+  await requireAdmin();
   if (!payload.Items?.length) throw new Error("No items in order.");
 
   const pool = await getDb();
@@ -633,6 +646,7 @@ export async function createOrder(payload: OrderPayload) {
 /* ---------- UPDATE Order Status ---------- */
 
 export async function updateOrderStatus(orderId: string, newStatus: OrderStatus) {
+  await requireAdmin();
   const pool = await getDb();
   const tx = new Transaction(pool);
 
@@ -704,6 +718,7 @@ export async function updateOrderStatus(orderId: string, newStatus: OrderStatus)
 /* ---------- EDIT Order ---------- */
 
 export async function updateOrder(orderId: string, payload: OrderPayload) {
+  await requireAdmin();
   if (!payload.Items?.length) throw new Error("No items in order.");
 
   const pool = await getDb();
@@ -810,6 +825,7 @@ export async function updateOrder(orderId: string, payload: OrderPayload) {
 /* ---------- DELETE Order ---------- */
 
 export async function deleteOrder(orderId: string) {
+  await requireAdmin();
   const pool = await getDb();
   const tx = new Transaction(pool);
 

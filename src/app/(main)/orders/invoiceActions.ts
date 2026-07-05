@@ -1,9 +1,12 @@
 "use server";
 
+import { requireAdmin } from "@/lib/adminAuth";
+
 import { getDb } from "@/lib/db";
 import { UniqueIdentifier } from "@/lib/sqlShim";
 
 export async function generateInvoicePDF(orderId: string) {
+  await requireAdmin();
   const pool = await getDb();
 
   // Get order details
@@ -77,6 +80,7 @@ export async function generateInvoicePDF(orderId: string) {
 }
 
 export async function getWhatsAppMessage(orderId: string) {
+  await requireAdmin();
   const pool = await getDb();
 
   // Get order details

@@ -1,5 +1,7 @@
 "use server";
 
+import { requireAdmin } from "@/lib/adminAuth";
+
 import { getDb, sql } from "@/lib/db";
 
 /* ============================================================
@@ -24,6 +26,7 @@ export type AdminGalleryItem = {
 };
 
 export async function getAdminGalleryItems(): Promise<AdminGalleryItem[]> {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool.request().query(`
     SELECT g.Id, g.CustomerName, g.Caption AS Caption,
@@ -49,6 +52,7 @@ export type GalleryItemForEdit = {
 };
 
 export async function getGalleryItemForEdit(id: string): Promise<GalleryItemForEdit | null> {
+  await requireAdmin();
   const pool = await getDb();
   const r = await pool
     .request()
@@ -81,6 +85,7 @@ export type SaveGalleryItemInput = {
 };
 
 export async function saveGalleryItem(inp: SaveGalleryItemInput): Promise<{ id: string }> {
+  await requireAdmin();
   if (!inp.customerName.trim()) throw new Error("Please enter the customer name.");
   if (inp.images.length === 0) throw new Error("Please add at least one final product image.");
 
@@ -131,6 +136,7 @@ export async function saveGalleryItem(inp: SaveGalleryItemInput): Promise<{ id: 
 }
 
 export async function deleteGalleryItem(id: string): Promise<{ ok: true }> {
+  await requireAdmin();
   const pool = await getDb();
   await pool.request().input("Id", sql.UniqueIdentifier, id).query(`DELETE FROM GalleryImages WHERE GalleryItemId=@Id`);
   await pool.request().input("Id", sql.UniqueIdentifier, id).query(`DELETE FROM GalleryItems WHERE Id=@Id`);

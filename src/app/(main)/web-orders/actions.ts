@@ -1,9 +1,12 @@
 "use server";
 
+import { requireAdmin } from "@/lib/adminAuth";
+
 import { getDb, sql } from "@/lib/db";
 import { updateOrderStatus, getOrderDetails } from "../orders/actions";
 
 export async function getWebOrders() {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool.request().query(`
     SELECT
@@ -27,6 +30,7 @@ export async function getWebOrders() {
 // Mark a (bank-transfer) payment as verified and move the order to Paid,
 // which also creates the Sales rows via the shared order-status logic.
 export async function verifyWebPayment(orderId: string) {
+  await requireAdmin();
   const pool = await getDb();
   await pool
     .request()
@@ -40,10 +44,12 @@ export async function setWebOrderStatus(
   orderId: string,
   status: "Pending" | "Paid" | "Partial" | "Completed" | "Canceled"
 ) {
+  await requireAdmin();
   await updateOrderStatus(orderId, status);
   return true;
 }
 
 export async function getWebOrderDetails(orderId: string) {
+  await requireAdmin();
   return getOrderDetails(orderId);
 }

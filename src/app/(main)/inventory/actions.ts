@@ -1,5 +1,7 @@
 "use server";
 
+import { requireAdmin } from "@/lib/adminAuth";
+
 import { getDb } from "@/lib/db";
 import { sortBySize, sizeRank } from "@/lib/sizeOrder";
 
@@ -8,6 +10,7 @@ import { sortBySize, sizeRank } from "@/lib/sizeOrder";
  * Returns: { categories: {Id,Name}[], sizes: {...}[], colors: {...}[] }
  */
 export async function getLookups() {
+  await requireAdmin();
   const pool = await getDb();
 
   const [cats, sizes, colors] = await Promise.all([
@@ -39,6 +42,7 @@ export async function getLookups() {
  * Products in a category (for cascading pickers)
  */
 export async function getProductsByCategory(categoryId: string) {
+  await requireAdmin();
   if (!categoryId) return [];
   const pool = await getDb();
   const res = await pool
@@ -61,6 +65,7 @@ export async function getColorsByCategorySize(
   categoryId: string,
   sizeId: string
 ) {
+  await requireAdmin();
   if (!categoryId || !sizeId) return [];
   const pool = await getDb();
 
@@ -91,6 +96,7 @@ export async function getColorsByCategorySize(
  * Shows total qty and count of low-stock variants (Qty <= MinQtyAlert but > 0).
  */
 export async function getProductQuantities(categoryId: string) {
+  await requireAdmin();
   if (!categoryId) return [];
   const pool = await getDb();
 
@@ -129,6 +135,7 @@ export async function getAvailability(
   sizeId: string,
   colorId: string
 ) {
+  await requireAdmin();
   if (!productId || !sizeId || !colorId) return 0;
 
   const pool = await getDb();
@@ -153,6 +160,7 @@ export async function getAvailability(
  * Get quantities for all sizes in a category
  */
 export async function getSizeQuantitiesByCategory(categoryId: string) {
+  await requireAdmin();
   if (!categoryId) return [];
   const pool = await getDb();
 
@@ -181,6 +189,7 @@ export async function getSizeQuantitiesByCategory(categoryId: string) {
  * Search for a color across all products and return size-wise quantities with product info
  */
 export async function searchColorQuantities(colorName: string) {
+  await requireAdmin();
   if (!colorName) return [];
   const pool = await getDb();
 

@@ -1,16 +1,20 @@
 "use server";
 
+import { requireAdmin } from "@/lib/adminAuth";
+
 import { getDb } from "@/lib/db";
 import sql from "@/lib/sqlShim";
 import { sortBySize } from "@/lib/sizeOrder";
 
 export async function getLookups() {
+  await requireAdmin();
   const pool = await getDb();
   const cats = await pool.request().query(`SELECT Id, Name FROM Categories ORDER BY Name`);
   return { categories: cats.recordset };
 }
 
 export async function getProductsByCategory(categoryId: string) {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool
     .request()
@@ -20,6 +24,7 @@ export async function getProductsByCategory(categoryId: string) {
 }
 
 export async function getSizes(productId: string) {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool
     .request()
@@ -34,6 +39,7 @@ export async function getSizes(productId: string) {
 }
 
 export async function getVariantsByProductAndSize(productId: string, sizeId: string) {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool
     .request()
@@ -53,6 +59,7 @@ export async function getVariantsByProductAndSize(productId: string, sizeId: str
 }
 
 export async function sellStock(variantId: string, qty: number, sellingPrice: number) {
+  await requireAdmin();
   const pool = await getDb();
   const tx = new sql.Transaction(pool);
   await tx.begin();
@@ -119,6 +126,7 @@ export async function recordBackfill(
   cost: number,
   selling: number
 ) {
+  await requireAdmin();
   const pool = await getDb();
 
   // ensure hidden variant exists

@@ -1,5 +1,7 @@
 "use server";
 
+import { requireAdmin } from "@/lib/adminAuth";
+
 import { getDb } from "@/lib/db";
 import sql from "@/lib/sqlShim";
 
@@ -11,6 +13,7 @@ export async function upsertCustomer(
   phone: string | null,
   address: string | null
 ) {
+  await requireAdmin();
   if (!name && !phone) return null;
 
   const db = await getDb();
@@ -53,6 +56,7 @@ export async function upsertCustomer(
  * 🔹 Get all customers (with order stats)
  */
 export async function getCustomers() {
+  await requireAdmin();
   const db = await getDb();
   const res = await db.request().query(`
     SELECT
@@ -78,6 +82,7 @@ export async function getCustomers() {
  * 🔹 Get specific customer (for drawer details)
  */
 export async function getCustomerById(customerId: string) {
+  await requireAdmin();
   const db = await getDb();
   const res = await db
     .request()
@@ -103,6 +108,7 @@ export async function getCustomerById(customerId: string) {
  * 🔹 Get specific customer's order history
  */
 export async function getCustomerOrders(customerId: string) {
+  await requireAdmin();
   const db = await getDb();
   const res = await db
     .request()
@@ -124,6 +130,7 @@ export async function updateCustomer(
   phone: string | null,
   address: string | null
 ) {
+  await requireAdmin();
   const db = await getDb();
   await db
     .request()
@@ -139,6 +146,7 @@ export async function updateCustomer(
  * 🔹 Delete a customer
  */
 export async function deleteCustomer(id: string) {
+  await requireAdmin();
   const db = await getDb();
   await db
     .request()

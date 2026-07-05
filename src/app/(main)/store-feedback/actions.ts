@@ -1,5 +1,7 @@
 "use server";
 
+import { requireAdmin } from "@/lib/adminAuth";
+
 import { getDb, sql } from "@/lib/db";
 
 /* ============================================================
@@ -19,6 +21,7 @@ export type AdminFeedbackItem = {
 };
 
 export async function getAdminFeedbackItems(): Promise<AdminFeedbackItem[]> {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool.request().query(`
     SELECT Id, CustomerName, ImageUrl, IsPublished, SortOrder, CreatedAt
@@ -30,6 +33,7 @@ export async function getAdminFeedbackItems(): Promise<AdminFeedbackItem[]> {
 
 // Bulk add: one published item per uploaded screenshot URL.
 export async function addFeedbackItems(urls: string[]): Promise<{ added: number }> {
+  await requireAdmin();
   const clean = urls.map((u) => u.trim()).filter(Boolean);
   if (clean.length === 0) throw new Error("Please upload at least one screenshot.");
 
@@ -53,6 +57,7 @@ export type SaveFeedbackItemInput = {
 // Edit an existing item's name/flags (the screenshot itself is immutable —
 // replace = delete + re-add).
 export async function saveFeedbackItem(inp: SaveFeedbackItemInput): Promise<{ ok: true }> {
+  await requireAdmin();
   const pool = await getDb();
   await pool
     .request()
@@ -65,6 +70,7 @@ export async function saveFeedbackItem(inp: SaveFeedbackItemInput): Promise<{ ok
 }
 
 export async function deleteFeedbackItem(id: string): Promise<{ ok: true }> {
+  await requireAdmin();
   const pool = await getDb();
   await pool.request().input("Id", sql.UniqueIdentifier, id).query(`DELETE FROM FeedbackItems WHERE Id=@Id`);
   return { ok: true };

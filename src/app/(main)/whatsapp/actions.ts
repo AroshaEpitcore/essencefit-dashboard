@@ -1,11 +1,14 @@
 "use server";
 
+import { requireAdmin } from "@/lib/adminAuth";
+
 import { getDb } from "@/lib/db";
 
 /**
  * Get all product categories
  */
 export async function getProductCategories() {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool.request().query(`
     SELECT Id, Name
@@ -19,6 +22,7 @@ export async function getProductCategories() {
  * Get sizes with their available colors (qty > 0) for a specific category
  */
 export async function getSizesWithColors(categoryId: string) {
+  await requireAdmin();
   if (!categoryId) return [];
   const pool = await getDb();
 

@@ -1,5 +1,7 @@
 "use server";
 
+import { requireAdmin } from "@/lib/adminAuth";
+
 import { getDb, sql } from "@/lib/db";
 import { slugWithId, slugify } from "@/lib/slug";
 
@@ -36,6 +38,7 @@ export type CatalogProduct = {
 };
 
 export async function getCatalogProducts(): Promise<CatalogProduct[]> {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool.request().query(`
     SELECT
@@ -55,6 +58,7 @@ export async function getCatalogProducts(): Promise<CatalogProduct[]> {
 }
 
 export async function getProductForEdit(id: string) {
+  await requireAdmin();
   const pool = await getDb();
   const prod = await pool
     .request()
@@ -101,6 +105,7 @@ export type ProductStorefrontInput = {
 };
 
 export async function updateProductStorefront(id: string, data: ProductStorefrontInput) {
+  await requireAdmin();
   const pool = await getDb();
   const slug = data.slug?.trim() ? slugify(data.slug) : slugWithId(data.name, id);
   // A product can't be its own blank, and a blank can't itself be linked (no chains).
@@ -159,6 +164,7 @@ export async function updateProductStorefront(id: string, data: ProductStorefron
 /* Products eligible to be a stock-source blank for `selfId`:
    active, not the product itself, and not already linked to a blank (no chains). */
 export async function getBlankCandidates(selfId: string) {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool
     .request()
@@ -173,6 +179,7 @@ export async function getBlankCandidates(selfId: string) {
 
 // Quick toggles from the list view
 export async function toggleProductFlag(id: string, field: "IsActive" | "IsFeatured" | "IsNewArrival" | "IsDtfPrintable", value: boolean) {
+  await requireAdmin();
   const pool = await getDb();
   await pool
     .request()
@@ -190,6 +197,7 @@ export type ProductImageInput = { url: string; colorId: string | null };
 // (colorId NULL = shared / all colours). The first SHARED image (else first
 // overall) becomes the primary Products.ImageUrl.
 export async function setProductImages(productId: string, images: ProductImageInput[]) {
+  await requireAdmin();
   const pool = await getDb();
   const tx = new sql.Transaction(pool);
   try {
@@ -237,6 +245,7 @@ export type ProductDesign = {
 };
 
 export async function getProductDesigns(productId: string): Promise<ProductDesign[]> {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool
     .request()
@@ -254,6 +263,7 @@ export async function getProductDesigns(productId: string): Promise<ProductDesig
 export type DesignInput = { imageId?: string | null; url: string; qty: number };
 
 export async function saveDesigns(productId: string, designs: DesignInput[]) {
+  await requireAdmin();
   const pool = await getDb();
   const tx = new sql.Transaction(pool);
   try {
@@ -372,6 +382,7 @@ export type CatalogCategory = {
 };
 
 export async function getCatalogCategories(): Promise<CatalogCategory[]> {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool.request().query(`
     SELECT c.Id, c.Name, c.Slug, c.ImageUrl, c.Description, c.IsActive, c.SortOrder,
@@ -401,6 +412,7 @@ export type AdminColor = {
 };
 
 export async function getColorsAdmin(): Promise<AdminColor[]> {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool.request().query(`
     SELECT c.Id, c.Name, c.Hex,
@@ -412,6 +424,7 @@ export async function getColorsAdmin(): Promise<AdminColor[]> {
 }
 
 export async function updateColorHex(id: string, hex: string | null) {
+  await requireAdmin();
   const pool = await getDb();
   const clean = hex && hex.trim() ? (hex.trim().startsWith("#") ? hex.trim() : `#${hex.trim()}`) : null;
   await pool
@@ -423,6 +436,7 @@ export async function updateColorHex(id: string, hex: string | null) {
 }
 
 export async function updateCategoryStorefront(id: string, data: CategoryStorefrontInput) {
+  await requireAdmin();
   const pool = await getDb();
   const slug = data.slug?.trim() ? slugify(data.slug) : slugWithId(data.name, id);
   await pool

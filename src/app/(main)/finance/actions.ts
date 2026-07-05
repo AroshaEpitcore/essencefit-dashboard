@@ -1,5 +1,7 @@
 "use server";
 
+import { requireAdmin } from "@/lib/adminAuth";
+
 import { getDb } from "@/lib/db";
 
 /**
@@ -8,6 +10,7 @@ import { getDb } from "@/lib/db";
  * Remaining = NetSales - HandedOver - CashUsed
  */
 export async function getFinanceSummary() {
+  await requireAdmin();
   const pool = await getDb();
 
   const res = await pool.request().query(`
@@ -62,6 +65,7 @@ export async function getFinanceSummary() {
  * so we cannot allocate accurately without an OrderId link in Sales or OrderItems table.)
  */
 export async function getProductProfit() {
+  await requireAdmin();
   const pool = await getDb();
   const result = await pool.request().query(`
     SELECT 
@@ -81,6 +85,7 @@ export async function getProductProfit() {
 }
 
 export async function recordHandover(userId: string, amount: number) {
+  await requireAdmin();
   const pool = await getDb();
   const result = await pool
     .request()
@@ -95,6 +100,7 @@ export async function recordHandover(userId: string, amount: number) {
 }
 
 export async function recordCashUsage(reason: string, amount: number) {
+  await requireAdmin();
   const pool = await getDb();
   const result = await pool
     .request()
@@ -110,6 +116,7 @@ export async function recordCashUsage(reason: string, amount: number) {
 
 /** ✅ UI expects h.ManagerName, so return ManagerName */
 export async function getRecentHandovers() {
+  await requireAdmin();
   const pool = await getDb();
   const result = await pool.request().query(`
     SELECT Id, 
@@ -124,6 +131,7 @@ export async function getRecentHandovers() {
 }
 
 export async function getRecentCashUsages() {
+  await requireAdmin();
   const pool = await getDb();
   const result = await pool.request().query(`
     SELECT Id, Description, Amount, UsageDate

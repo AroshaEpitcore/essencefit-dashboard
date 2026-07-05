@@ -1,5 +1,7 @@
 "use server";
 
+import { requireAdmin } from "@/lib/adminAuth";
+
 import { getDb } from "@/lib/db";
 
 type DateRange = { from: string | null; to: string | null };
@@ -19,6 +21,7 @@ function bindDates(req: any, range: DateRange) {
 
 /* 1. Best Selling Colors */
 export async function getTopColors(range: DateRange) {
+  await requireAdmin();
   const pool = await getDb();
   const req = pool.request();
   bindDates(req, range);
@@ -36,6 +39,7 @@ export async function getTopColors(range: DateRange) {
 
 /* 2. Best Selling Sizes */
 export async function getTopSizes(range: DateRange) {
+  await requireAdmin();
   const pool = await getDb();
   const req = pool.request();
   bindDates(req, range);
@@ -53,6 +57,7 @@ export async function getTopSizes(range: DateRange) {
 
 /* 3. Best Selling Products */
 export async function getTopProducts(range: DateRange) {
+  await requireAdmin();
   const pool = await getDb();
   const req = pool.request();
   bindDates(req, range);
@@ -72,6 +77,7 @@ export async function getTopProducts(range: DateRange) {
 
 /* 4. Best Selling Categories */
 export async function getTopCategories(range: DateRange) {
+  await requireAdmin();
   const pool = await getDb();
   const req = pool.request();
   bindDates(req, range);
@@ -90,6 +96,7 @@ export async function getTopCategories(range: DateRange) {
 
 /* 5. Restock Alerts */
 export async function getRestockAlerts() {
+  await requireAdmin();
   const pool = await getDb();
   const res = await pool.request().query(`
     SELECT
@@ -113,6 +120,7 @@ export async function getRestockAlerts() {
 
 /* 6. Monthly Sales Trend (last 12 months) */
 export async function getMonthlySalesTrend(range: DateRange) {
+  await requireAdmin();
   const pool = await getDb();
   const req = pool.request();
   bindDates(req, range);
@@ -151,6 +159,7 @@ export async function getMonthlySalesTrend(range: DateRange) {
 
 /* 7. Daily Sales Trend (last 30 days) */
 export async function getDailySalesTrend(range: DateRange) {
+  await requireAdmin();
   const pool = await getDb();
   const req = pool.request();
   bindDates(req, range);
@@ -168,6 +177,7 @@ export async function getDailySalesTrend(range: DateRange) {
 
 /* 8. Sales by Day of Week */
 export async function getSalesByDayOfWeek(range: DateRange) {
+  await requireAdmin();
   const pool = await getDb();
   const req = pool.request();
   bindDates(req, range);
@@ -187,6 +197,7 @@ export async function getSalesByDayOfWeek(range: DateRange) {
 
 /* 9. Revenue vs Expenses */
 export async function getRevenueVsExpenses(range: DateRange) {
+  await requireAdmin();
   const pool = await getDb();
   const req = pool.request();
   bindDates(req, range);
@@ -224,6 +235,7 @@ export async function getRevenueVsExpenses(range: DateRange) {
 
 /* 10. Customer Leaderboard */
 export async function getCustomerLeaderboard(range: DateRange) {
+  await requireAdmin();
   const pool = await getDb();
   const req = pool.request();
   bindDates(req, range);
@@ -244,6 +256,7 @@ export async function getCustomerLeaderboard(range: DateRange) {
 
 /* 11. Order Status Breakdown */
 export async function getOrderStatusBreakdown(range: DateRange) {
+  await requireAdmin();
   const pool = await getDb();
   const req = pool.request();
   bindDates(req, range);
@@ -269,6 +282,7 @@ export async function getOrderStatusBreakdown(range: DateRange) {
 
 /* 12. Average Order Value Trend */
 export async function getAovTrend(range: DateRange) {
+  await requireAdmin();
   const pool = await getDb();
   const req = pool.request();
   bindDates(req, range);
@@ -290,6 +304,7 @@ export async function getAovTrend(range: DateRange) {
 
 /* Combined fetch for initial load */
 export async function getAnalysisData(range: DateRange) {
+  await requireAdmin();
   const [
     topColors,
     topSizes,
