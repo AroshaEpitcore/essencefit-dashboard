@@ -295,6 +295,10 @@ test("admin Website Orders shows who placed the order, with items", async ({ asA
   if (order1Variant.color) {
     await expect(card.getByText(new RegExp(order1Variant.color)).first()).toBeVisible();
   }
+
+  // The notification bell announces the freshly placed web order
+  await page.getByRole("button", { name: "Notifications" }).click();
+  await expect(page.getByText("New Website Order").first()).toBeVisible();
 });
 
 /* =======================================================================

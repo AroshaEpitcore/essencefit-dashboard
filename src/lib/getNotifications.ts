@@ -6,7 +6,7 @@ import { getDb } from "@/lib/db";
 
 export type NotificationItem = {
   id: string;
-  type: "low_stock" | "out_of_stock" | "stale_pending" | "recent_return";
+  type: "low_stock" | "out_of_stock" | "stale_pending" | "recent_return" | "new_web_order";
   title: string;
   body: string;
   severity: "critical" | "warning" | "info";
@@ -59,6 +59,31 @@ export async function getNotifications(): Promise<NotificationItem[]> {
       title: `Low Stock — ${row.Qty} left`,
       body: `${row.Product} · ${row.Size ?? "—"} · ${row.Color ?? "—"}`,
       severity: "warning",
+    });
+  }
+
+  // 2b. NEW website orders (last 24h, still Pending) — the bell is the only
+  // in-app signal a web order arrived, so these rank critical.
+  const newWebOrders = await pool.request().query(`
+    SELECT Id,
+      COALESCE(Customer, 'Unknown') AS Customer,
+      Total,
+      OrderDate
+    FROM Orders
+    WHERE Source = 'web'
+      AND PaymentStatus = 'Pending'
+      AND OrderDate >= (now() + interval '-24 hours')
+    ORDER BY OrderDate DESC LIMIT 10
+  `);
+  for (const row of newWebOrders.recordset) {
+    const mins = Math.max(0, Math.floor((Date.now() - new Date(row.OrderDate).getTime()) / 60000));
+    const ago = mins < 60 ? `${mins}m ago` : `${Math.floor(mins / 60)}h ago`;
+    items.push({
+      id: `weborder-${row.Id}`,
+      type: "new_web_order",
+      title: "New Website Order",
+      body: `${row.Customer} — Rs. ${Number(row.Total || 0).toLocaleString()} · ${ago}`,
+      severity: "critical",
     });
   }
 

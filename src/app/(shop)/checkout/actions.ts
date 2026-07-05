@@ -5,6 +5,7 @@ import { getDb, sql } from "@/lib/db";
 import { getPublicStoreSettings } from "@/lib/storeSettings";
 import { getCurrentCustomer, setSessionCookie } from "@/lib/customerAuth";
 import { sendOrderNotification, sendCustomerOrderConfirmation } from "@/lib/orderNotify";
+import { UserFacingError, userErrorMessage } from "@/lib/userError";
 
 const { UniqueIdentifier, NVarChar, Int, Decimal } = sql;
 
@@ -49,18 +50,23 @@ export type WebOrderPayload = {
  * customer upsert + stock reduction + order + items + status log.
  * Sales rows are intentionally NOT created here — admin marks the order Paid first.
  */
-export async function createWebOrder(payload: WebOrderPayload): Promise<{ orderId: string; accountCreated?: boolean }> {
-  if (!payload.items?.length) throw new Error("Your cart is empty.");
-  if (!payload.customerPhone?.trim()) throw new Error("Phone number is required.");
-  if (!payload.address?.trim()) throw new Error("Delivery address is required.");
+export async function createWebOrder(
+  payload: WebOrderPayload
+): Promise<{ ok: true; orderId: string; accountCreated?: boolean } | { ok: false; error: string }> {
+  // Expected failures RETURN { ok:false, error } — Next.js masks thrown Error
+  // messages from server actions in production, so a throw would show the
+  // buyer a generic "an error occurred" instead of the real reason.
+  if (!payload.items?.length) return { ok: false, error: "Your cart is empty." };
+  if (!payload.customerPhone?.trim()) return { ok: false, error: "Phone number is required." };
+  if (!payload.address?.trim()) return { ok: false, error: "Delivery address is required." };
   if (payload.paymentMethod === "BankTransfer" && !payload.paymentSlipUrl) {
-    throw new Error("Please upload your bank transfer slip.");
+    return { ok: false, error: "Please upload your bank transfer slip." };
   }
 
   // Account required: must be logged in, or supply a password to create one.
   const sessionCustomer = await getCurrentCustomer();
   if (!sessionCustomer && (!payload.password || payload.password.trim().length < 6)) {
-    throw new Error("Please choose a password (at least 6 characters) to create your account, or log in.");
+    return { ok: false, error: "Please choose a password (at least 6 characters) to create your account, or log in." };
   }
 
   const pool = await getDb();
@@ -92,9 +98,9 @@ export async function createWebOrder(payload: WebOrderPayload): Promise<{ orderI
           WHERE v.Id = @vid AND prod.IsActive = true
         `);
       const row = r.recordset[0];
-      if (!row) throw new Error("An item in your cart is no longer available.");
+      if (!row) throw new UserFacingError("An item in your cart is no longer available.");
       if (it.qty > row.Stock) {
-        throw new Error(`Only ${row.Stock} left of "${row.ProductName}".`);
+        throw new UserFacingError(`Only ${row.Stock} left of "${row.ProductName}".`);
       }
       const price = Number(row.Price);
       subtotal += price * it.qty;
@@ -102,7 +108,7 @@ export async function createWebOrder(payload: WebOrderPayload): Promise<{ orderI
       priced.push({ variantId: it.variantId, qty: it.qty, price, name: variant ? `${row.ProductName} (${variant})` : row.ProductName });
     }
 
-    if (!priced.length) throw new Error("Your cart is empty.");
+    if (!priced.length) throw new UserFacingError("Your cart is empty.");
 
     // 2) Delivery fee — by chosen province (server-side; falls back to the flat fee)
     const province = payload.province?.trim() || null;
@@ -230,7 +236,7 @@ export async function createWebOrder(payload: WebOrderPayload): Promise<{ orderI
         .input("Qty", Int, it.qty)
         .query(`UPDATE ProductVariants SET Qty = Qty - @Qty WHERE Id = @Vid AND Qty >= @Qty`);
       if (!upd.rowsAffected[0]) {
-        throw new Error(`"${it.name}" just sold out — please adjust your cart and try again.`);
+        throw new UserFacingError(`"${it.name}" just sold out — please adjust your cart and try again.`);
       }
       await new sql.Request(tx)
         .input("VariantId", UniqueIdentifier, sv.StockVid)
@@ -291,9 +297,11 @@ export async function createWebOrder(payload: WebOrderPayload): Promise<{ orderI
       try { await setSessionCookie(customerId); } catch { /* non-fatal */ }
     }
 
-    return { orderId, accountCreated: accountReady && wantsAccount };
+    return { ok: true, orderId, accountCreated: accountReady && wantsAccount };
   } catch (err) {
     try { await tx.rollback(); } catch {}
-    throw err;
+    const msg = userErrorMessage(err);
+    if (msg) return { ok: false, error: msg };
+    throw err; // real bugs stay loud (and get masked — that's fine for bugs)
   }
 }

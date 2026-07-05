@@ -6,22 +6,32 @@ import {
   getCurrentCustomer,
   setSessionCookie,
   clearSessionCookie,
+  createResetToken,
+  verifyResetToken,
+  hashFingerprint,
   type CustomerSession,
 } from "@/lib/customerAuth";
+import { sendCustomerPasswordReset } from "@/lib/orderNotify";
+
+/* NOTE (all account actions): expected failures are RETURNED as
+   { ok:false, error } instead of thrown — Next.js masks thrown Error messages
+   from server actions in production, so a throw would show the customer a
+   generic "an error occurred" instead of the real reason. */
+export type ActionResult = { ok: true } | { ok: false; error: string };
 
 export async function registerCustomer(input: {
   name: string;
   email: string;
   phone: string;
   password: string;
-}) {
+}): Promise<ActionResult> {
   const name = input.name?.trim();
   const email = input.email?.trim().toLowerCase();
   const phone = input.phone?.trim();
   const password = input.password;
 
-  if (!name || !email || !phone || !password) throw new Error("All fields are required.");
-  if (password.length < 6) throw new Error("Password must be at least 6 characters.");
+  if (!name || !email || !phone || !password) return { ok: false, error: "All fields are required." };
+  if (password.length < 6) return { ok: false, error: "Password must be at least 6 characters." };
 
   const pool = await getDb();
 
@@ -30,7 +40,7 @@ export async function registerCustomer(input: {
     .request()
     .input("Email", sql.NVarChar(200), email)
     .query(`SELECT Id FROM Customers WHERE Email=@Email AND PasswordHash IS NOT NULL LIMIT 1`);
-  if (emailTaken.recordset.length) throw new Error("An account with this email already exists.");
+  if (emailTaken.recordset.length) return { ok: false, error: "An account with this email already exists." };
 
   const hash = await bcrypt.hash(password, 10);
 
@@ -67,9 +77,9 @@ export async function registerCustomer(input: {
   return { ok: true };
 }
 
-export async function loginCustomer(input: { identifier: string; password: string }) {
+export async function loginCustomer(input: { identifier: string; password: string }): Promise<ActionResult> {
   const identifier = input.identifier?.trim();
-  if (!identifier || !input.password) throw new Error("Enter your email/phone and password.");
+  if (!identifier || !input.password) return { ok: false, error: "Enter your email/phone and password." };
 
   const pool = await getDb();
   const res = await pool
@@ -80,9 +90,9 @@ export async function loginCustomer(input: { identifier: string; password: strin
             WHERE (LOWER(Email)=@Id OR Phone=@Phone) AND PasswordHash IS NOT NULL LIMIT 1`);
 
   const row = res.recordset[0];
-  if (!row) throw new Error("Invalid credentials.");
+  if (!row) return { ok: false, error: "Invalid credentials." };
   const ok = await bcrypt.compare(input.password, row.PasswordHash);
-  if (!ok) throw new Error("Invalid credentials.");
+  if (!ok) return { ok: false, error: "Invalid credentials." };
 
   await setSessionCookie(row.Id);
   return { ok: true };
@@ -90,6 +100,58 @@ export async function loginCustomer(input: { identifier: string; password: strin
 
 export async function logoutCustomer() {
   await clearSessionCookie();
+  return { ok: true };
+}
+
+/* Forgot password: emails a 30-minute reset link. Always resolves { ok: true }
+   so the response never reveals whether an account exists for that email. */
+export async function requestPasswordReset(email: string) {
+  const e = email?.trim().toLowerCase();
+  if (!e) return { ok: true };
+
+  const pool = await getDb();
+  const res = await pool
+    .request()
+    .input("Email", sql.NVarChar(200), e)
+    .query(`SELECT Id, Name, Email, PasswordHash FROM Customers
+            WHERE LOWER(Email)=@Email AND PasswordHash IS NOT NULL LIMIT 1`);
+  const row = res.recordset[0];
+  if (row) {
+    const token = createResetToken(row.Id, row.PasswordHash);
+    const site = process.env.NEXT_PUBLIC_SITE_URL || "";
+    const link = `${site}/account/reset?token=${encodeURIComponent(token)}`;
+    await sendCustomerPasswordReset({ to: row.Email, customerName: row.Name || "", link });
+  }
+  return { ok: true };
+}
+
+export async function resetPassword(input: { token: string; password: string }): Promise<ActionResult> {
+  const password = input.password || "";
+  if (password.length < 6) return { ok: false, error: "Password must be at least 6 characters." };
+
+  const data = verifyResetToken(input.token || "");
+  if (!data) return { ok: false, error: "This reset link is invalid or has expired. Please request a new one." };
+
+  const pool = await getDb();
+  const res = await pool
+    .request()
+    .input("Id", sql.UniqueIdentifier, data.cid)
+    .query(`SELECT Id, PasswordHash FROM Customers WHERE Id=@Id AND PasswordHash IS NOT NULL LIMIT 1`);
+  const row = res.recordset[0];
+  // The token fingerprints the hash it was issued against — once the password
+  // changes (this link was used, or a newer one was), it no longer matches.
+  if (!row || hashFingerprint(row.PasswordHash) !== data.fp) {
+    return { ok: false, error: "This reset link is invalid or has expired. Please request a new one." };
+  }
+
+  const hash = await bcrypt.hash(password, 10);
+  await pool
+    .request()
+    .input("Id", sql.UniqueIdentifier, row.Id)
+    .input("Hash", sql.NVarChar(200), hash)
+    .query(`UPDATE Customers SET PasswordHash=@Hash WHERE Id=@Id`);
+
+  await setSessionCookie(row.Id); // signed in with the new password
   return { ok: true };
 }
 

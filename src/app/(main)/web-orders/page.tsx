@@ -49,7 +49,19 @@ export default function WebOrdersPage() {
       setLoading(false);
     }
   }
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    // Keep the list fresh — new website orders should appear without a manual
+    // refresh (same 30s cadence as the manual /orders page).
+    const interval = setInterval(async () => {
+      try {
+        setOrders(await getWebOrders());
+      } catch {
+        /* keep showing the last good list */
+      }
+    }, 30_000);
+    return () => clearInterval(interval);
+  }, []);
 
   async function verify(id: string) {
     if (!confirm("Mark this bank-transfer payment as verified and set the order to Paid?")) return;

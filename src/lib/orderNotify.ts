@@ -186,6 +186,79 @@ export async function sendOrderNotification(input: OrderNotifyInput): Promise<vo
   }
 }
 
+// Password-reset email — button link, 30-minute validity note. Same
+// fire-and-forget safety as the other senders.
+export async function sendCustomerPasswordReset(input: {
+  to: string;
+  customerName: string;
+  link: string;
+}): Promise<void> {
+  try {
+    const settings = await getPublicStoreSettings();
+    const store = settings.storeName || "Store";
+    const body = `
+      <h1 style="margin:0 0 8px;font-size:20px;color:#111827;">Reset your password</h1>
+      <p style="margin:0 0 20px;font-size:14px;color:#6b7280;">
+        Hi ${escapeHtml(input.customerName || "there")}, we received a request to reset the password
+        for your ${escapeHtml(store)} account. Click the button below to choose a new one.
+      </p>
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 20px;">
+        <tr>
+          <td style="border-radius:8px;background:${BRAND_COLOR};">
+            <a href="${input.link}" style="display:inline-block;padding:12px 20px;color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;">Reset password →</a>
+          </td>
+        </tr>
+      </table>
+      <p style="margin:0;font-size:13px;color:#6b7280;">
+        This link works for 30 minutes. If you didn't ask to reset your password, you can safely ignore this email — your password stays unchanged.
+      </p>`;
+    const html = emailShell(store, BRAND_COLOR, body, `${store} — password reset`);
+    await resendSend(input.to, `Reset your password — ${store}`, html);
+  } catch (err) {
+    console.error("[orderNotify] failed to send password reset", err);
+  }
+}
+
+// Order status update to the customer (Paid / Completed / Canceled).
+export async function sendCustomerStatusUpdate(input: {
+  to: string;
+  customerName: string;
+  orderRef: string;
+  status: string;
+}): Promise<void> {
+  try {
+    const settings = await getPublicStoreSettings();
+    const store = settings.storeName || "Store";
+    const copy: Record<string, { heading: string; line: string }> = {
+      Paid: {
+        heading: "Payment confirmed ✓",
+        line: "We've confirmed your payment and your order is being prepared.",
+      },
+      Completed: {
+        heading: "Your order is complete 🎉",
+        line: "Your order has been completed. Thanks for shopping with us!",
+      },
+      Canceled: {
+        heading: "Your order was canceled",
+        line: "This order has been canceled. If you think this is a mistake, please contact us and we'll sort it out.",
+      },
+    };
+    const c = copy[input.status];
+    if (!c) return; // only meaningful transitions email the customer
+    const body = `
+      <h1 style="margin:0 0 8px;font-size:20px;color:#111827;">${escapeHtml(c.heading)}</h1>
+      <p style="margin:0 0 12px;font-size:14px;color:#6b7280;">
+        Hi ${escapeHtml(input.customerName || "there")}, an update on your order
+        <b style="color:#111827;">#${escapeHtml(input.orderRef)}</b>:
+      </p>
+      <p style="margin:0;font-size:14px;color:#374151;">${escapeHtml(c.line)}</p>`;
+    const html = emailShell(store, BRAND_COLOR, body, `${store} — order update`);
+    await resendSend(input.to, `Order #${input.orderRef} ${input.status.toLowerCase()} — ${store}`, html);
+  } catch (err) {
+    console.error("[orderNotify] failed to send status update", err);
+  }
+}
+
 // Same fire-and-forget safety as sendOrderNotification. Only called when the
 // customer actually provided an email — callers should check that first.
 export async function sendCustomerOrderConfirmation(input: CustomerConfirmInput): Promise<void> {

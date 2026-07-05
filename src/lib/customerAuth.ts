@@ -49,6 +49,45 @@ function verifyToken(token: string): string | null {
   }
 }
 
+/* Password-reset tokens: same HMAC scheme, separate purpose, 30-minute expiry.
+   The token embeds a fingerprint of the CURRENT PasswordHash, so it stops
+   working the moment the password changes — single-use without a DB table. */
+const RESET_MAX_AGE = 60 * 30; // 30 minutes
+
+export function hashFingerprint(passwordHash: string): string {
+  return crypto.createHash("sha256").update(passwordHash).digest("base64url").slice(0, 16);
+}
+
+export function createResetToken(customerId: string, passwordHash: string): string {
+  const body = JSON.stringify({
+    p: "pwreset",
+    cid: customerId,
+    fp: hashFingerprint(passwordHash),
+    exp: Date.now() + RESET_MAX_AGE * 1000,
+  });
+  const b64 = Buffer.from(body).toString("base64url");
+  return `${b64}.${sign(b64)}`;
+}
+
+export function verifyResetToken(token: string): { cid: string; fp: string } | null {
+  const [b64, sig] = token.split(".");
+  if (!b64 || !sig) return null;
+  const expected = sign(b64);
+  if (
+    expected.length !== sig.length ||
+    !crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(sig))
+  ) {
+    return null;
+  }
+  try {
+    const data = JSON.parse(Buffer.from(b64, "base64url").toString());
+    if (data.p !== "pwreset" || !data.cid || !data.fp || !data.exp || Date.now() > data.exp) return null;
+    return { cid: data.cid as string, fp: data.fp as string };
+  } catch {
+    return null;
+  }
+}
+
 export type CustomerSession = {
   Id: string;
   Name: string;

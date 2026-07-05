@@ -74,6 +74,7 @@ The core commerce loop is solid: browse → cart → checkout (COD / bank slip) 
 | 32 | SEO gaps: client pages (cart/checkout/wishlist/login/register) export no metadata; no `opengraph-image`; `/shop?q=` has no canonical/noindex | `shop/page.tsx:8` |
 | 33 | Accessibility: `alt=""` on many content thumbnails; AddToCart swatches rely on `title` only; search drawer/mega-menu lack dialog roles | `AddToCart.tsx:185,220`, `cart/page.tsx` |
 | 34 | Misc: `/map` page not in sidebar (URL-only); `purchases/` dir is empty (no route); Finance shows raw `UserId` as "ManagerName" (no join); dark-mode toggle not persisted; low-stock thresholds hardcoded inconsistently (1–5 vs <10); `order-logs` count query neutralizes params with a `NULL` replace; contact form is a WhatsApp deep-link only; two tooltip libs + `node-fetch` in deps; no `.env.example` or env validation | `finance/actions.ts:126`, `analysis/actions.ts:115`, `order-logs/actions.ts:83` |
+| 35 | **Server-action error messages are masked in production** (Next.js strips them), so every `catch (e) { toast.error(e.message) }` in the ADMIN pages shows "An error occurred in the Server Components render…" instead of the real reason (e.g. "Not enough stock", "can't delete the last Admin"). Discovered 2026-07-05 via the password-reset E2E; storefront-facing flows (login/register/reset/checkout) were converted to return `{ ok:false, error }` (`src/lib/userError.ts`) — the ~27 admin action files still throw | `src/lib/userError.ts`, every `(main)/*/actions.ts` |
 
 ## Detailed Findings
 

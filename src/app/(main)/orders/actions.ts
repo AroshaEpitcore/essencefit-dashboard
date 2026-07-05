@@ -4,7 +4,7 @@ import { requireAdmin } from "@/lib/adminAuth";
 
 import { getDb } from "@/lib/db";
 import sql, { NVarChar, UniqueIdentifier, Int, Decimal, Transaction } from "@/lib/sqlShim";
-import { sendOrderNotification } from "@/lib/orderNotify";
+import { sendOrderNotification, sendCustomerStatusUpdate } from "@/lib/orderNotify";
 import { sortBySize } from "@/lib/sizeOrder";
 
 type OrderStatus = "Pending" | "Paid" | "Partial" | "Completed" | "Canceled";
@@ -711,6 +711,25 @@ export async function updateOrderStatus(orderId: string, newStatus: OrderStatus)
     }
 
     await tx.commit();
+
+    // Tell the customer about meaningful transitions (fire-and-forget — the
+    // sender swallows every failure, so email can never break a status change).
+    if (oldStatus !== newStatus && (newStatus === "Paid" || newStatus === "Completed" || newStatus === "Canceled")) {
+      const c = await pool
+        .request()
+        .input("Id", UniqueIdentifier, orderId)
+        .query(`SELECT Customer, CustomerEmail FROM Orders WHERE Id=@Id LIMIT 1`);
+      const row = c.recordset[0];
+      if (row?.CustomerEmail) {
+        await sendCustomerStatusUpdate({
+          to: row.CustomerEmail,
+          customerName: row.Customer || "",
+          orderRef: String(orderId).slice(0, 8).toUpperCase(),
+          status: newStatus,
+        });
+      }
+    }
+
     return true;
   } catch (err) {
     try { await tx.rollback(); } catch {}

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
-import { getUsers, addUser, updateUser, deleteUser } from "./actions";
+import { getUsers, addUser, updateUser, updateUserPassword, deleteUser } from "./actions";
 import { Plus, Edit, Trash2, Users, UserPlus, Shield } from "lucide-react";
 
 type User = {
@@ -43,7 +43,11 @@ export default function UsersPage() {
 
       if (editingId) {
         await updateUser(editingId, form.Username!, form.Email!, form.Role || "Staff");
-        toast.success("User updated");
+        // Optional password reset — only when a new password was typed.
+        if (form.Password) {
+          await updateUserPassword(editingId, form.Password);
+        }
+        toast.success(form.Password ? "User updated — password reset" : "User updated");
       } else {
         await addUser(form.Username!, form.Email!, form.Password!, form.Role || "Staff");
         toast.success("User added");
@@ -68,8 +72,8 @@ export default function UsersPage() {
       await deleteUser(id);
       toast.success("User deleted");
       refresh();
-    } catch {
-      toast.error("Delete failed");
+    } catch (e: any) {
+      toast.error(e.message || "Delete failed"); // e.g. "can't delete the last Admin"
     }
   }
 
@@ -124,20 +128,18 @@ export default function UsersPage() {
               className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
             />
           </div>
-          {!editingId && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Password
-              </label>
-              <input
-                type="password"
-                placeholder="Enter password"
-                value={form.Password || ""}
-                onChange={(e) => setForm({ ...form, Password: e.target.value })}
-                className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-              />
-            </div>
-          )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              {editingId ? "New password (optional)" : "Password"}
+            </label>
+            <input
+              type="password"
+              placeholder={editingId ? "Leave blank to keep current" : "Enter password"}
+              value={form.Password || ""}
+              onChange={(e) => setForm({ ...form, Password: e.target.value })}
+              className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+            />
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Role

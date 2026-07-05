@@ -19,12 +19,17 @@ export default function CustomerRegisterPage() {
     e.preventDefault();
     setBusy(true);
     try {
-      await registerCustomer(f);
+      const res = await registerCustomer(f);
+      if (!res.ok) {
+        toast.error(res.error);
+        setBusy(false);
+        return;
+      }
       toast.success("Account created!");
       router.push(next);
       router.refresh();
-    } catch (err: any) {
-      toast.error(err.message || "Registration failed");
+    } catch {
+      toast.error("Registration failed — please try again.");
       setBusy(false);
     }
   }

@@ -117,21 +117,28 @@ export default function CheckoutPage() {
 
     setPlacing(true);
     try {
-      const { orderId } = await createWebOrder({
+      const res = await createWebOrder({
         ...f,
         paymentMethod: method,
         paymentSlipUrl: slipUrl,
         password: !loggedIn ? password : undefined,
         items: items.map((i) => ({ variantId: i.variantId, qty: i.qty })),
       });
+      if (!res.ok) {
+        // Expected rejections (sold out, validation) come back as data — a
+        // thrown error would reach us with its message masked in production.
+        toast.error(res.error);
+        setPlacing(false);
+        return;
+      }
       clear();
       // Full navigation on purpose: router.push + router.refresh() here raced —
       // the refresh cancelled the in-flight push and left the buyer stuck on
       // "Placing order..." even though the order was created. A document load
       // both commits reliably and re-renders the navbar with the new session.
-      window.location.assign(`/order/${orderId}?placed=1`);
-    } catch (e: any) {
-      toast.error(e.message || "Could not place order");
+      window.location.assign(`/order/${res.orderId}?placed=1`);
+    } catch {
+      toast.error("Could not place order — please try again.");
       setPlacing(false);
     }
   }

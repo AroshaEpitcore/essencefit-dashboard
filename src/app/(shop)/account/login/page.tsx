@@ -19,12 +19,17 @@ export default function CustomerLoginPage() {
     e.preventDefault();
     setBusy(true);
     try {
-      await loginCustomer({ identifier, password });
+      const res = await loginCustomer({ identifier, password });
+      if (!res.ok) {
+        toast.error(res.error);
+        setBusy(false);
+        return;
+      }
       toast.success("Welcome back!");
       router.push(next);
       router.refresh();
-    } catch (err: any) {
-      toast.error(err.message || "Login failed");
+    } catch {
+      toast.error("Login failed — please try again.");
       setBusy(false);
     }
   }
@@ -43,6 +48,11 @@ export default function CustomerLoginPage() {
           id="login-password" label="Password" type="password"
           value={password} onChange={(e) => setPassword(e.target.value)}
         />
+        <div className="text-right -mt-2">
+          <Link href="/account/forgot" className="text-sm text-primary font-medium hover:underline">
+            Forgot password?
+          </Link>
+        </div>
         <button disabled={busy} className="w-full bg-primary text-white py-3 rounded-lg font-semibold hover:bg-primary/90 disabled:opacity-50">
           {busy ? "Signing in..." : "Sign in"}
         </button>

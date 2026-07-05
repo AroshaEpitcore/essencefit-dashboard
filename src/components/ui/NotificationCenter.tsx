@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Bell, X, Package, Clock, RotateCcw, AlertTriangle, RefreshCw } from "lucide-react";
+import Link from "next/link";
+import { Bell, X, Package, Clock, RotateCcw, AlertTriangle, RefreshCw, Globe } from "lucide-react";
 import { getNotifications, type NotificationItem } from "@/lib/getNotifications";
 
 const DISMISSED_KEY = "ef_dismissed_notifications";
@@ -20,6 +21,7 @@ function saveDismissed(ids: Set<string>) {
 }
 
 const TYPE_ICON: Record<NotificationItem["type"], React.ReactNode> = {
+  new_web_order:<Globe className="h-4 w-4" />,
   out_of_stock: <Package className="h-4 w-4" />,
   low_stock:    <AlertTriangle className="h-4 w-4" />,
   stale_pending:<Clock className="h-4 w-4" />,
@@ -94,6 +96,7 @@ export default function NotificationCenter() {
   // Group by type label
   const groups: Record<string, NotificationItem[]> = {};
   const TYPE_LABEL: Record<NotificationItem["type"], string> = {
+    new_web_order: "New Website Orders",
     out_of_stock:  "Out of Stock",
     low_stock:     "Low Stock",
     stale_pending: "Stale Pending Orders",
@@ -186,8 +189,17 @@ export default function NotificationCenter() {
                         >
                           <span className="mt-0.5 shrink-0">{TYPE_ICON[n.type]}</span>
                           <div className="flex-1 min-w-0">
-                            <p className="font-semibold">{n.title}</p>
-                            <p className="opacity-80 truncate">{n.body}</p>
+                            {n.type === "new_web_order" ? (
+                              <Link href="/web-orders" onClick={() => setOpen(false)} className="block hover:underline">
+                                <p className="font-semibold">{n.title}</p>
+                                <p className="opacity-80 truncate">{n.body}</p>
+                              </Link>
+                            ) : (
+                              <>
+                                <p className="font-semibold">{n.title}</p>
+                                <p className="opacity-80 truncate">{n.body}</p>
+                              </>
+                            )}
                           </div>
                           <button
                             onClick={() => dismiss(n.id)}
