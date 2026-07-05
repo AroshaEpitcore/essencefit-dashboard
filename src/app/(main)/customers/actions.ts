@@ -62,7 +62,7 @@ export async function getCustomers() {
       c.Email,
       c.Address,
       c.CreatedAt,
-      CAST(CASE WHEN c.PasswordHash IS NOT NULL THEN 1 ELSE 0 END AS BIT) AS HasAccount,
+      (c.PasswordHash IS NOT NULL) AS HasAccount,
       COUNT(o.Id) AS OrderCount,
       SUM(CASE WHEN o.Source = 'web' THEN 1 ELSE 0 END) AS WebOrderCount,
       COALESCE(SUM(o.Total), 0) AS TotalSpent

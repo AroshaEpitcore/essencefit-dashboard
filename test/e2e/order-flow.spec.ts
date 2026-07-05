@@ -260,6 +260,9 @@ test("admin Website Orders shows who placed the order, with items", async ({ asA
   await expect(card.getByText(new RegExp(guest.address.slice(0, 12)))).toBeVisible();
   await expect(card.getByText("Pending").first()).toBeVisible();
   await expect(card.getByText("COD")).toBeVisible();
+  // Shorts are stocked products — the POD badge must not appear (it used to
+  // show on every order: CAST(...AS BIT) returns the truthy string "0" in pg).
+  await expect(card.getByText("Print on demand")).toHaveCount(0);
 
   // Expand items — shows what was bought (product + size/colour + qty × price)
   await card.getByRole("button", { name: /View items/ }).click();
