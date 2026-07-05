@@ -44,7 +44,9 @@ export default defineConfig({
       // RESEND_API_KEY would email the store owner for every test order.
       // Values already present in the environment win over .env.local, so an
       // empty string here disables all order emails for the test server.
-      RESEND_API_KEY: "",
+      // Run with E2E_ALLOW_EMAILS=1 to send real order emails (e.g. to verify
+      // the notification path with a single test).
+      RESEND_API_KEY: process.env.E2E_ALLOW_EMAILS ? process.env.RESEND_API_KEY ?? "" : "",
     },
   },
 });
