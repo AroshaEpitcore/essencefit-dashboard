@@ -46,8 +46,11 @@ async function verifyToken(token: string, secret: string): Promise<{ role: strin
 
 export default async function proxy(req: NextRequest) {
   const token = req.cookies.get("ef_admin")?.value;
-  const secret = process.env.SESSION_SECRET || "essencefit-dev-secret-change-me";
-  const session = token ? await verifyToken(token, secret) : null;
+  // Fail closed in production: without a real secret no token can be trusted.
+  const secret =
+    process.env.SESSION_SECRET ||
+    (process.env.NODE_ENV === "production" ? "" : "essencefit-dev-secret-change-me");
+  const session = token && secret ? await verifyToken(token, secret) : null;
   const { pathname } = req.nextUrl;
 
   if (!session) {

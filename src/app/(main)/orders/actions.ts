@@ -342,10 +342,13 @@ async function validateAndReduceStock(
   }
 
   for (const r of resolved) {
-    await new sql.Request(tx)
+    // Guarded decrement — the WHERE re-checks stock under the UPDATE's row
+    // lock so concurrent orders can't oversell past the SELECT-time check.
+    const upd = await new sql.Request(tx)
       .input("Vid", UniqueIdentifier, r.stockVid)
       .input("Qty", Int, r.qty)
-      .query(`UPDATE ProductVariants SET Qty = Qty - @Qty WHERE Id = @Vid`);
+      .query(`UPDATE ProductVariants SET Qty = Qty - @Qty WHERE Id = @Vid AND Qty >= @Qty`);
+    if (!upd.rowsAffected[0]) throw new Error(`Not enough stock. In stock: ${r.prev}`);
     await logStock(tx, r.stockVid, -r.qty, reason, r.prev, r.price);
   }
 }

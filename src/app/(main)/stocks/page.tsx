@@ -396,7 +396,7 @@ export default function StocksPage() {
   }
 
   async function handleDelete(type: string, id: string) {
-    if (!confirm(`Delete this Rs.{type}?`)) return;
+    if (!confirm(`Delete this ${type}?`)) return;
     try {
       if (type === "category") await deleteCategory(id);
       if (type === "size") await deleteSize(id);

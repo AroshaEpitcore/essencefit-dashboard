@@ -89,7 +89,15 @@ function pickVariant(minQty: number, opts: { priceTimesQtyAtLeast?: number } = {
   const matches = catalog.filter(
     (x) =>
       x.size && x.color && !claimed.has(x.variantId) && x.qty >= minQty &&
-      (opts.priceTimesQtyAtLeast === undefined || x.price * minQty >= opts.priceTimesQtyAtLeast)
+      (opts.priceTimesQtyAtLeast === undefined || x.price * minQty >= opts.priceTimesQtyAtLeast) &&
+      // Skip size/colour combos that exist as DUPLICATE variant rows (live data
+      // has e.g. two "XL White" rows for one product; the PDP resolves the
+      // first — possibly zero-stock — row, so such combos aren't reliably buyable).
+      !catalog.some(
+        (y) =>
+          y.variantId !== x.variantId &&
+          y.productId === x.productId && y.size === x.size && y.color === x.color
+      )
   );
   // catalog is sorted by qty desc — qty-1 orders take the smallest adequate
   // variant so the deepest stock stays free for the free-delivery (bulk) test.
@@ -105,12 +113,29 @@ function refOf(orderId: string): string {
 
 /* ---------- UI helpers ---------- */
 
-async function addToCartViaPdp(page: Page, v: ShortsVariant, qty = 1) {
-  await page.goto(`/product/${v.slug}`);
-  if (v.color) await page.locator(`button[title="${v.color}"]`).first().click();
-  if (v.size) {
-    await page.getByRole("button", { name: sizeChip(v.size)!, exact: true }).first().click();
+/* Select colour+size on the PDP. Navigations use domcontentloaded (full `load`
+   hangs on slow CDN images), so the page may not be hydrated yet when we get
+   here — a click before hydration is silently lost. Retry each click until the
+   UI reflects the selection. */
+async function selectVariantOnPdp(page: Page, v: ShortsVariant) {
+  await page.goto(`/product/${v.slug}`, { waitUntil: "domcontentloaded" });
+  if (v.color) {
+    await expect(async () => {
+      await page.locator(`button[title="${v.color}"]`).first().click({ timeout: 2_000 });
+      await expect(page.getByText(`COLOUR: ${v.color}`).first()).toBeVisible({ timeout: 1_500 });
+    }).toPass({ timeout: 30_000 });
   }
+  if (v.size) {
+    const chip = page.getByRole("button", { name: sizeChip(v.size)!, exact: true }).first();
+    await expect(async () => {
+      await chip.click({ timeout: 2_000 });
+      await expect(chip).toHaveClass(/border-primary/, { timeout: 1_500 });
+    }).toPass({ timeout: 30_000 });
+  }
+}
+
+async function addToCartViaPdp(page: Page, v: ShortsVariant, qty = 1) {
+  await selectVariantOnPdp(page, v);
   // Availability line proves the exact variant (size+colour) is in stock.
   await expect(page.getByText(/In stock|Only \d+ left/).first()).toBeVisible();
   const stepper = page.locator("div.border-gray-300.rounded-full").first();
@@ -121,7 +146,7 @@ async function addToCartViaPdp(page: Page, v: ShortsVariant, qty = 1) {
 }
 
 async function goToCheckout(page: Page) {
-  await page.goto("/cart");
+  await page.goto("/cart", { waitUntil: "domcontentloaded" });
   await page.getByRole("link", { name: /Checkout/ }).click();
   await page.waitForURL(/\/checkout/);
 }
@@ -176,7 +201,7 @@ test("guest places a COD order for shorts — order, items, stock, logs, account
   await addToCartViaPdp(page, order1Variant, 1);
 
   // Cart shows the line with price and totals
-  await page.goto("/cart");
+  await page.goto("/cart", { waitUntil: "domcontentloaded" });
   await expect(page.getByText(order1Variant.productName).first()).toBeVisible();
 
   await goToCheckout(page);
@@ -249,7 +274,7 @@ test("guest places a COD order for shorts — order, items, stock, logs, account
 
 test("admin Website Orders shows who placed the order, with items", async ({ asAdmin }) => {
   const page = await asAdmin.newPage();
-  await page.goto("/web-orders");
+  await page.goto("/web-orders", { waitUntil: "domcontentloaded" });
 
   const card = adminOrderCard(page, order1Id);
   await expect(card).toBeVisible();
@@ -323,7 +348,7 @@ test("bank transfer requires a slip, uploads it, and the order carries it", asyn
 
 test("admin verifies the bank payment → Paid (sales created), back to Pending removes sales", async ({ asAdmin }) => {
   const page = await asAdmin.newPage();
-  await page.goto("/web-orders");
+  await page.goto("/web-orders", { waitUntil: "domcontentloaded" });
 
   // The unverified bank order shows under "Needs verification"
   await page.getByRole("button", { name: /Needs verification/ }).click();
@@ -361,7 +386,7 @@ test("logged-in customer places an order — linked to the same account, prefill
   const v = pickVariant(3);
 
   // Real login through the UI with the account created in case 1
-  await page.goto("/account/login");
+  await page.goto("/account/login", { waitUntil: "domcontentloaded" });
   await page.locator("#login-identifier").fill(guest.phone);
   await page.locator("#login-password").fill(guest.password);
   await page.getByRole("button", { name: "Sign in" }).click();
@@ -389,7 +414,7 @@ test("logged-in customer places an order — linked to the same account, prefill
   expect(order.deliveryfee).toBeCloseTo(expectedFee, 2);
 
   // My-orders page lists it
-  await page.goto("/account/orders");
+  await page.goto("/account/orders", { waitUntil: "domcontentloaded" });
   await expect(page.getByText(`#${refOf(order3Id)}`).first()).toBeVisible();
 });
 
@@ -462,7 +487,7 @@ test("order over the free-delivery threshold ships free; admin cancel restores s
 
   // Admin cancels → stock goes back to the pool
   const admin = await asAdmin.newPage();
-  await admin.goto("/web-orders");
+  await admin.goto("/web-orders", { waitUntil: "domcontentloaded" });
   const card = adminOrderCard(admin, orderId);
   await card.locator("select").selectOption("Canceled");
   await expect(admin.getByText("Status updated").first()).toBeVisible();
@@ -529,7 +554,7 @@ test("a fully out-of-stock shorts product cannot be added to the cart", async ({
   const oos = [...byProduct.values()].find((p) => p.total === 0);
   test.skip(!oos, "Every active shorts product currently has stock");
 
-  await page.goto(`/product/${oos!.slug}`);
+  await page.goto(`/product/${oos!.slug}`, { waitUntil: "domcontentloaded" });
   await expect(page.getByText("Out of stock").first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Add to cart" }).first()).toBeDisabled();
 });
@@ -545,8 +570,11 @@ test("a sold-out size/colour combination is disabled on the PDP", async ({ page 
   test.skip(!dead, "No sold-out size/colour combination available right now");
   const v = dead!;
 
-  await page.goto(`/product/${v.slug}`);
-  await page.locator(`button[title="${v.color}"]`).first().click();
+  await page.goto(`/product/${v.slug}`, { waitUntil: "domcontentloaded" });
+  await expect(async () => {
+    await page.locator(`button[title="${v.color}"]`).first().click({ timeout: 2_000 });
+    await expect(page.getByText(`COLOUR: ${v.color}`).first()).toBeVisible({ timeout: 1_500 });
+  }).toPass({ timeout: 30_000 });
   await expect(page.getByRole("button", { name: sizeChip(v.size)!, exact: true }).first()).toBeDisabled();
 });
 
@@ -555,13 +583,19 @@ test("a sold-out size/colour combination is disabled on the PDP", async ({ page 
  * ===================================================================== */
 
 test("PDP stepper and cart clamp the quantity to available stock", async ({ page }) => {
-  const low = catalog.find((x) => x.size && x.color && !claimed.has(x.variantId) && x.qty >= 1 && x.qty <= 4);
+  const low = catalog.find(
+    (x) =>
+      x.size && x.color && !claimed.has(x.variantId) && x.qty >= 1 && x.qty <= 4 &&
+      !catalog.some(
+        (y) =>
+          y.variantId !== x.variantId &&
+          y.productId === x.productId && y.size === x.size && y.color === x.color
+      )
+  );
   test.skip(!low, "No low-stock shorts variant available to exercise the clamp");
   const v = low!;
 
-  await page.goto(`/product/${v.slug}`);
-  await page.locator(`button[title="${v.color}"]`).first().click();
-  await page.getByRole("button", { name: sizeChip(v.size)!, exact: true }).first().click();
+  await selectVariantOnPdp(page, v);
 
   const stepper = page.locator("div.border-gray-300.rounded-full").first();
   for (let i = 0; i < v.qty + 3; i++) await stepper.locator("button").last().click();
@@ -570,7 +604,7 @@ test("PDP stepper and cart clamp the quantity to available stock", async ({ page
   await page.getByRole("button", { name: "Add to cart" }).first().click();
   await expect(page.getByText("Added to cart").first()).toBeVisible();
 
-  await page.goto("/cart");
+  await page.goto("/cart", { waitUntil: "domcontentloaded" });
   const cartStepper = page.locator("div.border-gray-300.rounded-full").first();
   await cartStepper.locator("button").last().click(); // try to exceed in the cart
   await expect(cartStepper.locator("span")).toHaveText(String(v.qty)); // still clamped

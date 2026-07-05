@@ -12,7 +12,12 @@ const COOKIE = "ef_customer";
 const MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
 function secret(): string {
-  return process.env.SESSION_SECRET || "essencefit-dev-secret-change-me";
+  const s = process.env.SESSION_SECRET;
+  if (!s && process.env.NODE_ENV === "production") {
+    // Fail closed: with the dev fallback an attacker could mint session tokens.
+    throw new Error("SESSION_SECRET is not set — refusing to sign/verify customer sessions.");
+  }
+  return s || "essencefit-dev-secret-change-me";
 }
 
 function sign(payload: string): string {
@@ -28,7 +33,13 @@ export function createToken(customerId: string): string {
 function verifyToken(token: string): string | null {
   const [b64, sig] = token.split(".");
   if (!b64 || !sig) return null;
-  if (sign(b64) !== sig) return null;
+  const expected = sign(b64);
+  if (
+    expected.length !== sig.length ||
+    !crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(sig))
+  ) {
+    return null;
+  }
   try {
     const data = JSON.parse(Buffer.from(b64, "base64url").toString());
     if (!data.cid || !data.exp || Date.now() > data.exp) return null;

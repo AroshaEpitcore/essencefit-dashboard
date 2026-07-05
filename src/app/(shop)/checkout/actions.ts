@@ -222,10 +222,16 @@ export async function createWebOrder(payload: WebOrderPayload): Promise<{ orderI
         `);
       const sv = vr.recordset[0];
       const prev = sv?.Qty ?? 0;
-      await new sql.Request(tx)
+      // Guarded decrement: `Qty >= @Qty` re-checks under the row lock the
+      // UPDATE takes, so two simultaneous checkouts can't both take the last
+      // unit (the earlier SELECT check alone is racy at Read Committed).
+      const upd = await new sql.Request(tx)
         .input("Vid", UniqueIdentifier, sv.StockVid)
         .input("Qty", Int, it.qty)
-        .query(`UPDATE ProductVariants SET Qty = Qty - @Qty WHERE Id = @Vid`);
+        .query(`UPDATE ProductVariants SET Qty = Qty - @Qty WHERE Id = @Vid AND Qty >= @Qty`);
+      if (!upd.rowsAffected[0]) {
+        throw new Error(`"${it.name}" just sold out — please adjust your cart and try again.`);
+      }
       await new sql.Request(tx)
         .input("VariantId", UniqueIdentifier, sv.StockVid)
         .input("ChangeQty", Int, -it.qty)

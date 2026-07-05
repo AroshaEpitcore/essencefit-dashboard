@@ -2,6 +2,7 @@
 
 import { requireAdmin } from "@/lib/adminAuth";
 
+import bcrypt from "bcryptjs";
 import { getDb } from "@/lib/db";
 
 // Fetch all users
@@ -17,8 +18,12 @@ export async function getUsers() {
 }
 
 // Add new user
-export async function addUser(username: string, email: string, passwordHash: string, role: string) {
+export async function addUser(username: string, email: string, password: string, role: string) {
   await requireAdmin();
+  if (!password || password.length < 6) throw new Error("Password must be at least 6 characters.");
+  // Hash here — this used to store the raw password in PasswordHash, which
+  // both leaked it and made login impossible (login bcrypt-compares).
+  const passwordHash = await bcrypt.hash(password, 10);
   const pool = await getDb();
   const result = await pool.request()
     .input("username", username)

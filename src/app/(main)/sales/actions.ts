@@ -101,16 +101,17 @@ export async function sellStock(variantId: string, qty: number, sellingPrice: nu
         VALUES (@vid, @qty, @price, @cost)
       `);
 
-    // reduce stock
-    await tx
+    // reduce stock — guarded so a concurrent sale can't take it below zero
+    const upd = await tx
       .request()
       .input("vid", sql.UniqueIdentifier, variantId)
       .input("qty", sql.Int, qty)
       .query(`
-        UPDATE ProductVariants 
+        UPDATE ProductVariants
         SET Qty = Qty - @qty
-        WHERE Id=@vid
+        WHERE Id=@vid AND Qty >= @qty
       `);
+    if (!upd.rowsAffected[0]) throw new Error("Not enough stock for this sale.");
 
     await tx.commit();
   } catch (err) {

@@ -19,7 +19,12 @@ const MAX_AGE = 60 * 60 * 24 * 7; // 7 days
 export type AdminSession = { Id: string; Username: string; Role: string };
 
 function secret(): string {
-  return process.env.SESSION_SECRET || "essencefit-dev-secret-change-me";
+  const s = process.env.SESSION_SECRET;
+  if (!s && process.env.NODE_ENV === "production") {
+    // Fail closed: with the dev fallback an attacker could mint admin tokens.
+    throw new Error("SESSION_SECRET is not set — refusing to sign/verify admin sessions.");
+  }
+  return s || "essencefit-dev-secret-change-me";
 }
 
 function sign(payload: string): string {

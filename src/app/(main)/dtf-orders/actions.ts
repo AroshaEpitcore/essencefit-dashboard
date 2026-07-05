@@ -107,10 +107,14 @@ export async function confirmDtfOrder(id: string) {
       const stockVid = v?.StockVid;
       if (o.Qty > stock) throw new Error(`Not enough stock — only ${stock} of the chosen variant in stock.`);
 
-      await new sql.Request(tx)
+      // Guarded decrement — re-checks stock under the UPDATE's row lock
+      const upd = await new sql.Request(tx)
         .input("Vid", UniqueIdentifier, stockVid)
         .input("Qty", Int, o.Qty)
-        .query(`UPDATE ProductVariants SET Qty = Qty - @Qty WHERE Id=@Vid`);
+        .query(`UPDATE ProductVariants SET Qty = Qty - @Qty WHERE Id=@Vid AND Qty >= @Qty`);
+      if (!upd.rowsAffected[0]) {
+        throw new Error(`Not enough stock — only ${stock} of the chosen variant in stock.`);
+      }
 
       await new sql.Request(tx)
         .input("VariantId", UniqueIdentifier, stockVid)
