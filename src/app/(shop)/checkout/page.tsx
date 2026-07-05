@@ -125,8 +125,11 @@ export default function CheckoutPage() {
         items: items.map((i) => ({ variantId: i.variantId, qty: i.qty })),
       });
       clear();
-      router.push(`/order/${orderId}?placed=1`);
-      router.refresh(); // re-render the (shop) layout so the navbar reflects the new session
+      // Full navigation on purpose: router.push + router.refresh() here raced —
+      // the refresh cancelled the in-flight push and left the buyer stuck on
+      // "Placing order..." even though the order was created. A document load
+      // both commits reliably and re-renders the navbar with the new session.
+      window.location.assign(`/order/${orderId}?placed=1`);
     } catch (e: any) {
       toast.error(e.message || "Could not place order");
       setPlacing(false);

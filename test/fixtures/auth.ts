@@ -1,8 +1,9 @@
 import crypto from "node:crypto";
 import { test as base, type BrowserContext } from "@playwright/test";
 
-/* Mirror of src/lib/customerAuth.ts token format so E2E/integration tests can
-   mint a valid `ef_customer` session cookie deterministically. */
+/* Mirror of src/lib/customerAuth.ts token format so tests can mint a valid
+   `ef_customer` session cookie deterministically (SESSION_SECRET comes from
+   .env.local via playwright.config.ts). */
 const MAX_AGE = 60 * 60 * 24 * 30;
 function secret(): string {
   return process.env.SESSION_SECRET || "test-secret";
@@ -16,41 +17,40 @@ export function mintCustomerCookie(customerId: string): string {
   return `${b64}.${sign(b64)}`;
 }
 
-export const SEED_ADMIN = {
+export async function loginContextAsCustomer(context: BrowserContext, baseURL: string, customerId: string) {
+  const host = new URL(baseURL).hostname;
+  await context.addCookies([
+    {
+      name: "ef_customer",
+      value: mintCustomerCookie(customerId),
+      domain: host,
+      path: "/",
+      httpOnly: true,
+      sameSite: "Lax",
+    },
+  ]);
+}
+
+/* Admin auth is localStorage-only (src/lib/useAuth.ts + (main)/layout.tsx) —
+   seeding `authUser` before any page loads is exactly what the real login
+   page does, no server session involved. */
+export const TEST_ADMIN = {
   Id: "AAAAAAAA-0000-0000-0000-000000000001",
-  Username: "admin",
-  Email: "admin@test.local",
+  Username: "autotest-admin",
+  Email: "autotest-admin@test.local",
   Role: "Admin",
 };
-export const SEED_CUSTOMER_ID = "CCCCCCCC-0000-0000-0000-000000000001";
 
 type Fixtures = {
-  /** Context pre-authenticated as the seeded storefront customer (cookie). */
-  asCustomer: BrowserContext;
-  /** Context pre-authenticated as the seeded admin (localStorage authUser). */
+  /** Context pre-authenticated as an admin (localStorage authUser). */
   asAdmin: BrowserContext;
 };
 
 export const test = base.extend<Fixtures>({
-  asCustomer: async ({ context, baseURL }, use) => {
-    const host = new URL(baseURL || "http://localhost:3100").hostname;
-    await context.addCookies([
-      {
-        name: "ef_customer",
-        value: mintCustomerCookie(SEED_CUSTOMER_ID),
-        domain: host,
-        path: "/",
-        httpOnly: true,
-        sameSite: "Lax",
-      },
-    ]);
-    await use(context);
-  },
   asAdmin: async ({ context }, use) => {
-    // Admin auth is localStorage-only (src/lib/useAuth.ts) — seed it before any page loads.
     await context.addInitScript((user) => {
       window.localStorage.setItem("authUser", JSON.stringify(user));
-    }, SEED_ADMIN);
+    }, TEST_ADMIN);
     await use(context);
   },
 });
