@@ -11,12 +11,10 @@ import FeedbackSection from "@/components/shop/FeedbackSection";
 import Hero from "@/components/shop/Hero";
 import { SITE_NAME } from "@/lib/seo";
 
-// Intended as ISR (regenerate in the background at most once every 60s)
-// to cut response time. Currently NOT effective: (shop)/layout.tsx reads
-// cookies() via getCurrentCustomer() for the header's login state, and any
-// dynamic API used in a route's tree forces the whole route to render on
-// every request, silently overriding this. Will start working once that
-// customer-session check moves to a client-side fetch instead.
+// ISR: regenerate in the background at most once every 60s. This works only
+// because NOTHING in this route's tree reads cookies() — the header's login
+// state is fetched client-side by AccountMenu. Adding a cookies()/headers()
+// call anywhere in (shop)/layout.tsx or this page silently disables it again.
 export const revalidate = 60;
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -38,9 +36,9 @@ export default async function HomePage() {
     getDeals(8),
     getNewProducts(8),
     getNewArrivals(12),
-    getLatestReviews(12),
+    getLatestReviews(100),
     getLatestGalleryItems(100),
-    getLatestFeedback(10),
+    getLatestFeedback(100),
   ]);
 
   // Weekly MVP = newest product, with the PDP buy-box data (variants/images/rating).
