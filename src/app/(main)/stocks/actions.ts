@@ -5,6 +5,11 @@ import { requireAdmin } from "@/lib/adminAuth";
 import { getDb } from "@/lib/db";
 import { sortBySize, sizeRank } from "@/lib/sizeOrder";
 
+// Money/stock mutations return the reason as data — Next.js strips thrown
+// server-action Error messages in production. These functions are non-
+// transactional straight-line writes, so validation failures return early.
+type StockResult = { ok: true } | { ok: false; error: string };
+
 // ---------- LOOKUPS ----------
 export async function getLookups() {
   await requireAdmin();
@@ -141,7 +146,7 @@ export async function addProduct(
   oneOff: boolean = false,
   qty: number = 0,
   utilities: number = 0
-) {
+): Promise<StockResult> {
   await requireAdmin();
   const pool = await getDb();
   const sku = `${name.replace(/\s+/g, "-").toUpperCase()}-${Date.now()}`;
@@ -178,6 +183,7 @@ export async function addProduct(
         .query("INSERT INTO StockHistory (VariantId, ChangeQty, Reason, PreviousQty, NewQty, PriceAtChange, CreatedAt) VALUES (@VariantId, @ChangeQty, 'stock-add', @PreviousQty, @NewQty, @SellingPrice, now())");
     }
   }
+  return { ok: true };
 }
 export async function updateProduct(id: string, name: string, cost: number, sell: number, utilities: number = 0) {
   await requireAdmin();
@@ -218,7 +224,7 @@ export async function quickStock(
   costPrice: number,
   sellingPrice: number,
   action: "add" | "remove"
-) {
+): Promise<StockResult> {
   await requireAdmin();
   const pool = await getDb();
 
@@ -258,7 +264,7 @@ export async function quickStock(
   // Prevent negative stock
   const newQty = prevQty + changeQty;
   if (newQty < 0) {
-    throw new Error(`Cannot remove ${qty} units — only ${prevQty} in stock.`);
+    return { ok: false, error: `Cannot remove ${qty} units — only ${prevQty} in stock.` };
   }
 
   // Update ProductVariants table with both Cost and Selling prices
@@ -291,6 +297,7 @@ export async function quickStock(
       (VariantId, ChangeQty, Reason, PreviousQty, NewQty, PriceAtChange, CreatedAt)
       VALUES (@VariantId, @ChangeQty, @Reason, @PreviousQty, @NewQty, @SellingPrice, now())
     `);
+  return { ok: true };
 }
 
 // ---------- GET STOCK ITEMS ----------
@@ -339,7 +346,7 @@ export async function transferStock(
   fromSellOverride: number = 0,
   toCostOverride: number = 0,
   toSellOverride: number = 0
-) {
+): Promise<StockResult> {
   await requireAdmin();
   const pool = await getDb();
 
@@ -354,9 +361,9 @@ export async function transferStock(
     );
 
   const fromVariant = fromCheck.recordset[0];
-  if (!fromVariant) throw new Error("Source variant not found in stock.");
+  if (!fromVariant) return { ok: false, error: "Source variant not found in stock." };
   if (fromVariant.Qty < qty)
-    throw new Error(`Cannot transfer ${qty} — only ${fromVariant.Qty} available.`);
+    return { ok: false, error: `Cannot transfer ${qty} — only ${fromVariant.Qty} available.` };
 
   const fromCostPrice = fromCostOverride > 0 ? fromCostOverride : fromVariant.CostPrice;
   const fromSellPrice = fromSellOverride > 0 ? fromSellOverride : fromVariant.SellingPrice;
@@ -447,13 +454,14 @@ export async function transferStock(
     .query(
       "INSERT INTO StockHistory (VariantId, ChangeQty, Reason, PreviousQty, NewQty, PriceAtChange, CreatedAt) VALUES (@VariantId, @ChangeQty, 'transfer-in', @PreviousQty, @NewQty, @SellingPrice, now())"
     );
+  return { ok: true };
 }
 
 export async function updateVariantPrices(
   variantId: string,
   costPrice: number,
   sellingPrice: number
-) {
+): Promise<StockResult> {
   await requireAdmin();
   const pool = await getDb();
   
@@ -471,12 +479,13 @@ export async function updateVariantPrices(
     request.input("SellingPrice", sellingPrice);
   }
   
-  if (updates.length === 0) return;
-  
+  if (updates.length === 0) return { ok: true };
+
   await request.query(`
-    UPDATE ProductVariants 
+    UPDATE ProductVariants
     SET ${updates.join(", ")}
     WHERE Id = @Id
   `);
+  return { ok: true };
 }
 

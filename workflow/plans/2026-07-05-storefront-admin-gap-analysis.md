@@ -144,7 +144,7 @@ Convert these actions **and their page call sites** (toast the returned `error`)
 
 ### Success Criteria
 #### Automated
-- [ ] `npx tsc --noEmit` · build · `npx playwright test` (admin verify→Paid & cancel-restock flows exercise the converted wrappers)
+- [x] `npx tsc --noEmit` · build · `npx playwright test` (admin verify→Paid & cancel-restock flows exercise the converted wrappers) — tsc + build clean, 21/21 passed, AutoTest orders cleaned up — verified 2026-07-11
 #### Manual
 - [ ] Try deleting the last Admin → the real message shows; sell more stock than exists on `/sales` → "Not enough stock…" shows; kill `DATABASE_URL` locally → branded error page instead of the Next default
 

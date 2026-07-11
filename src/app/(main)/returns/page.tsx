@@ -114,7 +114,8 @@ export default function ReturnsPage() {
     }
 
     try {
-      await createSalesReturn(selectedOrderId, reason, items);
+      const res = await createSalesReturn(selectedOrderId, reason, items);
+      if (!res.ok) throw new Error(res.error);
       toast.success("Return saved");
       setItems([]);
       setReason("");

@@ -6,6 +6,15 @@ import { getDb } from "@/lib/db";
 import sql, { NVarChar, UniqueIdentifier, Int, Decimal, Transaction } from "@/lib/sqlShim";
 import { sendOrderNotification, sendCustomerStatusUpdate } from "@/lib/orderNotify";
 import { sortBySize } from "@/lib/sizeOrder";
+import { UserFacingError, userErrorMessage } from "@/lib/userError";
+
+/* Money-path mutations RETURN { ok, error } instead of throwing, because
+   Next.js strips thrown Error messages from server actions in production —
+   an admin would otherwise see a generic error instead of "Not enough stock.
+   In stock: 2". Real bugs still throw (and stay masked — that's fine). */
+type ActionResult<T = object> =
+  | ({ ok: true } & T)
+  | { ok: false; error: string };
 
 type OrderStatus = "Pending" | "Paid" | "Partial" | "Completed" | "Canceled";
 export type OrderRange = "today" | "yesterday" | "last7" | "last30" | "all";
@@ -337,7 +346,7 @@ async function validateAndReduceStock(
     const v = await resolveStock(tx, it.VariantId);
     if (v?.IsPOD) continue; // print-on-demand: made to order, never reserves stock
     const inStock = v?.Qty ?? 0;
-    if (it.Qty > inStock) throw new Error(`Not enough stock. In stock: ${inStock}`);
+    if (it.Qty > inStock) throw new UserFacingError(`Not enough stock. In stock: ${inStock}`);
     resolved.push({ stockVid: v!.StockVid!, prev: inStock, price: v!.SellingPrice ?? 0, qty: it.Qty });
   }
 
@@ -348,7 +357,7 @@ async function validateAndReduceStock(
       .input("Vid", UniqueIdentifier, r.stockVid)
       .input("Qty", Int, r.qty)
       .query(`UPDATE ProductVariants SET Qty = Qty - @Qty WHERE Id = @Vid AND Qty >= @Qty`);
-    if (!upd.rowsAffected[0]) throw new Error(`Not enough stock. In stock: ${r.prev}`);
+    if (!upd.rowsAffected[0]) throw new UserFacingError(`Not enough stock. In stock: ${r.prev}`);
     await logStock(tx, r.stockVid, -r.qty, reason, r.prev, r.price);
   }
 }
@@ -506,9 +515,9 @@ async function deleteSalesForOrder(tx: Transaction, orderId: string) {
 
 /* ---------- CREATE Order ---------- */
 
-export async function createOrder(payload: OrderPayload) {
+export async function createOrder(payload: OrderPayload): Promise<ActionResult<{ OrderId: string }>> {
   await requireAdmin();
-  if (!payload.Items?.length) throw new Error("No items in order.");
+  if (!payload.Items?.length) return { ok: false, error: "No items in order." };
 
   const pool = await getDb();
   const tx = new Transaction(pool);
@@ -639,16 +648,20 @@ export async function createOrder(payload: OrderPayload) {
       }
     }
 
-    return { OrderId: orderId };
+    return { ok: true, OrderId: orderId };
   } catch (err) {
     try { await tx.rollback(); } catch {}
+    const msg = userErrorMessage(err);
+    if (msg) return { ok: false, error: msg };
     throw err;
   }
 }
 
 /* ---------- UPDATE Order Status ---------- */
 
-export async function updateOrderStatus(orderId: string, newStatus: OrderStatus) {
+// Throwing core — internal/external callers that want to wrap their own result
+// (web-orders) call this; the exported wrapper below returns { ok, error }.
+export async function updateOrderStatusCore(orderId: string, newStatus: OrderStatus) {
   await requireAdmin();
   const pool = await getDb();
   const tx = new Transaction(pool);
@@ -737,11 +750,27 @@ export async function updateOrderStatus(orderId: string, newStatus: OrderStatus)
   }
 }
 
+// Exported wrapper — returns the reason (e.g. re-deducting stock on reactivate
+// fails) as data so the admin toast shows it instead of a masked error.
+export async function updateOrderStatus(
+  orderId: string,
+  newStatus: OrderStatus
+): Promise<ActionResult> {
+  try {
+    await updateOrderStatusCore(orderId, newStatus);
+    return { ok: true };
+  } catch (err) {
+    const msg = userErrorMessage(err);
+    if (msg) return { ok: false, error: msg };
+    throw err;
+  }
+}
+
 /* ---------- EDIT Order ---------- */
 
-export async function updateOrder(orderId: string, payload: OrderPayload) {
+export async function updateOrder(orderId: string, payload: OrderPayload): Promise<ActionResult> {
   await requireAdmin();
-  if (!payload.Items?.length) throw new Error("No items in order.");
+  if (!payload.Items?.length) return { ok: false, error: "No items in order." };
 
   const pool = await getDb();
   const tx = new Transaction(pool);
@@ -837,16 +866,18 @@ export async function updateOrder(orderId: string, payload: OrderPayload) {
     }
 
     await tx.commit();
-    return true;
+    return { ok: true };
   } catch (err) {
     try { await tx.rollback(); } catch {}
+    const msg = userErrorMessage(err);
+    if (msg) return { ok: false, error: msg };
     throw err;
   }
 }
 
 /* ---------- DELETE Order ---------- */
 
-export async function deleteOrder(orderId: string) {
+export async function deleteOrder(orderId: string): Promise<ActionResult> {
   await requireAdmin();
   const pool = await getDb();
   const tx = new Transaction(pool);
@@ -875,9 +906,11 @@ export async function deleteOrder(orderId: string) {
       .query(`DELETE FROM Orders WHERE Id=@Id`);
 
     await tx.commit();
-    return true;
+    return { ok: true };
   } catch (err) {
     try { await tx.rollback(); } catch {}
+    const msg = userErrorMessage(err);
+    if (msg) return { ok: false, error: msg };
     throw err;
   }
 }

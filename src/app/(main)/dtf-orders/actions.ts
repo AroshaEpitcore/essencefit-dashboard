@@ -3,8 +3,11 @@
 import { requireAdmin } from "@/lib/adminAuth";
 
 import { getDb, sql } from "@/lib/db";
+import { UserFacingError, userErrorMessage } from "@/lib/userError";
 
 const { UniqueIdentifier, NVarChar, Int, Decimal } = sql;
+
+type DtfResult = { ok: true } | { ok: false; error: string };
 
 export type DtfOrderStatus =
   | "Pending"
@@ -80,7 +83,7 @@ export async function updateDtfOrderPricing(
   finalTotal: number | null,
   advanceAmount: number | null,
   adminNote: string | null
-) {
+): Promise<DtfResult> {
   await requireAdmin();
   const pool = await getDb();
   await pool
@@ -92,11 +95,11 @@ export async function updateDtfOrderPricing(
     .query(`UPDATE DtfOrders SET FinalTotal=@FinalTotal, AdvanceAmount=@AdvanceAmount, AdminNote=@AdminNote WHERE Id=@Id`);
 
   await syncDtfOrderSales(() => pool.request(), id);
-  return true;
+  return { ok: true };
 }
 
 /* ---------- Confirm (reserve stock) ---------- */
-export async function confirmDtfOrder(id: string) {
+export async function confirmDtfOrder(id: string): Promise<DtfResult> {
   await requireAdmin();
   const pool = await getDb();
   const tx = new sql.Transaction(pool);
@@ -107,8 +110,8 @@ export async function confirmDtfOrder(id: string) {
       .input("Id", UniqueIdentifier, id)
       .query(`SELECT Status, StockDeducted, VariantId, Qty FROM DtfOrders WHERE Id=@Id LIMIT 1 FOR UPDATE`);
     const o = r.recordset[0];
-    if (!o) throw new Error("DTF order not found");
-    if (o.Status === "Canceled") throw new Error("This order is canceled.");
+    if (!o) throw new UserFacingError("DTF order not found.");
+    if (o.Status === "Canceled") throw new UserFacingError("This order is canceled.");
 
     // Deduct stock once, only if a variant was chosen and not already deducted.
     if (o.VariantId && !o.StockDeducted) {
@@ -120,7 +123,7 @@ export async function confirmDtfOrder(id: string) {
       const v = vr.recordset[0];
       const stock = v?.Qty ?? 0;
       const stockVid = v?.StockVid;
-      if (o.Qty > stock) throw new Error(`Not enough stock — only ${stock} of the chosen variant in stock.`);
+      if (o.Qty > stock) throw new UserFacingError(`Not enough stock — only ${stock} of the chosen variant in stock.`);
 
       // Guarded decrement — re-checks stock under the UPDATE's row lock
       const upd = await new sql.Request(tx)
@@ -128,7 +131,7 @@ export async function confirmDtfOrder(id: string) {
         .input("Qty", Int, o.Qty)
         .query(`UPDATE ProductVariants SET Qty = Qty - @Qty WHERE Id=@Vid AND Qty >= @Qty`);
       if (!upd.rowsAffected[0]) {
-        throw new Error(`Not enough stock — only ${stock} of the chosen variant in stock.`);
+        throw new UserFacingError(`Not enough stock — only ${stock} of the chosen variant in stock.`);
       }
 
       await new sql.Request(tx)
@@ -148,9 +151,11 @@ export async function confirmDtfOrder(id: string) {
               ConfirmedAt=COALESCE(ConfirmedAt, now()) WHERE Id=@Id`);
 
     await tx.commit();
-    return true;
+    return { ok: true };
   } catch (err) {
     try { await tx.rollback(); } catch {}
+    const msg = userErrorMessage(err);
+    if (msg) return { ok: false, error: msg };
     throw err;
   }
 }
@@ -219,7 +224,7 @@ async function syncDtfOrderSales(requestFactory: () => any, dtfOrderId: string) 
 }
 
 /* ---------- Status change (incl. Cancel → restore stock) ---------- */
-export async function setDtfOrderStatus(id: string, status: DtfOrderStatus) {
+export async function setDtfOrderStatus(id: string, status: DtfOrderStatus): Promise<DtfResult> {
   await requireAdmin();
   const pool = await getDb();
   const tx = new sql.Transaction(pool);
@@ -230,7 +235,7 @@ export async function setDtfOrderStatus(id: string, status: DtfOrderStatus) {
       .input("Id", UniqueIdentifier, id)
       .query(`SELECT Status, StockDeducted, VariantId, Qty FROM DtfOrders WHERE Id=@Id LIMIT 1 FOR UPDATE`);
     const o = r.recordset[0];
-    if (!o) throw new Error("DTF order not found");
+    if (!o) throw new UserFacingError("DTF order not found.");
 
     // Canceling a stock-reserved order restores it exactly once.
     if (status === "Canceled" && o.StockDeducted && o.VariantId) {
@@ -269,9 +274,11 @@ export async function setDtfOrderStatus(id: string, status: DtfOrderStatus) {
     await syncDtfOrderSales(() => new sql.Request(tx), id);
 
     await tx.commit();
-    return true;
+    return { ok: true };
   } catch (err) {
     try { await tx.rollback(); } catch {}
+    const msg = userErrorMessage(err);
+    if (msg) return { ok: false, error: msg };
     throw err;
   }
 }

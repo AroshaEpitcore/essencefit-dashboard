@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/adminAuth";
 import { getDb } from "@/lib/db";
 import sql from "@/lib/sqlShim";
 import { sortBySize } from "@/lib/sizeOrder";
+import { UserFacingError, userErrorMessage } from "@/lib/userError";
 
 export async function getLookups() {
   await requireAdmin();
@@ -58,7 +59,11 @@ export async function getVariantsByProductAndSize(productId: string, sizeId: str
   return res.recordset;
 }
 
-export async function sellStock(variantId: string, qty: number, sellingPrice: number) {
+export async function sellStock(
+  variantId: string,
+  qty: number,
+  sellingPrice: number
+): Promise<{ ok: true } | { ok: false; error: string }> {
   await requireAdmin();
   const pool = await getDb();
   const tx = new sql.Transaction(pool);
@@ -70,8 +75,8 @@ export async function sellStock(variantId: string, qty: number, sellingPrice: nu
       .request()
       .input("vid", sql.UniqueIdentifier, variantId)
       .query(`SELECT Qty FROM ProductVariants WHERE Id=@vid`);
-    if (check.recordset.length === 0) throw new Error("Variant not found");
-    if (check.recordset[0].Qty < qty) throw new Error("Not enough stock");
+    if (check.recordset.length === 0) throw new UserFacingError("Variant not found");
+    if (check.recordset[0].Qty < qty) throw new UserFacingError(`Not enough stock. In stock: ${check.recordset[0].Qty}`);
 
     // real unit cost: prefer the resolved stock (blank) variant's own
     // CostPrice, else the product's, plus the product's Utilities
@@ -111,11 +116,14 @@ export async function sellStock(variantId: string, qty: number, sellingPrice: nu
         SET Qty = Qty - @qty
         WHERE Id=@vid AND Qty >= @qty
       `);
-    if (!upd.rowsAffected[0]) throw new Error("Not enough stock for this sale.");
+    if (!upd.rowsAffected[0]) throw new UserFacingError("Not enough stock for this sale.");
 
     await tx.commit();
+    return { ok: true };
   } catch (err) {
     await tx.rollback();
+    const msg = userErrorMessage(err);
+    if (msg) return { ok: false, error: msg };
     throw err;
   }
 }

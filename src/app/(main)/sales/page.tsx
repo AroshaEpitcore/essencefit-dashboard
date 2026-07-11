@@ -76,7 +76,8 @@ export default function SalesPage() {
 
   async function handleSell(v: any, qty: number) {
     try {
-      await sellStock(v.Id, qty, v._sellPrice || v.SellingPrice);
+      const res = await sellStock(v.Id, qty, v._sellPrice || v.SellingPrice);
+      if (!res.ok) throw new Error(res.error);
       toast.success(`Sold ${qty} unit(s) at Rs ${v._sellPrice || v.SellingPrice}`);
       if (selectedProd && selectedSize) handleSizeChange(selectedSize);
     } catch (e: any) {

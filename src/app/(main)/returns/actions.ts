@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/adminAuth";
 import { getDb } from "@/lib/db";
 import sql from "@/lib/sqlShim";
 import { sortBySize } from "@/lib/sizeOrder";
+import { UserFacingError, userErrorMessage } from "@/lib/userError";
 
 /* ---------- Lookups ---------- */
 
@@ -99,11 +100,11 @@ export async function createSalesReturn(
   orderId: string,
   reason: string,
   items: { VariantId: string; Qty: number }[]
-) {
+): Promise<{ ok: true; returnId: string } | { ok: false; error: string }> {
   await requireAdmin();
-  if (!orderId) throw new Error("OrderId is required");
-  if (!items.length) throw new Error("No return items");
-  if (!reason?.trim()) throw new Error("Reason is required");
+  if (!orderId) return { ok: false, error: "Please select an order." };
+  if (!items.length) return { ok: false, error: "Add at least one item to return." };
+  if (!reason?.trim()) return { ok: false, error: "A reason is required." };
 
   const db = await getDb();
   const tx = new sql.Transaction(db);
@@ -117,7 +118,7 @@ export async function createSalesReturn(
       .query(`SELECT Id FROM Orders WHERE Id=@OrderId LIMIT 1`);
 
     if (check.recordset.length === 0) {
-      throw new Error("Invalid OrderId (order not found)");
+      throw new UserFacingError("That order no longer exists.");
     }
 
     // insert header
@@ -134,8 +135,8 @@ export async function createSalesReturn(
 
     // insert items + restock
     for (const it of items) {
-      if (!it.VariantId) throw new Error("VariantId missing");
-      if (!it.Qty || it.Qty <= 0) throw new Error("Qty must be > 0");
+      if (!it.VariantId) throw new UserFacingError("A return line is missing its product variant.");
+      if (!it.Qty || it.Qty <= 0) throw new UserFacingError("Return quantity must be greater than 0.");
 
       await new sql.Request(tx)
         .input("ReturnId", sql.UniqueIdentifier, returnId)
@@ -157,11 +158,13 @@ export async function createSalesReturn(
     }
 
     await tx.commit();
-    return { success: true, returnId };
+    return { ok: true, returnId };
   } catch (err) {
     try {
       await tx.rollback();
     } catch {}
+    const msg = userErrorMessage(err);
+    if (msg) return { ok: false, error: msg };
     throw err;
   }
 }

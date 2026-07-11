@@ -131,7 +131,9 @@ export default function StocksPage() {
         )
       );
 
-      await Promise.all(updatePromises);
+      const results = await Promise.all(updatePromises);
+      const bad = results.find((r) => !r.ok);
+      if (bad && !bad.ok) throw new Error(bad.error);
       toast.success(`Updated ${selectedVariants.size} items successfully!`);
       setShowBulkEdit(false);
       setBulkCostPrice("");
@@ -164,11 +166,12 @@ export default function StocksPage() {
   async function handleUpdateVariantPrices() {
     if (!editVariant) return;
     try {
-      await updateVariantPrices(
+      const res = await updateVariantPrices(
         editVariant.Id,
         Number(editVariant.CostPrice),
         Number(editVariant.SellingPrice)
       );
+      if (!res.ok) throw new Error(res.error);
       toast.success("Prices updated successfully!");
       setEditVariant(null);
       loadStockItems(); // Refresh the table
@@ -243,7 +246,7 @@ export default function StocksPage() {
   ) {
     try {
       setPendingRemove(true);
-      await quickStock(
+      const res = await quickStock(
         productId,
         sizeId,
         colorId,
@@ -252,6 +255,7 @@ export default function StocksPage() {
         sellingPrice,
         action
       );
+      if (!res.ok) throw new Error(res.error);
       toast.success(
         `Stock ${action === "add" ? "added" : "removed"} successfully!`
       );
@@ -335,7 +339,7 @@ export default function StocksPage() {
 
   async function handleAddProduct() {
     try {
-      await addProduct(
+      const res = await addProduct(
         selectedCat,
         pName,
         Number(pCost),
@@ -344,6 +348,7 @@ export default function StocksPage() {
         pOneOff ? Number(pOneOffQty) || 0 : 0,
         Number(pUtil) || 0
       );
+      if (!res.ok) throw new Error(res.error);
       toast.success(pOneOff ? "One-off product added with stock" : "Product added");
       setPName("");
       setPCost("");
@@ -425,7 +430,7 @@ export default function StocksPage() {
   async function performTransfer() {
     setPendingTransfer(true);
     try {
-      await transferStock(
+      const res = await transferStock(
         tFromProduct,
         tToProduct,
         tSize,
@@ -436,6 +441,7 @@ export default function StocksPage() {
         tToCost ? Number(tToCost) : 0,
         tToSell ? Number(tToSell) : 0
       );
+      if (!res.ok) throw new Error(res.error);
       toast.success("Stock transferred successfully!");
       setShowTransferConfirm(false);
       if (!lockTFromCat) { setTFromCat(""); setTFromProducts([]); }

@@ -14,7 +14,9 @@ export default function LoginPage() {
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     try {
-      const user = await loginUser(username, password);
+      const res = await loginUser(username, password);
+      if (!res.ok) throw new Error(res.error);
+      const user = res.user;
       toast.success(`Welcome back, ${user.Username}!`);
       localStorage.setItem("authUser", JSON.stringify(user));
       router.push("/dashboard");

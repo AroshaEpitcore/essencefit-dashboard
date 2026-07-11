@@ -87,7 +87,8 @@ export default function WebOrdersPage() {
   async function verify(id: string) {
     if (!confirm("Mark this bank-transfer payment as verified and set the order to Paid?")) return;
     try {
-      await verifyWebPayment(id);
+      const res = await verifyWebPayment(id);
+      if (!res.ok) throw new Error(res.error);
       toast.success("Payment verified — order marked Paid");
       load();
     } catch (e: any) {
@@ -97,7 +98,8 @@ export default function WebOrdersPage() {
 
   async function changeStatus(id: string, status: any) {
     try {
-      await setWebOrderStatus(id, status);
+      const res = await setWebOrderStatus(id, status);
+      if (!res.ok) throw new Error(res.error);
       toast.success("Status updated");
       load();
     } catch (e: any) {

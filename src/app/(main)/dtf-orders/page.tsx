@@ -190,12 +190,13 @@ function DetailModal({ id, onClose, onChanged }: { id: string; onClose: () => vo
   async function savePricing() {
     setBusy(true);
     try {
-      await updateDtfOrderPricing(
+      const res = await updateDtfOrderPricing(
         id,
         finalTotal.trim() === "" ? null : Number(finalTotal),
         advance.trim() === "" ? null : Number(advance),
         adminNote || null
       );
+      if (!res.ok) throw new Error(res.error);
       toast.success("Saved");
       await load();
       onChanged();
@@ -209,7 +210,8 @@ function DetailModal({ id, onClose, onChanged }: { id: string; onClose: () => vo
   async function confirm() {
     setBusy(true);
     try {
-      await confirmDtfOrder(id);
+      const res = await confirmDtfOrder(id);
+      if (!res.ok) throw new Error(res.error);
       toast.success("Confirmed — stock reserved");
       await load();
       onChanged();
@@ -223,7 +225,8 @@ function DetailModal({ id, onClose, onChanged }: { id: string; onClose: () => vo
   async function changeStatus(status: DtfOrderStatus) {
     setBusy(true);
     try {
-      await setDtfOrderStatus(id, status);
+      const res = await setDtfOrderStatus(id, status);
+      if (!res.ok) throw new Error(res.error);
       toast.success(`Status: ${status}`);
       await load();
       onChanged();

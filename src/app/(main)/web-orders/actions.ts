@@ -3,7 +3,8 @@
 import { requireAdmin } from "@/lib/adminAuth";
 
 import { getDb, sql } from "@/lib/db";
-import { updateOrderStatus, getOrderDetails } from "../orders/actions";
+import { updateOrderStatusCore, getOrderDetails } from "../orders/actions";
+import { userErrorMessage } from "@/lib/userError";
 
 const UNVERIFIED = `o.PaymentMethod = 'BankTransfer' AND o.PaymentVerified IS NOT TRUE`;
 
@@ -66,24 +67,38 @@ export async function getWebOrders(opts?: {
 
 // Mark a (bank-transfer) payment as verified and move the order to Paid,
 // which also creates the Sales rows via the shared order-status logic.
-export async function verifyWebPayment(orderId: string) {
+export async function verifyWebPayment(
+  orderId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
   await requireAdmin();
   const pool = await getDb();
-  await pool
-    .request()
-    .input("Id", sql.UniqueIdentifier, orderId)
-    .query(`UPDATE Orders SET PaymentVerified = true WHERE Id=@Id`);
-  await updateOrderStatus(orderId, "Paid");
-  return true;
+  try {
+    await pool
+      .request()
+      .input("Id", sql.UniqueIdentifier, orderId)
+      .query(`UPDATE Orders SET PaymentVerified = true WHERE Id=@Id`);
+    await updateOrderStatusCore(orderId, "Paid");
+    return { ok: true };
+  } catch (err) {
+    const msg = userErrorMessage(err);
+    if (msg) return { ok: false, error: msg };
+    throw err;
+  }
 }
 
 export async function setWebOrderStatus(
   orderId: string,
   status: "Pending" | "Paid" | "Partial" | "Completed" | "Canceled"
-) {
+): Promise<{ ok: true } | { ok: false; error: string }> {
   await requireAdmin();
-  await updateOrderStatus(orderId, status);
-  return true;
+  try {
+    await updateOrderStatusCore(orderId, status);
+    return { ok: true };
+  } catch (err) {
+    const msg = userErrorMessage(err);
+    if (msg) return { ok: false, error: msg };
+    throw err;
+  }
 }
 
 export async function getWebOrderDetails(orderId: string) {

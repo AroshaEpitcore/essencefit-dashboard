@@ -42,14 +42,17 @@ export default function UsersPage() {
       }
 
       if (editingId) {
-        await updateUser(editingId, form.Username!, form.Email!, form.Role || "Staff");
+        const res = await updateUser(editingId, form.Username!, form.Email!, form.Role || "Staff");
+        if (!res.ok) throw new Error(res.error);
         // Optional password reset — only when a new password was typed.
         if (form.Password) {
-          await updateUserPassword(editingId, form.Password);
+          const pw = await updateUserPassword(editingId, form.Password);
+          if (!pw.ok) throw new Error(pw.error);
         }
         toast.success(form.Password ? "User updated — password reset" : "User updated");
       } else {
-        await addUser(form.Username!, form.Email!, form.Password!, form.Role || "Staff");
+        const res = await addUser(form.Username!, form.Email!, form.Password!, form.Role || "Staff");
+        if (!res.ok) throw new Error(res.error);
         toast.success("User added");
       }
 
@@ -69,7 +72,8 @@ export default function UsersPage() {
   async function handleDelete(id: string) {
     if (!confirm("Are you sure you want to delete this user?")) return;
     try {
-      await deleteUser(id);
+      const res = await deleteUser(id);
+      if (!res.ok) throw new Error(res.error);
       toast.success("User deleted");
       refresh();
     } catch (e: any) {

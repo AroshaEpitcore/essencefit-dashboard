@@ -440,7 +440,8 @@ export default function OrdersPage() {
     try {
       const orderIds = Array.from(selectedOrders);
       for (const orderId of orderIds) {
-        await updateOrderStatus(orderId, bulkStatus);
+        const res = await updateOrderStatus(orderId, bulkStatus);
+        if (!res.ok) throw new Error(res.error);
       }
       toast.success(`Updated ${orderIds.length} orders to ${bulkStatus}`);
       clearSelection();
@@ -937,7 +938,8 @@ export default function OrdersPage() {
     };
 
     try {
-      await createOrder(payload);
+      const res = await createOrder(payload);
+      if (!res.ok) throw new Error(res.error);
       toast.success("Order saved");
       setLines([]);
       setCustomer("");
@@ -962,7 +964,8 @@ export default function OrdersPage() {
 
     try {
       setSavingStatus(orderId);
-      await updateOrderStatus(orderId, nextStatus);
+      const res = await updateOrderStatus(orderId, nextStatus);
+      if (!res.ok) throw new Error(res.error);
       toast.success("Status updated");
       const updateStatus = (prev: any[]) =>
         prev.map((ord) =>
@@ -1091,7 +1094,8 @@ export default function OrdersPage() {
     };
 
     try {
-      await updateOrder(editOrderId, payload);
+      const res = await updateOrder(editOrderId, payload);
+      if (!res.ok) throw new Error(res.error);
       toast.success("Order updated");
       // Clear cached details so accordion re-fetches fresh data
       setDetails((p) => {
@@ -1110,7 +1114,8 @@ export default function OrdersPage() {
 
   async function doDelete(orderId: string) {
     try {
-      await deleteOrder(orderId);
+      const res = await deleteOrder(orderId);
+      if (!res.ok) throw new Error(res.error);
       toast.success("Order deleted");
       setDeleteConfirmId(null);
       await loadRecent();
