@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useCart } from "./CartContext";
 import { useWishlist } from "./WishlistContext";
 import { useQuickView } from "./QuickView";
-import AccountMenu, { type NavCustomer } from "./AccountMenu";
+import AccountMenu from "./AccountMenu";
 import Marquee from "./Marquee";
 import { money } from "./format";
 import { quickSearch } from "@/app/(shop)/searchAction";
@@ -18,13 +18,11 @@ import type { StoreSettings } from "@/lib/storeSettings";
 export default function StoreHeader({
   settings,
   categories,
-  customer,
   featured,
   categoryProducts,
 }: {
   settings: StoreSettings;
   categories: StoreCategory[];
-  customer: NavCustomer;
   featured: StoreProduct[];
   categoryProducts: MegaProduct[];
 }) {
@@ -243,7 +241,7 @@ export default function StoreHeader({
               <Search className="w-6 h-6" />
             </button>
 
-            <AccountMenu customer={customer} iconCls={iconCls} />
+            <AccountMenu iconCls={iconCls} />
             <Link href="/wishlist" className={`relative ${iconCls}`} aria-label="Wishlist">
               <Heart className="w-6 h-6" />
               {wishCount > 0 && <span className="absolute -top-2 -right-2 bg-primary text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center">{wishCount}</span>}
@@ -356,7 +354,7 @@ export default function StoreHeader({
                               <Link href={`/product/${p.Slug}`} onClick={closeMenus} className="block w-full h-full">
                                 {p.ImageUrl ? (
                                   // eslint-disable-next-line @next/next/no-img-element
-                                  <img src={p.ImageUrl} alt={p.Name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                                  <img src={p.ImageUrl} alt={p.Name} loading="lazy" decoding="async" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm">No image</div>
                                 )}
@@ -430,7 +428,7 @@ export default function StoreHeader({
                           <div className="relative aspect-[4/5] rounded-lg bg-gray-100 overflow-hidden">
                             {p.ImageUrl ? (
                               // eslint-disable-next-line @next/next/no-img-element
-                              <img src={p.ImageUrl} alt={p.Name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                              <img src={p.ImageUrl} alt={p.Name} loading="lazy" decoding="async" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm">No image</div>
                             )}
@@ -544,7 +542,7 @@ export default function StoreHeader({
                               <div className="w-12 h-14 rounded-lg bg-gray-100 overflow-hidden shrink-0">
                                 {p.ImageUrl && (
                                   // eslint-disable-next-line @next/next/no-img-element
-                                  <img src={p.ImageUrl} alt={p.Name} className="w-full h-full object-cover" />
+                                  <img src={p.ImageUrl} alt={p.Name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                                 )}
                               </div>
                               <div className="min-w-0 flex-1">

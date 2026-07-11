@@ -52,7 +52,7 @@ export default function CartPage() {
                 <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-lg overflow-hidden bg-gray-100">
                   {it.image ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={it.image} alt={it.name} className="w-full h-full object-cover" />
+                    <img src={it.image} alt={it.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                   ) : null}
                 </div>
               </Link>

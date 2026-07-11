@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import { Shirt, X, FileText, MessageCircle, Check, Loader2, Package } from "lucide-react";
+import Pager from "@/components/ui/Pager";
 import {
   getDtfOrders,
   getDtfOrderDetails,
@@ -41,22 +42,34 @@ type Row = {
   DesignCount: number;
 };
 
+const PAGE_SIZE = 50;
+const STATUS_OPTIONS = ["", "Pending", "Confirmed", "InProduction", "Ready", "Completed", "Canceled"];
+
 export default function DtfOrdersPage() {
   const [rows, setRows] = useState<Row[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
   const [openId, setOpenId] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
     try {
-      setRows((await getDtfOrders()) as Row[]);
+      const d = await getDtfOrders({ limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE, status });
+      setRows(d.rows as Row[]);
+      setTotal(d.total);
     } catch {
       toast.error("Failed to load DTF orders");
     } finally {
       setLoading(false);
     }
   }
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, status]);
+  useEffect(() => { setPage(1); }, [status]);
 
   return (
     <div className="text-gray-900 dark:text-white">
@@ -70,6 +83,16 @@ export default function DtfOrdersPage() {
           <h1 className="text-xl font-bold">DTF Orders</h1>
           <p className="text-sm text-gray-500">Customer customization requests — confirm to reserve stock</p>
         </div>
+        <select
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          className="ml-auto p-2.5 rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-sm"
+          aria-label="Filter by status"
+        >
+          {STATUS_OPTIONS.map((s) => (
+            <option key={s || "all"} value={s}>{s || "All statuses"}</option>
+          ))}
+        </select>
       </div>
 
       {loading ? (
@@ -126,6 +149,7 @@ export default function DtfOrdersPage() {
               </tbody>
             </table>
           </div>
+          <Pager page={page} pageSize={PAGE_SIZE} total={total} onPage={setPage} />
         </div>
       )}
 

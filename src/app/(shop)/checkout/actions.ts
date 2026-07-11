@@ -71,6 +71,14 @@ export async function createWebOrder(
 
   const pool = await getDb();
   const config = await getCheckoutConfig();
+
+  // Server-side province check — the client validates too, but skips it in the
+  // brief window before the config loads; without this an order could slip
+  // through with the flat fee instead of the province fee.
+  if (config.deliveryProvinces.length > 0 && !payload.province?.trim()) {
+    return { ok: false, error: "Please select your province." };
+  }
+
   const tx = new sql.Transaction(pool);
 
   try {

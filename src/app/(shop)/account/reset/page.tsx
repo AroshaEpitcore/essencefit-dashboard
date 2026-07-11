@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import { LabeledInput } from "@/components/shop/LabeledInput";
 import { resetPassword } from "../actions";
 
-export default function ResetPasswordPage() {
+function ResetForm() {
   const router = useRouter();
   const sp = useSearchParams();
   const token = sp.get("token") || "";
@@ -69,5 +69,15 @@ export default function ResetPasswordPage() {
         <Link href="/account/forgot" className="text-primary font-medium hover:underline">Request a new one</Link>
       </p>
     </div>
+  );
+}
+
+/* useSearchParams needs a Suspense boundary now that the (shop) layout
+   is static (it no longer reads cookies, enabling home-page ISR). */
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={null}>
+      <ResetForm />
+    </Suspense>
   );
 }

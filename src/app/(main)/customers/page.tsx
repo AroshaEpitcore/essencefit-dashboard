@@ -8,21 +8,28 @@ import { formatPhone, cleanPhoneInput } from "@/lib/phoneMask";
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
   const [search, setSearch] = useState("");
+  const [debounced, setDebounced] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selected, setSelected] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [updating, setUpdating] = useState(false);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 50;
 
   async function load() {
     setLoading(true);
     try {
-      const data = await getCustomers();
-      setCustomers(data);
-    } catch (e: any) {
+      const data = await getCustomers({
+        limit: itemsPerPage,
+        offset: (currentPage - 1) * itemsPerPage,
+        search: debounced,
+      });
+      setCustomers(data.rows);
+      setTotal(data.total);
+    } catch {
       toast.error("Failed to load customers");
     } finally {
       setLoading(false);
@@ -31,24 +38,22 @@ export default function CustomersPage() {
 
   useEffect(() => {
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, debounced]);
 
-  const filtered = customers.filter(
-    (c) =>
-      c.Name.toLowerCase().includes(search.toLowerCase()) ||
-      (c.Phone && c.Phone.includes(search))
-  );
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(search), 400);
+    return () => clearTimeout(t);
+  }, [search]);
 
-  const totalPages = Math.ceil(filtered.length / itemsPerPage);
-  const paginatedCustomers = filtered.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  // Server-side paged + filtered
+  const totalPages = Math.max(1, Math.ceil(total / itemsPerPage));
+  const paginatedCustomers = customers;
 
   // Reset to page 1 when search changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [search]);
+  }, [debounced]);
 
 
   async function openDrawer(id: string) {
@@ -101,8 +106,7 @@ export default function CustomersPage() {
           <div>
             <h1 className="text-xl font-bold">Customers</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              {loading ? "Loading..." : `${customers.length} total customers`}
-              {search && filtered.length !== customers.length && ` (${filtered.length} matching)`}
+              {loading ? "Loading..." : search ? `${total} matching customers` : `${total} total customers`}
             </p>
           </div>
         </div>
@@ -197,10 +201,10 @@ export default function CustomersPage() {
         )}
 
         {/* Pagination */}
-        {!loading && filtered.length > 0 && (
+        {!loading && total > 0 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/30">
             <div className="text-sm text-gray-600 dark:text-gray-400">
-              Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filtered.length)} of {filtered.length} customers
+              Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, total)} of {total} customers
             </div>
             <div className="flex items-center gap-2">
               <button

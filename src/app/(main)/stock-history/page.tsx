@@ -5,6 +5,7 @@ import toast, { Toaster } from "react-hot-toast";
 import { getLookups } from "../stocks/actions";
 import { getStockHistory } from "./actions";
 import { Download, Filter, Layers, PlusCircle, MinusCircle, ArrowRightLeft } from "lucide-react";
+import Pager from "@/components/ui/Pager";
 
 type History = {
   Id: string;
@@ -36,12 +37,19 @@ export default function StockHistoryPage() {
     to: "",
   });
   const [data, setData] = useState<History[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
+  const PAGE_SIZE = 50;
 
   useEffect(() => {
     loadLookups();
-    loadHistory();
   }, []);
+
+  useEffect(() => {
+    loadHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
 
   async function loadLookups() {
     const d = await getLookups();
@@ -51,8 +59,9 @@ export default function StockHistoryPage() {
   async function loadHistory() {
     setLoading(true);
     try {
-      const res = await getStockHistory(filters);
-      setData(res);
+      const res = await getStockHistory(filters, { limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE });
+      setData(res.rows);
+      setTotal(res.total);
     } catch (e: any) {
       toast.error(e.message);
     } finally {
@@ -61,9 +70,11 @@ export default function StockHistoryPage() {
   }
 
   async function exportCSV() {
+    // Fresh fetch of the FILTERED set, capped at 5,000 rows.
+    const full = await getStockHistory(filters, { limit: 5000, offset: 0 });
     const rows = [
       ["Date", "Category", "Product", "Size", "Color", "Qty", "Action", "Prev Qty", "New Qty", "Price"],
-      ...data.map((r) => [
+      ...full.rows.map((r: History) => [
         new Date(r.CreatedAt).toLocaleString(),
         r.CategoryName,
         r.ProductName,
@@ -126,7 +137,7 @@ export default function StockHistoryPage() {
           />
 
           <button
-            onClick={loadHistory}
+            onClick={() => { if (page === 1) loadHistory(); else setPage(1); }}
             className="bg-primary hover:bg-primary/90 text-white px-4 py-3 rounded-lg flex items-center gap-2 justify-center"
           >
             <Filter className="w-4 h-4" /> Apply
@@ -134,6 +145,7 @@ export default function StockHistoryPage() {
 
           <button
             onClick={exportCSV}
+            title="Exports the filtered set (first 5,000 rows)"
             className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white px-4 py-3 rounded-lg flex items-center gap-2 justify-center"
           >
             <Download className="w-4 h-4" /> Export
@@ -220,6 +232,9 @@ export default function StockHistoryPage() {
             )}
           </tbody>
         </table>
+        {!loading && total > 0 && (
+          <Pager page={page} pageSize={PAGE_SIZE} total={total} onPage={setPage} />
+        )}
       </div>
     </div>
   );

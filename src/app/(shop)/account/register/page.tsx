@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import { LabeledInput } from "@/components/shop/LabeledInput";
 import { formatPhone, cleanPhoneInput } from "@/lib/phoneMask";
 import { registerCustomer } from "../actions";
 
-export default function CustomerRegisterPage() {
+function RegisterForm() {
   const router = useRouter();
   const sp = useSearchParams();
   const next = sp.get("next") || "/account";
@@ -65,5 +65,15 @@ export default function CustomerRegisterPage() {
         <Link href={`/account/login?next=${encodeURIComponent(next)}`} className="text-primary font-medium hover:underline">Sign in</Link>
       </p>
     </div>
+  );
+}
+
+/* useSearchParams needs a Suspense boundary now that the (shop) layout
+   is static (it no longer reads cookies, enabling home-page ISR). */
+export default function CustomerRegisterPage() {
+  return (
+    <Suspense fallback={null}>
+      <RegisterForm />
+    </Suspense>
   );
 }

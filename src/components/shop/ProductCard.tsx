@@ -64,6 +64,8 @@ export default function ProductCard({ p }: { p: StoreProduct }) {
               <img
                 src={baseImage}
                 alt={p.Name}
+                loading="lazy"
+                decoding="async"
                 className={`absolute inset-0 w-full h-full object-cover transition-all duration-500 group-hover:scale-105 ${hoverImage ? "group-hover:opacity-0" : ""}`}
               />
               {hoverImage && (
@@ -72,6 +74,8 @@ export default function ProductCard({ p }: { p: StoreProduct }) {
                   src={hoverImage}
                   alt=""
                   aria-hidden
+                  loading="lazy"
+                  decoding="async"
                   className="absolute inset-0 w-full h-full object-cover opacity-0 transition-all duration-500 group-hover:opacity-100 group-hover:scale-105"
                 />
               )}

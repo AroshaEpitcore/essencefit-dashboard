@@ -62,7 +62,15 @@ export default function Hero({ slides, storeName }: { slides: HeroSlide[]; store
             />
           ) : (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={slide.src} alt={slide.heading || storeName} className="w-full h-full object-cover" />
+            <img
+              src={slide.src}
+              alt={slide.heading || storeName}
+              // First slide paints above the fold — fetch it first; later
+              // slides can wait for the crossfade.
+              {...(idx === 0 ? { fetchPriority: "high" as const } : { loading: "lazy" as const })}
+              decoding="async"
+              className="w-full h-full object-cover"
+            />
           )}
         </div>
       ))}

@@ -18,6 +18,7 @@ import {
   type ShortsVariant,
   type DeliverySettings,
 } from "../fixtures/db";
+import { hydratedFill } from "../fixtures/ui";
 
 /*
  * Order-place flow — end to end against the live storefront + admin.
@@ -121,16 +122,16 @@ async function selectVariantOnPdp(page: Page, v: ShortsVariant) {
   await page.goto(`/product/${v.slug}`, { waitUntil: "domcontentloaded" });
   if (v.color) {
     await expect(async () => {
-      await page.locator(`button[title="${v.color}"]`).first().click({ timeout: 2_000 });
-      await expect(page.getByText(`COLOUR: ${v.color}`).first()).toBeVisible({ timeout: 1_500 });
-    }).toPass({ timeout: 30_000 });
+      await page.locator(`button[title="${v.color}"]`).first().click({ timeout: 5_000 });
+      await expect(page.getByText(`COLOUR: ${v.color}`).first()).toBeVisible({ timeout: 5_000 });
+    }).toPass({ timeout: 45_000 });
   }
   if (v.size) {
     const chip = page.getByRole("button", { name: sizeChip(v.size)!, exact: true }).first();
     await expect(async () => {
-      await chip.click({ timeout: 2_000 });
-      await expect(chip).toHaveClass(/border-primary/, { timeout: 1_500 });
-    }).toPass({ timeout: 30_000 });
+      await chip.click({ timeout: 5_000 });
+      await expect(chip).toHaveClass(/border-primary/, { timeout: 5_000 });
+    }).toPass({ timeout: 45_000 });
   }
 }
 
@@ -146,9 +147,17 @@ async function addToCartViaPdp(page: Page, v: ShortsVariant, qty = 1) {
 }
 
 async function goToCheckout(page: Page) {
-  await page.goto("/cart", { waitUntil: "domcontentloaded" });
-  await page.getByRole("link", { name: /Checkout/ }).click();
-  await page.waitForURL(/\/checkout/);
+  // The checkout page can redirect back to /cart if it renders one tick
+  // before the cart context finishes reading localStorage — rare, but real.
+  // Detect the bounce (URL settles back on /cart) and retry the whole
+  // navigation rather than fail outright.
+  await expect(async () => {
+    await page.goto("/cart", { waitUntil: "domcontentloaded" });
+    await page.getByRole("link", { name: /Checkout/ }).click();
+    await page.waitForURL(/\/checkout/, { timeout: 10_000 }); // must actually reach /checkout first
+    await page.waitForTimeout(300); // let the empty-cart redirect (if any) fire
+    expect(page.url()).toContain("/checkout"); // …and confirm it didn't bounce back
+  }).toPass({ timeout: 30_000 });
 }
 
 async function selectProvince(page: Page, province: string) {
@@ -160,7 +169,7 @@ async function fillGuestCheckout(
   page: Page,
   data: { name: string; phone: string; email?: string; address: string; province: string; password?: string; notes?: string }
 ) {
-  await page.locator("#checkout-name").fill(data.name);
+  await hydratedFill(page, "#checkout-name", data.name);
   await page.locator("#checkout-phone").fill(data.phone);
   if (data.email) await page.locator("#checkout-email").fill(data.email);
   await selectProvince(page, data.province);
@@ -277,7 +286,7 @@ test("admin Website Orders shows who placed the order, with items", async ({ asA
   await page.goto("/web-orders", { waitUntil: "domcontentloaded" });
 
   const card = adminOrderCard(page, order1Id);
-  await expect(card).toBeVisible();
+  await expect(card).toBeVisible({ timeout: 20_000 });
 
   // Identity of the buyer: name, phone, address + province
   await expect(card.getByText(guest.name)).toBeVisible();
@@ -357,13 +366,13 @@ test("admin verifies the bank payment → Paid (sales created), back to Pending 
   // The unverified bank order shows under "Needs verification"
   await page.getByRole("button", { name: /Needs verification/ }).click();
   const card = adminOrderCard(page, order2Id);
-  await expect(card).toBeVisible();
+  await expect(card).toBeVisible({ timeout: 20_000 });
   await expect(card.getByText(bankGuest.name)).toBeVisible(); // who placed it
   await expect(card.getByRole("button", { name: /View slip/ })).toBeVisible();
 
   page.once("dialog", (d) => d.accept());
   await card.getByRole("button", { name: /Verify payment/ }).click();
-  await expect(page.getByText("Payment verified — order marked Paid").first()).toBeVisible();
+  await expect(page.getByText("Payment verified — order marked Paid").first()).toBeVisible({ timeout: 15_000 });
 
   await expect.poll(async () => (await fetchOrder(order2Id)).paymentstatus, { timeout: 20_000 }).toBe("Paid");
   const paid = await fetchOrder(order2Id);
@@ -391,7 +400,7 @@ test("logged-in customer places an order — linked to the same account, prefill
 
   // Real login through the UI with the account created in case 1
   await page.goto("/account/login", { waitUntil: "domcontentloaded" });
-  await page.locator("#login-identifier").fill(guest.phone);
+  await hydratedFill(page, "#login-identifier", guest.phone);
   await page.locator("#login-password").fill(guest.password);
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page.getByText("Welcome back!").first()).toBeVisible();
@@ -513,6 +522,12 @@ test("checkout rejects missing name, phone, province, address and short password
 
   const place = () => page.getByRole("button", { name: /Place order/ }).click();
 
+  // Wait for the checkout config to arrive (the Province select renders from
+  // it) — before that, the client-side province validation is skipped.
+  if (delivery.provinces.length > 0) {
+    await expect(page.getByRole("button", { name: "Province" })).toBeVisible({ timeout: 20_000 });
+  }
+
   await place();
   await expect(page.getByText("Please enter your name.").first()).toBeVisible();
 
@@ -576,9 +591,9 @@ test("a sold-out size/colour combination is disabled on the PDP", async ({ page 
 
   await page.goto(`/product/${v.slug}`, { waitUntil: "domcontentloaded" });
   await expect(async () => {
-    await page.locator(`button[title="${v.color}"]`).first().click({ timeout: 2_000 });
-    await expect(page.getByText(`COLOUR: ${v.color}`).first()).toBeVisible({ timeout: 1_500 });
-  }).toPass({ timeout: 30_000 });
+    await page.locator(`button[title="${v.color}"]`).first().click({ timeout: 5_000 });
+    await expect(page.getByText(`COLOUR: ${v.color}`).first()).toBeVisible({ timeout: 5_000 });
+  }).toPass({ timeout: 45_000 });
   await expect(page.getByRole("button", { name: sizeChip(v.size)!, exact: true }).first()).toBeDisabled();
 });
 

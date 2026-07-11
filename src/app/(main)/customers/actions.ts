@@ -55,10 +55,21 @@ export async function upsertCustomer(
 /**
  * 🔹 Get all customers (with order stats)
  */
-export async function getCustomers() {
+export async function getCustomers(opts?: { limit?: number; offset?: number; search?: string }) {
   await requireAdmin();
+  const limit = Math.min(Math.max(opts?.limit ?? 50, 1), 200);
+  const offset = Math.max(opts?.offset ?? 0, 0);
+  const search = (opts?.search ?? "").trim();
   const db = await getDb();
-  const res = await db.request().query(`
+
+  const where = search ? `WHERE (Name ILIKE @Like OR Phone ILIKE @Like OR Email ILIKE @Like)` : "";
+  const like = `%${search}%`;
+
+  // Page the customers FIRST, then aggregate just that page's orders — the
+  // old query grouped every customer's orders on every load.
+  const listReq = db.request().input("Limit", sql.Int, limit).input("Offset", sql.Int, offset);
+  if (search) listReq.input("Like", sql.NVarChar(200), like);
+  const res = await listReq.query(`
     SELECT
       c.Id,
       c.Name,
@@ -70,12 +81,22 @@ export async function getCustomers() {
       COUNT(o.Id) AS OrderCount,
       SUM(CASE WHEN o.Source = 'web' THEN 1 ELSE 0 END) AS WebOrderCount,
       COALESCE(SUM(o.Total), 0) AS TotalSpent
-    FROM Customers c
+    FROM (
+      SELECT * FROM Customers
+      ${where}
+      ORDER BY CreatedAt DESC
+      LIMIT @Limit OFFSET @Offset
+    ) c
     LEFT JOIN Orders o ON o.CustomerId = c.Id
     GROUP BY c.Id, c.Name, c.Phone, c.Email, c.Address, c.CreatedAt, c.PasswordHash
     ORDER BY c.CreatedAt DESC
   `);
-  return res.recordset;
+
+  const countReq = db.request();
+  if (search) countReq.input("Like", sql.NVarChar(200), like);
+  const count = await countReq.query(`SELECT COUNT(*)::int AS "Total" FROM Customers ${where}`);
+
+  return { rows: res.recordset, total: Number(count.recordset[0]?.Total ?? 0) };
 }
 
 /**

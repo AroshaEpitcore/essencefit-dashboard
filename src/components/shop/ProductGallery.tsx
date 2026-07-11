@@ -95,7 +95,7 @@ export default function ProductGallery({ images, name }: { images: string[]; nam
                 }`}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={url} alt="" className="w-full h-full object-cover" />
+                <img src={url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
               </button>
             ))}
           </div>
@@ -113,6 +113,8 @@ export default function ProductGallery({ images, name }: { images: string[]; nam
                 src={url}
                 alt={`${name} ${i + 1}`}
                 onClick={() => open(i)}
+                {...(i === 0 ? { fetchPriority: "high" as const } : { loading: "lazy" as const })}
+                decoding="async"
                 className="w-full h-full object-cover cursor-zoom-in"
               />
             </div>
@@ -153,7 +155,7 @@ export default function ProductGallery({ images, name }: { images: string[]; nam
                 }`}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={url} alt="" className="w-full h-full object-cover" />
+                <img src={url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
               </button>
             ))}
           </div>

@@ -5,10 +5,31 @@ import { requireAdmin } from "@/lib/adminAuth";
 import { getDb, sql } from "@/lib/db";
 import { updateOrderStatus, getOrderDetails } from "../orders/actions";
 
-export async function getWebOrders() {
+const UNVERIFIED = `o.PaymentMethod = 'BankTransfer' AND o.PaymentVerified IS NOT TRUE`;
+
+export async function getWebOrders(opts?: {
+  limit?: number;
+  offset?: number;
+  search?: string;
+  unverifiedOnly?: boolean;
+}) {
   await requireAdmin();
+  const limit = Math.min(Math.max(opts?.limit ?? 50, 1), 200);
+  const offset = Math.max(opts?.offset ?? 0, 0);
+  const search = (opts?.search ?? "").trim();
   const pool = await getDb();
-  const res = await pool.request().query(`
+
+  const filters = [`o.Source = 'web'`];
+  if (search) {
+    filters.push(`(o.Customer ILIKE @Like OR o.CustomerPhone ILIKE @Like OR CAST(o.Id AS text) ILIKE @Like)`);
+  }
+  const searchWhere = "WHERE " + filters.join(" AND ");
+  const listWhere = opts?.unverifiedOnly ? `${searchWhere} AND (${UNVERIFIED})` : searchWhere;
+  const like = `%${search}%`;
+
+  const listReq = pool.request().input("Limit", sql.Int, limit).input("Offset", sql.Int, offset);
+  if (search) listReq.input("Like", sql.NVarChar(200), like);
+  const res = await listReq.query(`
     SELECT
       o.Id, o.Customer, o.CustomerPhone, o.SecondaryPhone, o.Address, o.Province, o.CustomerEmail,
       o.PaymentMethod, o.PaymentSlipUrl, o.PaymentVerified, o.PaymentStatus,
@@ -21,10 +42,26 @@ export async function getWebOrders() {
         WHERE oi.OrderId = o.Id AND p.PrintOnDemand = true
       ) AS HasPrintOnDemand
     FROM Orders o
-    WHERE o.Source = 'web'
+    ${listWhere}
     ORDER BY o.OrderDate DESC
+    LIMIT @Limit OFFSET @Offset
   `);
-  return res.recordset;
+
+  // Tab counts respect the search but not the active tab itself.
+  const countReq = pool.request();
+  if (search) countReq.input("Like", sql.NVarChar(200), like);
+  const counts = await countReq.query(`
+    SELECT COUNT(*)::int AS "Total",
+           COUNT(*) FILTER (WHERE ${UNVERIFIED})::int AS "UnverifiedTotal"
+    FROM Orders o
+    ${searchWhere}
+  `);
+
+  return {
+    rows: res.recordset,
+    total: Number(counts.recordset[0]?.Total ?? 0),
+    unverifiedTotal: Number(counts.recordset[0]?.UnverifiedTotal ?? 0),
+  };
 }
 
 // Mark a (bank-transfer) payment as verified and move the order to Paid,

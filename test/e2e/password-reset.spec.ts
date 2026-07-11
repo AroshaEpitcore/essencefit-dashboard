@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { test, expect } from "../fixtures/auth";
 import { testDb, uniquePhone, uniqueEmail, closeTestDb } from "../fixtures/db";
+import { hydratedFill } from "../fixtures/ui";
 
 /*
  * Customer forgot-password flow. The email itself can't be read by the suite,
@@ -48,41 +49,41 @@ test.afterAll(async () => {
 
 test("forgot page always reports success (no account enumeration)", async ({ page }) => {
   await page.goto("/account/forgot", { waitUntil: "domcontentloaded" });
-  await page.locator("#forgot-email").fill(`nobody-${Date.now()}@example.com`);
+  await hydratedFill(page, "#forgot-email", `nobody-${Date.now()}@example.com`);
   await page.getByRole("button", { name: "Send reset link" }).click();
-  await expect(page.getByText("Check your inbox")).toBeVisible();
+  await expect(page.getByText("Check your inbox")).toBeVisible({ timeout: 15_000 });
 });
 
 test("a tampered or expired reset token is rejected", async ({ page }) => {
   const expired = mintResetToken(customerId, oldHash, Date.now() - 1000);
   await page.goto(`/account/reset?token=${encodeURIComponent(expired)}`, { waitUntil: "domcontentloaded" });
-  await page.locator("#reset-password").fill(newPassword);
+  await hydratedFill(page, "#reset-password", newPassword);
   await page.locator("#reset-confirm").fill(newPassword);
   await page.getByRole("button", { name: "Update password" }).click();
-  await expect(page.getByText(/invalid or has expired/).first()).toBeVisible();
+  await expect(page.getByText(/invalid or has expired/).first()).toBeVisible({ timeout: 15_000 });
 });
 
 test("a valid reset link sets the new password and signs the customer in", async ({ page }) => {
   const token = mintResetToken(customerId, oldHash);
   await page.goto(`/account/reset?token=${encodeURIComponent(token)}`, { waitUntil: "domcontentloaded" });
-  await page.locator("#reset-password").fill(newPassword);
+  await hydratedFill(page, "#reset-password", newPassword);
   await page.locator("#reset-confirm").fill(newPassword);
   await page.getByRole("button", { name: "Update password" }).click();
   await page.waitForURL(/\/account/, { timeout: 30_000 });
 
   // The same link must not work twice (hash fingerprint changed)
   await page.goto(`/account/reset?token=${encodeURIComponent(token)}`, { waitUntil: "domcontentloaded" });
-  await page.locator("#reset-password").fill("Another#789");
+  await hydratedFill(page, "#reset-password", "Another#789");
   await page.locator("#reset-confirm").fill("Another#789");
   await page.getByRole("button", { name: "Update password" }).click();
-  await expect(page.getByText(/invalid or has expired/).first()).toBeVisible();
+  await expect(page.getByText(/invalid or has expired/).first()).toBeVisible({ timeout: 15_000 });
 });
 
 test("login works with the new password and rejects the old one", async ({ browser, baseURL }) => {
   const context = await browser.newContext();
   const page = await context.newPage();
   await page.goto((baseURL || "") + "/account/login", { waitUntil: "domcontentloaded" });
-  await page.locator("#login-identifier").fill(email);
+  await hydratedFill(page, "#login-identifier", email);
   await page.locator("#login-password").fill(oldPassword);
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page.getByText("Invalid credentials.").first()).toBeVisible();

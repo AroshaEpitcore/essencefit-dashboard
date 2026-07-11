@@ -15,10 +15,18 @@ export type DtfOrderStatus =
   | "Canceled";
 
 /* ---------- List ---------- */
-export async function getDtfOrders() {
+export async function getDtfOrders(opts?: { limit?: number; offset?: number; status?: string }) {
   await requireAdmin();
+  const limit = Math.min(Math.max(opts?.limit ?? 50, 1), 200);
+  const offset = Math.max(opts?.offset ?? 0, 0);
+  const status = (opts?.status ?? "").trim();
   const pool = await getDb();
-  const res = await pool.request().query(`
+
+  const where = status ? "WHERE o.Status = @Status" : "";
+
+  const listReq = pool.request().input("Limit", Int, limit).input("Offset", Int, offset);
+  if (status) listReq.input("Status", NVarChar(30), status);
+  const res = await listReq.query(`
     SELECT
       o.Id, o.Ref, o.CustomerName, o.CustomerPhone, o.WhatsApp, o.Qty,
       o.EstimatedTotal, o.FinalTotal, o.Status, o.StockDeducted, o.CreatedAt,
@@ -26,9 +34,16 @@ export async function getDtfOrders() {
       (SELECT COUNT(*) FROM DtfOrderDesigns d WHERE d.DtfOrderId = o.Id) AS DesignCount
     FROM DtfOrders o
     LEFT JOIN Products p ON p.Id = o.ProductId
+    ${where}
     ORDER BY o.CreatedAt DESC
+    LIMIT @Limit OFFSET @Offset
   `);
-  return res.recordset;
+
+  const countReq = pool.request();
+  if (status) countReq.input("Status", NVarChar(30), status);
+  const count = await countReq.query(`SELECT COUNT(*)::int AS "Total" FROM DtfOrders o ${where}`);
+
+  return { rows: res.recordset, total: Number(count.recordset[0]?.Total ?? 0) };
 }
 
 /* ---------- Detail ---------- */

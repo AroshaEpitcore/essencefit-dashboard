@@ -69,7 +69,15 @@ export default function CheckoutPage() {
   }, []);
 
   useEffect(() => {
-    if (ready && items.length === 0 && !placing) router.replace("/cart");
+    if (!ready || items.length > 0 || placing) return;
+    // One extra tick before bouncing to /cart — on a fresh navigation the
+    // cart can render empty for a single frame before its own effects
+    // settle, and redirecting on that transient frame would wrongly kick a
+    // shopper who does have items back to their cart.
+    const t = setTimeout(() => {
+      if (items.length === 0 && !placing) router.replace("/cart");
+    }, 150);
+    return () => clearTimeout(t);
   }, [ready, items.length, placing, router]);
 
   const provinceFee = config?.deliveryProvinces.find((p) => p.name === f.province)?.fee;
@@ -286,7 +294,7 @@ export default function CheckoutPage() {
                 <div className="w-12 h-12 rounded-lg bg-gray-100 overflow-hidden shrink-0">
                   {it.image ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={it.image} alt="" className="w-full h-full object-cover" />
+                    <img src={it.image} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                   ) : null}
                 </div>
                 <div className="flex-1 min-w-0">

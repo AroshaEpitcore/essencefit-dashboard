@@ -248,37 +248,39 @@ export type ProductQuery = {
   minPrice?: number;
   maxPrice?: number;
   sort?: "new" | "price_asc" | "price_desc" | "deals";
+  /** 1-based page — listing pages render 24 per page. */
+  page?: number;
+  pageSize?: number;
 };
 
-export async function searchProducts(params: ProductQuery): Promise<StoreProduct[]> {
+export async function searchProducts(
+  params: ProductQuery
+): Promise<{ products: StoreProduct[]; total: number }> {
   const pool = await getDb();
-  const req = pool.request();
-  const where: string[] = ["p.IsActive = true"];
+  const pageSize = Math.min(Math.max(params.pageSize ?? 24, 1), 96);
+  const page = Math.max(params.page ?? 1, 1);
 
-  if (params.q) {
-    req.input("q", sql.NVarChar(200), `%${params.q}%`);
-    where.push("(p.Name ILIKE @q OR p.Description ILIKE @q OR cat.Name ILIKE @q)");
-  }
-  if (params.categorySlug) {
-    req.input("catSlug", sql.NVarChar(150), params.categorySlug);
-    where.push("cat.Slug = @catSlug");
-  }
+  const where: string[] = ["p.IsActive = true"];
+  const bind = (req: any) => {
+    if (params.q) req.input("q", sql.NVarChar(200), `%${params.q}%`);
+    if (params.categorySlug) req.input("catSlug", sql.NVarChar(150), params.categorySlug);
+    if (params.sizeId) req.input("sizeId", sql.UniqueIdentifier, params.sizeId);
+    if (params.colorId) req.input("colorId", sql.UniqueIdentifier, params.colorId);
+    if (params.minPrice != null) req.input("minP", sql.Decimal(18, 2), params.minPrice);
+    if (params.maxPrice != null) req.input("maxP", sql.Decimal(18, 2), params.maxPrice);
+    return req;
+  };
+
+  if (params.q) where.push("(p.Name ILIKE @q OR p.Description ILIKE @q OR cat.Name ILIKE @q)");
+  if (params.categorySlug) where.push("cat.Slug = @catSlug");
   if (params.sizeId) {
-    req.input("sizeId", sql.UniqueIdentifier, params.sizeId);
     where.push("EXISTS (SELECT 1 FROM ProductVariants v WHERE v.ProductId = p.Id AND v.SizeId = @sizeId AND v.Qty > 0)");
   }
   if (params.colorId) {
-    req.input("colorId", sql.UniqueIdentifier, params.colorId);
     where.push("EXISTS (SELECT 1 FROM ProductVariants v WHERE v.ProductId = p.Id AND v.ColorId = @colorId AND v.Qty > 0)");
   }
-  if (params.minPrice != null) {
-    req.input("minP", sql.Decimal(18, 2), params.minPrice);
-    where.push("p.SellingPrice >= @minP");
-  }
-  if (params.maxPrice != null) {
-    req.input("maxP", sql.Decimal(18, 2), params.maxPrice);
-    where.push("p.SellingPrice <= @maxP");
-  }
+  if (params.minPrice != null) where.push("p.SellingPrice >= @minP");
+  if (params.maxPrice != null) where.push("p.SellingPrice <= @maxP");
   if (params.sort === "deals") {
     where.push("p.CompareAtPrice IS NOT NULL AND p.CompareAtPrice > p.SellingPrice");
   }
@@ -289,8 +291,20 @@ export async function searchProducts(params: ProductQuery): Promise<StoreProduct
   else if (params.sort === "new") orderBy = "p.CreatedAt DESC";
   else if (params.sort === "deals") orderBy = "(p.CompareAtPrice - p.SellingPrice) DESC";
 
-  const res = await req.query(`${PRODUCT_SELECT} WHERE ${where.join(" AND ")} ORDER BY ${orderBy}`);
-  return attachColors(pool, res.recordset as StoreProduct[]);
+  const res = await bind(pool.request())
+    .input("Limit", sql.Int, pageSize)
+    .input("Offset", sql.Int, (page - 1) * pageSize)
+    .query(`${PRODUCT_SELECT} WHERE ${where.join(" AND ")} ORDER BY ${orderBy} LIMIT @Limit OFFSET @Offset`);
+
+  const count = await bind(pool.request()).query(`
+    SELECT COUNT(*)::int AS "Total"
+    FROM Products p
+    LEFT JOIN Categories cat ON cat.Id = p.CategoryId
+    WHERE ${where.join(" AND ")}
+  `);
+
+  const products = await attachColors(pool, res.recordset as StoreProduct[]);
+  return { products, total: Number(count.recordset[0]?.Total ?? 0) };
 }
 
 /* Lightweight type-ahead search for the header search drawer — matches product

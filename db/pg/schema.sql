@@ -425,6 +425,22 @@ CREATE INDEX IF NOT EXISTS ix_reviews_productid ON reviews (productid);
 CREATE INDEX IF NOT EXISTS ix_reviewimages_reviewid ON reviewimages (reviewid);
 CREATE INDEX IF NOT EXISTS ix_galleryimages_galleryitemid ON galleryimages (galleryitemid);
 
+-- Hardening round 2026-07-05 (also in db/pg/patches/2026-07-05-hardening.sql)
+CREATE INDEX IF NOT EXISTS ix_orderitems_orderid        ON orderitems (orderid);
+CREATE INDEX IF NOT EXISTS ix_orderitems_variantid      ON orderitems (variantid);
+CREATE INDEX IF NOT EXISTS ix_productvariants_productid ON productvariants (productid);
+CREATE INDEX IF NOT EXISTS ix_stockhistory_variantid    ON stockhistory (variantid);
+CREATE INDEX IF NOT EXISTS ix_stockhistory_createdat    ON stockhistory (createdat DESC);
+CREATE INDEX IF NOT EXISTS ix_sales_variantid           ON sales (variantid);
+CREATE INDEX IF NOT EXISTS ix_sales_saledate            ON sales (saledate);
+CREATE INDEX IF NOT EXISTS ix_products_categoryid       ON products (categoryid);
+CREATE INDEX IF NOT EXISTS ix_orders_source_orderdate   ON orders (source, orderdate DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_colors_name ON colors (LOWER(TRIM(name)));
+CREATE UNIQUE INDEX IF NOT EXISTS ux_sizes_name  ON sizes  (LOWER(TRIM(name)));
+CREATE UNIQUE INDEX IF NOT EXISTS ux_variants_product_size_color
+  ON productvariants (productid, sizeid, colorid)
+  WHERE sizeid IS NOT NULL AND colorid IS NOT NULL;
+
 -- ============================ FOREIGN KEYS ============================
 
 ALTER TABLE products            ADD CONSTRAINT fk_products_category   FOREIGN KEY (categoryid)  REFERENCES categories (id);

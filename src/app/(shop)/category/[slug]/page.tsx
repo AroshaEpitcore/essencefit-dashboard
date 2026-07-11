@@ -6,10 +6,13 @@ import { getPublicStoreSettings } from "@/lib/storeSettings";
 import ProductCard from "@/components/shop/ProductCard";
 import ReviewsSection from "@/components/shop/ReviewsSection";
 import GalleryBand from "@/components/shop/GalleryBand";
+import PageLinks from "@/components/shop/PageLinks";
 import { ChevronRight } from "lucide-react";
 import { buildCategoryDescription, breadcrumbJsonLd } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
+
+const PAGE_SIZE = 24;
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
@@ -24,13 +27,21 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   };
 }
 
-export default async function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function CategoryPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ page?: string }>;
+}) {
   const { slug } = await params;
+  const sp = await searchParams;
+  const page = Math.max(1, Number(sp.page) || 1);
   const cat = await getCategoryBySlug(slug);
   if (!cat) notFound();
 
-  const [products, reviews, settings] = await Promise.all([
-    searchProducts({ categorySlug: slug }),
+  const [{ products, total }, reviews, settings] = await Promise.all([
+    searchProducts({ categorySlug: slug, page, pageSize: PAGE_SIZE }),
     getReviewsByCategory(slug),
     getPublicStoreSettings(),
   ]);
@@ -52,15 +63,18 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">{cat.Name}</h1>
         {cat.Description && <p className="text-gray-500 mt-1">{cat.Description}</p>}
-        <p className="text-sm text-gray-400 mt-1">{products.length} product{products.length !== 1 ? "s" : ""}</p>
+        <p className="text-sm text-gray-400 mt-1">{total} product{total !== 1 ? "s" : ""}</p>
       </div>
 
       {products.length === 0 ? (
         <div className="text-center py-20 text-gray-500">No products in this category yet.</div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8">
-          {products.map((p) => <ProductCard key={p.Id} p={p} />)}
-        </div>
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8">
+            {products.map((p) => <ProductCard key={p.Id} p={p} />)}
+          </div>
+          <PageLinks basePath={`/category/${cat.Slug}`} params={sp} page={page} pageSize={PAGE_SIZE} total={total} />
+        </>
       )}
 
       {reviews.length > 0 && (

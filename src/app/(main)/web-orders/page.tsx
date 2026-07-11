@@ -5,7 +5,9 @@ import toast, { Toaster } from "react-hot-toast";
 import { getWebOrders, verifyWebPayment, setWebOrderStatus, getWebOrderDetails } from "./actions";
 import {
   Globe, Truck, Landmark, CheckCircle2, ExternalLink, Phone, MapPin, ShieldCheck, RefreshCw, Package, ChevronDown,
+  Search as SearchIcon,
 } from "lucide-react";
+import Pager from "@/components/ui/Pager";
 
 const money = (n: number) => "Rs. " + Number(n || 0).toLocaleString();
 
@@ -18,13 +20,28 @@ const statusColor: Record<string, string> = {
   Canceled: "bg-red-500/20 text-red-400",
 };
 
+const PAGE_SIZE = 50;
+
 export default function WebOrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
+  const [unverifiedTotal, setUnverifiedTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [debounced, setDebounced] = useState("");
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<"all" | "unverified">("all");
   const [slip, setSlip] = useState<string | null>(null);
   const [items, setItems] = useState<Record<string, any[]>>({});
   const [openItems, setOpenItems] = useState<string | null>(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(search), 400);
+    return () => clearTimeout(t);
+  }, [search]);
+  useEffect(() => {
+    setPage(1);
+  }, [debounced, filter]);
 
   async function toggleItems(id: string) {
     if (openItems === id) { setOpenItems(null); return; }
@@ -39,29 +56,33 @@ export default function WebOrdersPage() {
     }
   }
 
-  async function load() {
-    setLoading(true);
+  async function load(quiet = false) {
+    if (!quiet) setLoading(true);
     try {
-      setOrders(await getWebOrders());
+      const d = await getWebOrders({
+        limit: PAGE_SIZE,
+        offset: (page - 1) * PAGE_SIZE,
+        search: debounced,
+        unverifiedOnly: filter === "unverified",
+      });
+      setOrders(d.rows);
+      setTotal(d.total);
+      setUnverifiedTotal(d.unverifiedTotal);
     } catch (e: any) {
-      toast.error(e.message || "Failed to load");
+      if (!quiet) toast.error(e.message || "Failed to load");
     } finally {
-      setLoading(false);
+      if (!quiet) setLoading(false);
     }
   }
   useEffect(() => {
     load();
     // Keep the list fresh — new website orders should appear without a manual
-    // refresh (same 30s cadence as the manual /orders page).
-    const interval = setInterval(async () => {
-      try {
-        setOrders(await getWebOrders());
-      } catch {
-        /* keep showing the last good list */
-      }
-    }, 30_000);
+    // refresh (same 30s cadence as the manual /orders page). The quiet reload
+    // keeps the CURRENT page/search/tab.
+    const interval = setInterval(() => load(true), 30_000);
     return () => clearInterval(interval);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, debounced, filter]);
 
   async function verify(id: string) {
     if (!confirm("Mark this bank-transfer payment as verified and set the order to Paid?")) return;
@@ -84,9 +105,7 @@ export default function WebOrdersPage() {
     }
   }
 
-  const shown = filter === "unverified"
-    ? orders.filter((o) => o.PaymentMethod === "BankTransfer" && !o.PaymentVerified)
-    : orders;
+  const shown = orders; // server-side filtered + paged
 
   return (
     <div className="text-gray-900 dark:text-white">
@@ -100,16 +119,26 @@ export default function WebOrdersPage() {
             <p className="text-sm text-gray-500 dark:text-gray-400">Orders placed by customers on the storefront</p>
           </div>
         </div>
-        <button onClick={load} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-sm font-medium">
+        <button onClick={() => load()} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-sm font-medium">
           <RefreshCw className="w-4 h-4" /> Refresh
         </button>
       </div>
 
-      <div className="flex gap-2 mb-4">
-        <button onClick={() => setFilter("all")} className={`px-4 py-2 rounded-lg text-sm font-medium ${filter === "all" ? "bg-primary text-white" : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"}`}>All ({orders.length})</button>
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <button onClick={() => setFilter("all")} className={`px-4 py-2 rounded-lg text-sm font-medium ${filter === "all" ? "bg-primary text-white" : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"}`}>All ({total})</button>
         <button onClick={() => setFilter("unverified")} className={`px-4 py-2 rounded-lg text-sm font-medium ${filter === "unverified" ? "bg-primary text-white" : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"}`}>
-          Needs verification ({orders.filter((o) => o.PaymentMethod === "BankTransfer" && !o.PaymentVerified).length})
+          Needs verification ({unverifiedTotal})
         </button>
+        <div className="relative ml-auto">
+          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search name, phone or order #..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary w-72"
+          />
+        </div>
       </div>
 
       {loading ? (
@@ -120,6 +149,7 @@ export default function WebOrdersPage() {
           No website orders yet.
         </div>
       ) : (
+        <>
         <div className="grid gap-3">
           {shown.map((o) => (
             <div key={o.Id} className="bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
@@ -204,6 +234,15 @@ export default function WebOrdersPage() {
             </div>
           ))}
         </div>
+        <div className="mt-4 bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+          <Pager
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={filter === "unverified" ? unverifiedTotal : total}
+            onPage={setPage}
+          />
+        </div>
+        </>
       )}
 
       {/* Slip viewer */}

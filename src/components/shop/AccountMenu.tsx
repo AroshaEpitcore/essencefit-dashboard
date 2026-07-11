@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { User, LogOut, Package, UserCircle } from "lucide-react";
-import { logoutCustomer } from "@/app/(shop)/account/actions";
+import { getMyAccount, logoutCustomer } from "@/app/(shop)/account/actions";
 
 export type NavCustomer = { Name: string; Phone: string | null; Email: string | null } | null;
 
@@ -15,13 +15,28 @@ function initials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-/* Navbar account control. Login state comes from the server via `customer`
-   (fetched in the (shop) layout), so a router.refresh() after login/logout/
-   checkout updates it without a full reload. */
-export default function AccountMenu({ customer, iconCls }: { customer: NavCustomer; iconCls: string }) {
+/* Navbar account control. Fetches the session CLIENT-side (on mount and on
+   every route change) instead of receiving it from the layout — the layout
+   reading cookies forced every storefront page dynamic and disabled the home
+   page's ISR. Until the fetch resolves it shows the anonymous icon. */
+export default function AccountMenu({ iconCls }: { iconCls: string }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const [customer, setCustomer] = useState<NavCustomer>(null);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let alive = true;
+    getMyAccount()
+      .then((me) => {
+        if (alive) setCustomer(me ? { Name: me.Name, Phone: me.Phone, Email: me.Email } : null);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [pathname]);
 
   useEffect(() => {
     function onDoc(e: MouseEvent) {
@@ -33,6 +48,7 @@ export default function AccountMenu({ customer, iconCls }: { customer: NavCustom
 
   async function logout() {
     await logoutCustomer();
+    setCustomer(null);
     setOpen(false);
     router.refresh();
   }
