@@ -36,7 +36,7 @@ export default async function HomePage() {
     getDeals(8),
     getNewProducts(8),
     getNewArrivals(12),
-    getLatestReviews(100),
+    getLatestReviews(),
     getLatestGalleryItems(100),
     getLatestFeedback(100),
   ]);

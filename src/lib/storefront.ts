@@ -575,19 +575,23 @@ export async function getReviewsByCategory(categorySlug: string): Promise<StoreR
   return attachReviewImages(pool, res.recordset as StoreReview[]);
 }
 
-export async function getLatestReviews(limit = 12): Promise<StoreReview[]> {
+// limit omitted => return all published reviews (the storefront sliders show them all).
+export async function getLatestReviews(limit?: number): Promise<StoreReview[]> {
   const pool = await getDb();
-  const res = await pool
-    .request()
-    .input("n", sql.Int, limit)
-    .query(`
+  const req = pool.request();
+  let limitClause = "";
+  if (limit != null) {
+    req.input("n", sql.Int, limit);
+    limitClause = "LIMIT @n OFFSET 0";
+  }
+  const res = await req.query(`
       SELECT r.Id, r.ProductId, r.CustomerName, r.CustomerImage, r.Rating, r.Message, r.CreatedAt,
              p.Name AS ProductName, p.Slug AS ProductSlug
       FROM Reviews r
       JOIN Products p ON p.Id = r.ProductId
       WHERE r.IsPublished = true
       ORDER BY r.SortOrder, r.CreatedAt DESC
-      LIMIT @n OFFSET 0
+      ${limitClause}
     `);
   return attachReviewImages(pool, res.recordset as StoreReview[]);
 }

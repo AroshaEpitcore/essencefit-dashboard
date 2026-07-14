@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { getProductBySlug, getProductVariants, getRelatedProducts, getProductImagesByColor, getProductDesigns, getReviewsForProduct, getProductRatingSummary } from "@/lib/storefront";
+import { getProductBySlug, getProductVariants, getRelatedProducts, getProductImagesByColor, getProductDesigns, getReviewsForProduct, getProductRatingSummary, getLatestReviews } from "@/lib/storefront";
 import ProductView from "@/components/shop/ProductView";
 import DesignPicker from "@/components/shop/DesignPicker";
 import ProductCard from "@/components/shop/ProductCard";
@@ -44,15 +44,21 @@ export default async function ProductPage({
   const product = await getProductBySlug(slug);
   if (!product) notFound();
 
-  const [variants, images, related, designs, reviews, rating, settings] = await Promise.all([
+  const [variants, images, related, designs, reviews, latestReviews, rating, settings] = await Promise.all([
     getProductVariants(product.Id),
     getProductImagesByColor(product.Id),
     product.CategoryId ? getRelatedProducts(product.CategoryId, product.Id, 4) : Promise.resolve([]),
     product.SelectByImage ? getProductDesigns(product.Id) : Promise.resolve([]),
     getReviewsForProduct(product.Id),
+    getLatestReviews(),
     getProductRatingSummary(product.Id),
     getPublicStoreSettings(),
   ]);
+
+  // "Real customers" slider: this product's own reviews first, then top up with
+  // the latest store-wide reviews (deduped) so the band always fills like the home page.
+  const seenReviewIds = new Set(reviews.map((r) => r.Id));
+  const sliderReviews = [...reviews, ...latestReviews.filter((r) => !seenReviewIds.has(r.Id))];
 
   // Colourless products keep using the flat image list as their "shared" set.
   const hasColorImages = Object.keys(images.byColor).length > 0;
@@ -178,9 +184,9 @@ export default async function ProductPage({
         />
       )}
 
-      {reviews.length > 0 && (
+      {sliderReviews.length > 0 && (
         <div id="reviews" className="mt-14 scroll-mt-[140px]">
-          <ReviewsSection reviews={reviews} title="Customer Reviews" variant="carousel" bare logo={settings.logoLight || settings.logo} />
+          <ReviewsSection reviews={sliderReviews} title="Customer Reviews" variant="carousel" showProduct bare logo={settings.logoLight || settings.logo} />
         </div>
       )}
 
