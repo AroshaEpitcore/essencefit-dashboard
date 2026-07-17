@@ -19,7 +19,6 @@ import {
   createOrder,
   updateOrder,
   updateOrderStatus,
-  updateDeliveryStatus,
   deleteOrder,
   getVariantStockByProductAndSize,
   type OrderItemInput,
@@ -73,23 +72,6 @@ const STATUS_COLORS: Record<string, string> = {
   Partial: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-800",
   Completed: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800",
   Canceled: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800",
-};
-
-const DELIVERY_STATUSES = [
-  "Processing",
-  "Ready",
-  "Handed to courier",
-  "Delivered",
-  "Returned",
-] as const;
-type DeliveryStatus = (typeof DELIVERY_STATUSES)[number];
-
-const DELIVERY_COLORS: Record<string, string> = {
-  Processing: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-700",
-  Ready: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800",
-  "Handed to courier": "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-800",
-  Delivered: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800",
-  Returned: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800",
 };
 
 const RANGE_OPTIONS: Array<{ key: OrderRange; label: string }> = [
@@ -231,7 +213,6 @@ export default function OrdersPage() {
     {}
   );
   const [savingStatus, setSavingStatus] = useState<string | null>(null);
-  const [savingDelivery, setSavingDelivery] = useState<string | null>(null);
 
   // details
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -996,25 +977,6 @@ export default function OrdersPage() {
       toast.error(e.message ?? "Failed to update status");
     } finally {
       setSavingStatus(null);
-    }
-  }
-
-  async function saveDeliveryStatus(orderId: string, nextStatus: DeliveryStatus) {
-    try {
-      setSavingDelivery(orderId);
-      const res = await updateDeliveryStatus(orderId, nextStatus);
-      if (!res.ok) throw new Error(res.error);
-      toast.success("Delivery status updated");
-      const applyDelivery = (prev: any[]) =>
-        prev.map((ord) =>
-          ord.Id === orderId ? { ...ord, DeliveryStatus: nextStatus } : ord
-        );
-      setRecent(applyDelivery);
-      setAllOrders(applyDelivery);
-    } catch (e: any) {
-      toast.error(e.message ?? "Failed to update delivery status");
-    } finally {
-      setSavingDelivery(null);
     }
   }
 
@@ -2068,9 +2030,6 @@ export default function OrdersPage() {
                     <span className={`text-xs px-3 py-1 rounded-full font-medium ${STATUS_COLORS[o.PaymentStatus] || "bg-gray-100 dark:bg-gray-900/30"}`}>
                       {o.PaymentStatus}
                     </span>
-                    <span className={`text-xs px-3 py-1 rounded-full font-medium border ${DELIVERY_COLORS[o.DeliveryStatus] || DELIVERY_COLORS.Processing}`}>
-                      {o.DeliveryStatus || "Processing"}
-                    </span>
                     <input
                       type="checkbox"
                       checked={selectedOrders.has(o.Id)}
@@ -2132,48 +2091,27 @@ export default function OrdersPage() {
                 )}
 
                 <div className="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4 space-y-3">
-                  {/* Status Selectors */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs text-gray-500">
-                        Payment Status
-                      </label>
-                      <select
-                        value={statusDrafts[o.Id] ?? o.PaymentStatus}
-                        onChange={(e) =>
-                          setStatusDrafts((p) => ({
-                            ...p,
-                            [o.Id]: e.target.value as OrderStatus,
-                          }))
-                        }
-                        className="mt-1 w-full bg-gray-50 dark:bg-gray-900/30 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
-                      >
-                        {ORDER_STATUSES.map((st) => (
-                          <option key={st} value={st}>
-                            {st}
-                          </option>
-                        ))}
-                      </select>
-                      <p className="mt-1 text-[11px] text-gray-400">Save with the button below.</p>
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500">
-                        Delivery Status
-                      </label>
-                      <select
-                        value={o.DeliveryStatus || "Processing"}
-                        disabled={savingDelivery === o.Id}
-                        onChange={(e) => saveDeliveryStatus(o.Id, e.target.value as DeliveryStatus)}
-                        className="mt-1 w-full bg-gray-50 dark:bg-gray-900/30 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm disabled:opacity-50"
-                      >
-                        {DELIVERY_STATUSES.map((st) => (
-                          <option key={st} value={st}>
-                            {st}
-                          </option>
-                        ))}
-                      </select>
-                      <p className="mt-1 text-[11px] text-gray-400">Saves instantly on change.</p>
-                    </div>
+                  {/* Status Selector */}
+                  <div>
+                    <label className="text-xs text-gray-500">
+                      Update Status
+                    </label>
+                    <select
+                      value={statusDrafts[o.Id] ?? o.PaymentStatus}
+                      onChange={(e) =>
+                        setStatusDrafts((p) => ({
+                          ...p,
+                          [o.Id]: e.target.value as OrderStatus,
+                        }))
+                      }
+                      className="mt-1 w-full bg-gray-50 dark:bg-gray-900/30 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
+                    >
+                      {ORDER_STATUSES.map((st) => (
+                        <option key={st} value={st}>
+                          {st}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   {/* Action Buttons */}

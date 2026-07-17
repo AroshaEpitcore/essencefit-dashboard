@@ -32,29 +32,6 @@ const statusColor: Record<string, string> = {
   Canceled: "bg-red-100 text-red-700",
 };
 
-// Delivery journey (separate from payment). "Returned" is an off-path terminal
-// state, so it isn't on the progress bar.
-const DELIVERY_STEPS = ["Processing", "Ready", "Handed to courier", "Delivered"] as const;
-const DELIVERY_STEP_LABEL: Record<string, string> = {
-  Processing: "Processing",
-  Ready: "Ready",
-  "Handed to courier": "With courier",
-  Delivered: "Delivered",
-};
-const DELIVERY_STEP_INDEX: Record<string, number> = {
-  Processing: 0,
-  Ready: 1,
-  "Handed to courier": 2,
-  Delivered: 3,
-};
-const deliveryColor: Record<string, string> = {
-  Processing: "bg-gray-100 text-gray-700",
-  Ready: "bg-amber-100 text-amber-700",
-  "Handed to courier": "bg-blue-100 text-blue-700",
-  Delivered: "bg-green-100 text-green-700",
-  Returned: "bg-red-100 text-red-700",
-};
-
 export default async function OrderDetailPage({
   params,
   searchParams,
@@ -78,10 +55,6 @@ export default async function OrderDetailPage({
   const canceled = order.PaymentStatus === "Canceled";
   const currentStep = STEP_INDEX[order.PaymentStatus] ?? 0;
   const discount = (Number(order.ManualDiscount) || 0) + (Number(order.Discount) || 0);
-
-  const deliveryStatus: string = order.DeliveryStatus || "Processing";
-  const deliveryReturned = deliveryStatus === "Returned";
-  const deliveryStep = DELIVERY_STEP_INDEX[deliveryStatus] ?? 0;
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-10">
@@ -130,39 +103,6 @@ export default async function OrderDetailPage({
       {canceled && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 text-sm text-red-700">
           This order was canceled. If you think this is a mistake, please contact us.
-        </div>
-      )}
-
-      {/* Delivery tracking */}
-      {!canceled && (
-        <div className="bg-white border border-gray-200 rounded-xl p-5 mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-gray-900 flex items-center gap-2">
-              <Truck className="w-4 h-4" /> Delivery
-            </h2>
-            <span className={`text-xs font-medium px-3 py-1 rounded-full ${deliveryColor[deliveryStatus] || "bg-gray-100 text-gray-600"}`}>
-              {deliveryStatus}
-            </span>
-          </div>
-          {deliveryReturned ? (
-            <p className="text-sm text-red-700">
-              This order was returned. If you have any questions, please contact us.
-            </p>
-          ) : (
-            <div className="flex items-center">
-              {DELIVERY_STEPS.map((s, i) => (
-                <div key={s} className="flex-1 flex items-center">
-                  <div className="flex flex-col items-center">
-                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold ${i <= deliveryStep ? "bg-primary text-white" : "bg-gray-200 text-gray-500"}`}>
-                      {i + 1}
-                    </div>
-                    <span className={`mt-1 text-[10px] sm:text-xs text-center ${i <= deliveryStep ? "text-gray-900" : "text-gray-400"}`}>{DELIVERY_STEP_LABEL[s]}</span>
-                  </div>
-                  {i < DELIVERY_STEPS.length - 1 && <div className={`flex-1 h-0.5 mx-1 ${i < deliveryStep ? "bg-primary" : "bg-gray-200"}`} />}
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       )}
 

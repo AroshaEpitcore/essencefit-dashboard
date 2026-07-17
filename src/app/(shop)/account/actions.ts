@@ -12,20 +12,6 @@ import {
   type CustomerSession,
 } from "@/lib/customerAuth";
 import { sendCustomerPasswordReset } from "@/lib/orderNotify";
-import { consumeRateLimit, clientIp } from "@/lib/rateLimit";
-
-const TOO_MANY = "Too many attempts — please wait a few minutes and try again.";
-
-/* Records an attempt against the identifier and (behind a proxy) the client IP.
-   Returns true if EITHER key is now over its cap. The IP key is skipped when
-   there's no forwarded IP (local dev / tests) so a shared origin can't self-throttle. */
-async function overLimit(scope: string, identifier: string, max: number, windowSec: number): Promise<boolean> {
-  const ip = await clientIp();
-  const checks = [consumeRateLimit(`${scope}:${identifier}`, max, windowSec)];
-  if (ip) checks.push(consumeRateLimit(`${scope}-ip:${ip}`, max, windowSec));
-  const results = await Promise.all(checks);
-  return results.some((r) => !r.allowed);
-}
 
 /* NOTE (all account actions): expected failures are RETURNED as
    { ok:false, error } instead of thrown — Next.js masks thrown Error messages
@@ -95,9 +81,6 @@ export async function loginCustomer(input: { identifier: string; password: strin
   const identifier = input.identifier?.trim();
   if (!identifier || !input.password) return { ok: false, error: "Enter your email/phone and password." };
 
-  // 5 attempts / 10 min per account (and per IP behind the proxy).
-  if (await overLimit("clogin", identifier.toLowerCase(), 5, 600)) return { ok: false, error: TOO_MANY };
-
   const pool = await getDb();
   const res = await pool
     .request()
@@ -125,10 +108,6 @@ export async function logoutCustomer() {
 export async function requestPasswordReset(email: string) {
   const e = email?.trim().toLowerCase();
   if (!e) return { ok: true };
-
-  // 3 / 15 min per email (and per IP). Still resolves { ok: true } either way
-  // — silently skipping the send keeps the response enumeration-safe.
-  if (await overLimit("preset", e, 3, 900)) return { ok: true };
 
   const pool = await getDb();
   const res = await pool
@@ -191,7 +170,6 @@ export type MyOrder = {
   label: string | null; // payment method / "Custom print"
   href: string;
   thumbs: string[]; // a few product / design image urls for the list preview
-  deliveryStatus?: string | null; // web orders only — physical fulfillment stage
 };
 
 const splitThumbs = (s: string | null): string[] =>
@@ -212,7 +190,7 @@ export async function getMyOrders(): Promise<MyOrder[]> {
       .input("Email", sql.NVarChar(200), me.Email || null);
 
   const ordersRes = await bind(pool.request()).query(`
-    SELECT o.Id, o.OrderDate, o.PaymentStatus, o.DeliveryStatus, o.PaymentMethod, o.Total,
+    SELECT o.Id, o.OrderDate, o.PaymentStatus, o.PaymentMethod, o.Total,
            (SELECT COUNT(*) FROM OrderItems oi WHERE oi.OrderId=o.Id) AS LineCount,
            (SELECT STRING_AGG(t.Url, '|') FROM (
               SELECT COALESCE((SELECT Url FROM ProductImages WHERE VariantId = oi.VariantId LIMIT 1), p.ImageUrl) AS Url
@@ -254,7 +232,6 @@ export async function getMyOrders(): Promise<MyOrder[]> {
     label: o.PaymentMethod || null,
     href: `/order/${o.Id}`,
     thumbs: splitThumbs(o.Thumbs),
-    deliveryStatus: o.DeliveryStatus || null,
   }));
 
   const dtf: MyOrder[] = dtfRes.recordset.map((d: any) => ({
@@ -338,7 +315,7 @@ export async function getMyOrder(id: string) {
     .query(`
       SELECT o.Id, o.Customer, o.CustomerPhone, o.SecondaryPhone, o.Address, o.Province,
              o.CustomerEmail, o.Notes, o.PaymentMethod, o.PaymentSlipUrl, o.PaymentStatus,
-             o.DeliveryStatus, o.PaymentVerified, o.OrderDate, o.Subtotal, o.ManualDiscount, o.Discount,
+             o.PaymentVerified, o.OrderDate, o.Subtotal, o.ManualDiscount, o.Discount,
              o.DeliveryFee, o.Total
       FROM Orders o
       WHERE o.Id=@Id AND o.Source='web' AND (
