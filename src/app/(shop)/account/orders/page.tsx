@@ -19,13 +19,6 @@ const statusColor: Record<string, string> = {
   Canceled: "bg-red-100 text-red-700",
 };
 
-const deliveryColor: Record<string, string> = {
-  Ready: "bg-amber-100 text-amber-700",
-  "Handed to courier": "bg-blue-100 text-blue-700",
-  Delivered: "bg-green-100 text-green-700",
-  Returned: "bg-red-100 text-red-700",
-};
-
 export default async function MyOrdersPage() {
   const me = await getCurrentCustomer();
   if (!me) redirect("/account/login?next=/account/orders");
@@ -68,12 +61,7 @@ export default async function MyOrdersPage() {
                 </p>
                 <p className="text-xs text-gray-500">{new Date(o.date).toLocaleString()} · {o.count} {o.kind === "dtf" ? "design(s)" : "item(s)"} · {o.label || "—"}</p>
               </div>
-              <div className="flex flex-col items-end gap-1">
-                <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${statusColor[o.status] || "bg-gray-100 text-gray-600"}`}>{o.status}</span>
-                {o.kind === "order" && o.deliveryStatus && o.deliveryStatus !== "Processing" && (
-                  <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${deliveryColor[o.deliveryStatus] || "bg-gray-100 text-gray-600"}`}>{o.deliveryStatus}</span>
-                )}
-              </div>
+              <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${statusColor[o.status] || "bg-gray-100 text-gray-600"}`}>{o.status}</span>
               <span className="font-semibold text-gray-900">{money(o.total)}</span>
             </Link>
           ))}

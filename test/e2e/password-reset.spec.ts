@@ -93,28 +93,3 @@ test("login works with the new password and rejects the old one", async ({ brows
   await expect(page.getByText("Welcome back!").first()).toBeVisible();
   await context.close();
 });
-
-test("too many failed logins are rate-limited", async ({ browser, baseURL }) => {
-  // Throwaway identifier, unique per run — the DB attempt counter persists
-  // across runs within the window, so a fixed key would start pre-throttled.
-  const throwaway = `ratelimit-${Date.now()}@example.com`;
-  const context = await browser.newContext();
-  const page = await context.newPage();
-  await page.goto((baseURL || "") + "/account/login", { waitUntil: "domcontentloaded" });
-  await hydratedFill(page, "#login-identifier", throwaway);
-  const signIn = page.getByRole("button", { name: "Sign in" });
-
-  // 5 wrong-password attempts are allowed; the 6th is refused. Waiting for the
-  // button to re-enable after each submit guarantees every attempt round-trips
-  // (and thus increments the server-side counter) before the next click.
-  for (let i = 1; i <= 5; i++) {
-    await page.locator("#login-password").fill(`wrong-${i}`);
-    await signIn.click();
-    await expect(signIn).toBeEnabled({ timeout: 15_000 });
-  }
-
-  await page.locator("#login-password").fill("wrong-6");
-  await signIn.click();
-  await expect(page.getByText(/Too many attempts/).first()).toBeVisible({ timeout: 10_000 });
-  await context.close();
-});

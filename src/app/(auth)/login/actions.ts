@@ -4,7 +4,6 @@ import { getDb } from "@/lib/db";
 import sql from "@/lib/sqlShim";
 import bcrypt from "bcryptjs";
 import { setAdminSessionCookie, clearAdminSessionCookie } from "@/lib/adminAuth";
-import { consumeRateLimit, clientIp } from "@/lib/rateLimit";
 
 type AdminSession = { Id: string; Username: string; Email: string; Role: string };
 
@@ -12,15 +11,6 @@ export async function loginUser(
   username: string,
   password: string
 ): Promise<{ ok: true; user: AdminSession } | { ok: false; error: string }> {
-  // 5 attempts / 10 min per username (and per IP behind the proxy) — refused
-  // even with the correct password until the window passes.
-  const ip = await clientIp();
-  const limits = [consumeRateLimit(`alogin:${(username || "").toLowerCase()}`, 5, 600)];
-  if (ip) limits.push(consumeRateLimit(`alogin-ip:${ip}`, 5, 600));
-  if ((await Promise.all(limits)).some((r) => !r.allowed)) {
-    return { ok: false, error: "Too many attempts — please wait a few minutes and try again." };
-  }
-
   const pool = await getDb();
 
   const result = await pool
