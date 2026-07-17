@@ -3,7 +3,7 @@
 import { requireAdmin } from "@/lib/adminAuth";
 
 import { getDb, sql } from "@/lib/db";
-import { updateOrderStatusCore, getOrderDetails } from "../orders/actions";
+import { updateOrderStatusCore, getOrderDetails, updateDeliveryStatus, type DeliveryStatus } from "../orders/actions";
 import { userErrorMessage } from "@/lib/userError";
 
 const UNVERIFIED = `o.PaymentMethod = 'BankTransfer' AND o.PaymentVerified IS NOT TRUE`;
@@ -33,7 +33,7 @@ export async function getWebOrders(opts?: {
   const res = await listReq.query(`
     SELECT
       o.Id, o.Customer, o.CustomerPhone, o.SecondaryPhone, o.Address, o.Province, o.CustomerEmail,
-      o.PaymentMethod, o.PaymentSlipUrl, o.PaymentVerified, o.PaymentStatus,
+      o.PaymentMethod, o.PaymentSlipUrl, o.PaymentVerified, o.PaymentStatus, o.DeliveryStatus,
       o.OrderDate, o.Notes, o.Subtotal, o.DeliveryFee, o.Total,
       (SELECT COUNT(*) FROM OrderItems oi WHERE oi.OrderId = o.Id) AS LineCount,
       EXISTS (
@@ -99,6 +99,14 @@ export async function setWebOrderStatus(
     if (msg) return { ok: false, error: msg };
     throw err;
   }
+}
+
+export async function setWebDeliveryStatus(
+  orderId: string,
+  status: DeliveryStatus
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  // updateDeliveryStatus already enforces admin + validates the status.
+  return updateDeliveryStatus(orderId, status);
 }
 
 export async function getWebOrderDetails(orderId: string) {

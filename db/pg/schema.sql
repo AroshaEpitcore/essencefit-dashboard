@@ -131,7 +131,8 @@ CREATE TABLE IF NOT EXISTS orders (
   paymentslipurl text,
   paymentverified boolean NOT NULL DEFAULT false,
   province text,
-  stockdeducted boolean NOT NULL DEFAULT true
+  stockdeducted boolean NOT NULL DEFAULT true,
+  deliverystatus text NOT NULL DEFAULT 'Processing'
 );
 
 CREATE TABLE IF NOT EXISTS orderitems (
@@ -415,6 +416,7 @@ CREATE INDEX IF NOT EXISTS ix_productimages_product_color ON productimages (prod
 CREATE INDEX IF NOT EXISTS ix_productimages_productid ON productimages (productid);
 CREATE INDEX IF NOT EXISTS ix_productimages_variantid ON productimages (variantid);
 CREATE INDEX IF NOT EXISTS ix_orders_customerid ON orders (customerid);
+CREATE INDEX IF NOT EXISTS ix_orders_deliverystatus ON orders (deliverystatus);
 CREATE INDEX IF NOT EXISTS ix_dispatchmessages_createdat ON dispatchmessages (createdat DESC);
 CREATE INDEX IF NOT EXISTS ix_orderstatuslogs_changedat ON orderstatuslogs (changedat DESC);
 CREATE INDEX IF NOT EXISTS ix_orderstatuslogs_newstatus ON orderstatuslogs (newstatus);
@@ -496,3 +498,10 @@ BEGIN
   RETURN v_res;
 END;
 $$ LANGUAGE plpgsql STABLE;
+
+-- Rate limiting (Phase 5): serverless-safe auth attempt counter.
+CREATE TABLE IF NOT EXISTS auth_attempts (
+  key          text PRIMARY KEY,
+  count        int  NOT NULL DEFAULT 1,
+  window_start timestamptz NOT NULL DEFAULT now()
+);
