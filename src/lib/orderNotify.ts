@@ -259,52 +259,6 @@ export async function sendCustomerStatusUpdate(input: {
   }
 }
 
-// Delivery status update to the customer (Ready / Handed to courier /
-// Delivered / Returned). Separate from the payment update above so the copy
-// speaks to the physical delivery journey. Same fire-and-forget safety.
-export async function sendCustomerDeliveryUpdate(input: {
-  to: string;
-  customerName: string;
-  orderRef: string;
-  status: string;
-}): Promise<void> {
-  try {
-    const settings = await getPublicStoreSettings();
-    const store = settings.storeName || "Store";
-    const copy: Record<string, { heading: string; line: string }> = {
-      Ready: {
-        heading: "Your order is packed and ready 📦",
-        line: "Your order is packed and ready to be handed to the courier. We'll let you know once it's on the way.",
-      },
-      "Handed to courier": {
-        heading: "Your order is on the way 🚚",
-        line: "We've handed your order to the courier. It's now on its way to you — keep an eye out for the delivery.",
-      },
-      Delivered: {
-        heading: "Your order was delivered ✓",
-        line: "Your order has been delivered. We hope you love it — thanks for shopping with us!",
-      },
-      Returned: {
-        heading: "Your order was returned",
-        line: "This order has been marked as returned. If you have any questions, please contact us and we'll help sort it out.",
-      },
-    };
-    const c = copy[input.status];
-    if (!c) return; // only meaningful transitions email the customer
-    const body = `
-      <h1 style="margin:0 0 8px;font-size:20px;color:#111827;">${escapeHtml(c.heading)}</h1>
-      <p style="margin:0 0 12px;font-size:14px;color:#6b7280;">
-        Hi ${escapeHtml(input.customerName || "there")}, an update on your order
-        <b style="color:#111827;">#${escapeHtml(input.orderRef)}</b>:
-      </p>
-      <p style="margin:0;font-size:14px;color:#374151;">${escapeHtml(c.line)}</p>`;
-    const html = emailShell(store, BRAND_COLOR, body, `${store} — delivery update`);
-    await resendSend(input.to, `Order #${input.orderRef} — ${input.status} — ${store}`, html);
-  } catch (err) {
-    console.error("[orderNotify] failed to send delivery update", err);
-  }
-}
-
 // Same fire-and-forget safety as sendOrderNotification. Only called when the
 // customer actually provided an email — callers should check that first.
 export async function sendCustomerOrderConfirmation(input: CustomerConfirmInput): Promise<void> {
