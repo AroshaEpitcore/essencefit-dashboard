@@ -4,7 +4,7 @@ import { requireAdmin } from "@/lib/adminAuth";
 
 import { getDb } from "@/lib/db";
 import sql, { NVarChar, UniqueIdentifier, Int, Decimal, Transaction } from "@/lib/sqlShim";
-import { sendOrderNotification, sendCustomerStatusUpdate } from "@/lib/orderNotify";
+import { sendOrderNotification, sendCustomerStatusUpdate, sendCustomerDeliveryUpdate } from "@/lib/orderNotify";
 import { sortBySize } from "@/lib/sizeOrder";
 import { UserFacingError, userErrorMessage } from "@/lib/userError";
 
@@ -18,6 +18,18 @@ type ActionResult<T = object> =
 
 type OrderStatus = "Pending" | "Paid" | "Partial" | "Completed" | "Canceled";
 export type OrderRange = "today" | "yesterday" | "last7" | "last30" | "all";
+
+// Delivery / fulfillment status — a separate dimension from PaymentStatus.
+// PaymentStatus drives sales + stock; delivery status only tracks the physical
+// journey and never touches money or inventory.
+export const DELIVERY_STATUSES = [
+  "Processing",
+  "Ready",
+  "Handed to courier",
+  "Delivered",
+  "Returned",
+] as const;
+export type DeliveryStatus = (typeof DELIVERY_STATUSES)[number];
 
 /* ---------- Lookups ---------- */
 
@@ -228,6 +240,7 @@ export async function getRecentOrders(limit: number = 20, range: OrderRange = "a
       o.PackagePrintPrice,
       o.Notes,
       o.PaymentStatus,
+      o.DeliveryStatus,
       o.OrderDate,
       o.CompletedAt,
       o.Subtotal,
@@ -260,7 +273,7 @@ export async function getOrderDetails(orderId: string) {
     .input("Id", UniqueIdentifier, orderId)
     .query(`
       SELECT Id, Customer, CustomerPhone, SecondaryPhone, Address, WaybillId, PackagePrintPrice, Notes,
-        PaymentStatus, OrderDate,
+        PaymentStatus, DeliveryStatus, OrderDate,
         Subtotal, ManualDiscount, Discount, DeliveryFee, Total
       FROM Orders
       WHERE Id=@Id LIMIT 1
@@ -758,6 +771,74 @@ export async function updateOrderStatus(
 ): Promise<ActionResult> {
   try {
     await updateOrderStatusCore(orderId, newStatus);
+    return { ok: true };
+  } catch (err) {
+    const msg = userErrorMessage(err);
+    if (msg) return { ok: false, error: msg };
+    throw err;
+  }
+}
+
+/* ---------- UPDATE Delivery Status ---------- */
+
+// Delivery status is independent of PaymentStatus — it never creates/deletes
+// sales rows or touches stock. It just records the physical fulfillment journey
+// and (for meaningful transitions) emails the customer. Returns { ok, error }.
+export async function updateDeliveryStatus(
+  orderId: string,
+  newStatus: DeliveryStatus
+): Promise<ActionResult> {
+  await requireAdmin();
+  if (!DELIVERY_STATUSES.includes(newStatus)) {
+    return { ok: false, error: "Invalid delivery status." };
+  }
+
+  const pool = await getDb();
+  try {
+    const prev = await pool
+      .request()
+      .input("Id", UniqueIdentifier, orderId)
+      .query(`SELECT DeliveryStatus, Customer, CustomerEmail FROM Orders WHERE Id=@Id LIMIT 1`);
+    const row = prev.recordset[0];
+    if (!row) return { ok: false, error: "Order not found." };
+    const oldStatus = row.DeliveryStatus ?? null;
+
+    await pool
+      .request()
+      .input("Id", UniqueIdentifier, orderId)
+      .input("Status", NVarChar(50), newStatus)
+      .query(`UPDATE Orders SET DeliveryStatus=@Status WHERE Id=@Id`);
+
+    // Audit trail — also surfaces on the customer's order "Status history".
+    // Best-effort: a logging failure must never block the status change.
+    if (oldStatus !== newStatus) {
+      try {
+        await pool
+          .request()
+          .input("Id", UniqueIdentifier, crypto.randomUUID())
+          .input("OrderId", UniqueIdentifier, orderId)
+          .input("OldStatus", NVarChar(50), oldStatus)
+          .input("NewStatus", NVarChar(50), newStatus)
+          .input("ChangedAt", sql.DateTime2(7), new Date())
+          .query(`
+            INSERT INTO OrderStatusLogs (Id, OrderId, OldStatus, NewStatus, ChangedAt)
+            VALUES (@Id, @OrderId, @OldStatus, @NewStatus, @ChangedAt)
+          `);
+      } catch (logErr) {
+        console.error("[deliveryStatus] failed to log change", logErr);
+      }
+
+      // Fire-and-forget customer email (the sender swallows all failures).
+      if (row.CustomerEmail) {
+        await sendCustomerDeliveryUpdate({
+          to: row.CustomerEmail,
+          customerName: row.Customer || "",
+          orderRef: String(orderId).slice(0, 8).toUpperCase(),
+          status: newStatus,
+        });
+      }
+    }
+
     return { ok: true };
   } catch (err) {
     const msg = userErrorMessage(err);

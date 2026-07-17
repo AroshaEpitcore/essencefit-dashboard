@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
-import { getWebOrders, verifyWebPayment, setWebOrderStatus, getWebOrderDetails } from "./actions";
+import { getWebOrders, verifyWebPayment, setWebOrderStatus, setWebDeliveryStatus, getWebOrderDetails } from "./actions";
 import {
   Globe, Truck, Landmark, CheckCircle2, ExternalLink, Phone, MapPin, ShieldCheck, RefreshCw, Package, ChevronDown,
   Search as SearchIcon,
@@ -18,6 +18,15 @@ const statusColor: Record<string, string> = {
   Completed: "bg-green-500/20 text-green-400",
   Partial: "bg-blue-500/20 text-blue-400",
   Canceled: "bg-red-500/20 text-red-400",
+};
+
+const DELIVERY_STATUSES = ["Processing", "Ready", "Handed to courier", "Delivered", "Returned"] as const;
+const deliveryColor: Record<string, string> = {
+  Processing: "bg-gray-500/20 text-gray-400",
+  Ready: "bg-amber-500/20 text-amber-400",
+  "Handed to courier": "bg-blue-500/20 text-blue-400",
+  Delivered: "bg-green-500/20 text-green-400",
+  Returned: "bg-red-500/20 text-red-400",
 };
 
 const PAGE_SIZE = 50;
@@ -107,6 +116,17 @@ export default function WebOrdersPage() {
     }
   }
 
+  async function changeDelivery(id: string, status: any) {
+    try {
+      const res = await setWebDeliveryStatus(id, status);
+      if (!res.ok) throw new Error(res.error);
+      toast.success("Delivery status updated");
+      load(true);
+    } catch (e: any) {
+      toast.error(e.message || "Failed");
+    }
+  }
+
   const shown = orders; // server-side filtered + paged
 
   return (
@@ -160,6 +180,7 @@ export default function WebOrdersPage() {
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-bold">#{String(o.Id).slice(0, 8).toUpperCase()}</span>
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusColor[o.PaymentStatus] || "bg-gray-200 text-gray-600"}`}>{o.PaymentStatus}</span>
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${deliveryColor[o.DeliveryStatus] || "bg-gray-500/20 text-gray-400"}`}>{o.DeliveryStatus || "Processing"}</span>
                     {o.PaymentMethod === "BankTransfer" ? (
                       <span className="text-xs flex items-center gap-1 text-gray-500"><Landmark className="w-3 h-3" /> Bank{o.PaymentVerified ? <ShieldCheck className="w-3 h-3 text-green-500" /> : ""}</span>
                     ) : (
@@ -197,13 +218,28 @@ export default function WebOrdersPage() {
                     <CheckCircle2 className="w-3.5 h-3.5" /> Verify payment → Paid
                   </button>
                 )}
-                <select
-                  value={o.PaymentStatus}
-                  onChange={(e) => changeStatus(o.Id, e.target.value)}
-                  className="ml-auto text-xs bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1.5"
-                >
-                  {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
+                <div className="ml-auto flex items-center gap-2">
+                  <label className="flex items-center gap-1 text-xs text-gray-500">
+                    <span className="hidden sm:inline">Payment</span>
+                    <select
+                      value={o.PaymentStatus}
+                      onChange={(e) => changeStatus(o.Id, e.target.value)}
+                      className="text-xs bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1.5"
+                    >
+                      {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </label>
+                  <label className="flex items-center gap-1 text-xs text-gray-500">
+                    <span className="hidden sm:inline">Delivery</span>
+                    <select
+                      value={o.DeliveryStatus || "Processing"}
+                      onChange={(e) => changeDelivery(o.Id, e.target.value)}
+                      className="text-xs bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1.5"
+                    >
+                      {DELIVERY_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </label>
+                </div>
               </div>
 
               {openItems === o.Id && (

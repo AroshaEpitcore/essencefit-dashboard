@@ -6,6 +6,7 @@ import { getPublicStoreSettings } from "@/lib/storeSettings";
 import { getCurrentCustomer, setSessionCookie } from "@/lib/customerAuth";
 import { sendOrderNotification, sendCustomerOrderConfirmation } from "@/lib/orderNotify";
 import { UserFacingError, userErrorMessage } from "@/lib/userError";
+import { consumeRateLimit } from "@/lib/rateLimit";
 
 const { UniqueIdentifier, NVarChar, Int, Decimal } = sql;
 
@@ -61,6 +62,12 @@ export async function createWebOrder(
   if (!payload.address?.trim()) return { ok: false, error: "Delivery address is required." };
   if (payload.paymentMethod === "BankTransfer" && !payload.paymentSlipUrl) {
     return { ok: false, error: "Please upload your bank transfer slip." };
+  }
+
+  // Order-spam guard: 5 orders / 10 min per phone.
+  const spamKey = `weborder:${payload.customerPhone.trim()}`;
+  if (!(await consumeRateLimit(spamKey, 5, 600)).allowed) {
+    return { ok: false, error: "Too many orders from this number — please wait a few minutes and try again." };
   }
 
   // Account required: must be logged in, or supply a password to create one.
