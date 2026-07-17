@@ -59,6 +59,7 @@ export const COLUMN_CASE: Record<string, string> = {
   "decimal": "DECIMAL",
   "deliveryamt": "DeliveryAmt",
   "deliveryfee": "DeliveryFee",
+  "deliverystatus": "DeliveryStatus",
   "description": "Description",
   "designcount": "DesignCount",
   "df_categories_isactive": "DF_Categories_IsActive",
