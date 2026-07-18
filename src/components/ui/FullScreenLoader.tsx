@@ -32,7 +32,7 @@ export default function FullScreenLoader() {
         >
           {/* Essence Fit Logo */}
           <motion.img
-            src="https://essencefits.com/wp-content/uploads/2025/06/cropped-cropped-cropped-logo-black-130x63.png"
+            src="/favicon/favicon.svg"
             alt="Essence Fit"
             className="w-40 h-auto mb-8"
             initial={{ opacity: 0, scale: 0.8 }}
