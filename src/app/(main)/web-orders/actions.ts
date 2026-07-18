@@ -4,7 +4,7 @@ import { requireAdmin } from "@/lib/adminAuth";
 
 import { getDb, sql } from "@/lib/db";
 import { updateOrderStatusCore, getOrderDetails, updateDeliveryStatus, type DeliveryStatus } from "../orders/actions";
-import { UserFacingError, userErrorMessage } from "@/lib/userError";
+import { userErrorMessage } from "@/lib/userError";
 
 const UNVERIFIED = `o.PaymentMethod = 'BankTransfer' AND o.PaymentVerified IS NOT TRUE`;
 
@@ -13,7 +13,10 @@ export async function getWebOrders(opts?: {
   offset?: number;
   search?: string;
   unverifiedOnly?: boolean;
-}) {
+}): Promise<
+  | { ok: true; rows: any[]; total: number; unverifiedTotal: number }
+  | { ok: false; error: string }
+> {
   try {
     await requireAdmin();
     const limit = Math.min(Math.max(opts?.limit ?? 50, 1), 200);
@@ -60,20 +63,20 @@ export async function getWebOrders(opts?: {
     `);
 
     return {
+      ok: true,
       rows: res.recordset,
       total: Number(counts.recordset[0]?.Total ?? 0),
       unverifiedTotal: Number(counts.recordset[0]?.UnverifiedTotal ?? 0),
     };
   } catch (err) {
-    // Prod strips thrown Error messages (see src/lib/userError.ts), which masked this
-    // action's real failure as the generic "Server Components render" digest for days.
-    // Log the true cause (Vercel captures console.error) and surface it to the admin
-    // toast instead of the mask, so any future regression here is diagnosable at a glance.
+    // Prod strips *thrown* Error messages (incl. UserFacingError) down to the generic
+    // "Server Components render" digest — that is what masked this failure for days. The
+    // only way to get the real reason to the client is to RETURN it as data (the pattern
+    // documented in src/lib/userError.ts). Also log it so it lands in Vercel runtime logs.
     console.error("[getWebOrders] failed:", err);
-    if (err instanceof UserFacingError) throw err;
     const e = err as { code?: string; message?: string };
     const detail = e?.code ? `${e.code} ${e.message ?? ""}`.trim() : e?.message ?? String(err);
-    throw new UserFacingError(`Website orders failed to load: ${detail}`);
+    return { ok: false, error: `Website orders failed to load: ${detail}` };
   }
 }
 

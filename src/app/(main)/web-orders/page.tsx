@@ -74,6 +74,7 @@ export default function WebOrdersPage() {
         search: debounced,
         unverifiedOnly: filter === "unverified",
       });
+      if (!d.ok) throw new Error(d.error);
       setOrders(d.rows);
       setTotal(d.total);
       setUnverifiedTotal(d.unverifiedTotal);

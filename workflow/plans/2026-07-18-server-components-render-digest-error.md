@@ -89,28 +89,33 @@ regression is diagnosable in seconds rather than days.
 ## Phase 1: Unmask the web-orders read error
 ### Changes
 #### `getWebOrders` — `src/app/(main)/web-orders/actions.ts`
-Wrap the whole action so no failure is masked: log the true error server-side and rethrow a
-`UserFacingError` carrying the real message (admin-only panel — surfacing DB detail here is
-acceptable and is the entire point of this phase).
+Wrap the whole action so no failure is masked. **Return the error as data — do NOT throw it.**
+Next.js redacts *every thrown Error* (incl. `UserFacingError`) in prod to the generic digest;
+only a returned value crosses the boundary intact (the `userError.ts` pattern, already used by
+`verifyWebPayment`). Admin-only panel, so surfacing DB detail is acceptable. Also
+`console.error` so it lands in Vercel runtime logs.
 ```ts
-import { UserFacingError } from "@/lib/userError";
-// ...
-export async function getWebOrders(opts?: { /* unchanged */ }) {
+export async function getWebOrders(opts?: { /* unchanged */ }): Promise<
+  | { ok: true; rows: any[]; total: number; unverifiedTotal: number }
+  | { ok: false; error: string }
+> {
   try {
     await requireAdmin();
     // ... existing body unchanged (limit/offset/search, list query, counts) ...
-    return { rows: res.recordset, total: /*…*/, unverifiedTotal: /*…*/ };
+    return { ok: true, rows: res.recordset, total: /*…*/, unverifiedTotal: /*…*/ };
   } catch (err) {
-    // Prod strips thrown Error messages (see src/lib/userError.ts), which hid this
-    // failure for days. Log the real cause (Vercel captures console.error) and surface
-    // it to the admin instead of the generic "Server Components render" mask.
     console.error("[getWebOrders] failed:", err);
-    const detail = err instanceof Error ? (err as any).code
-      ? `${(err as any).code} ${err.message}` : err.message : String(err);
-    throw new UserFacingError(`Website orders failed to load: ${detail}`);
+    const e = err as { code?: string; message?: string };
+    const detail = e?.code ? `${e.code} ${e.message ?? ""}`.trim() : e?.message ?? String(err);
+    return { ok: false, error: `Website orders failed to load: ${detail}` };
   }
 }
 ```
+Caller `page.tsx` `load()`: add `if (!d.ok) throw new Error(d.error);` before
+`setOrders(d.rows)` — the existing `catch` turns it into `toast.error(e.message)`.
+
+> **Note (2026-07-18):** first deploy (`9fb94af`) *threw* `UserFacingError` and was still
+> redacted in prod — corrected to the return-as-data shape above.
 ### Success Criteria
 #### Automated (the deterministic gate — must be green)
 - [ ] Build passes: `NODE_OPTIONS=--dns-result-order=ipv4first npm run build`
