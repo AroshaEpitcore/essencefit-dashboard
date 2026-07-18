@@ -7,6 +7,7 @@ import sql, { NVarChar, UniqueIdentifier, Int, Decimal, Transaction } from "@/li
 import { sendOrderNotification, sendCustomerStatusUpdate, sendCustomerDeliveryUpdate } from "@/lib/orderNotify";
 import { sortBySize } from "@/lib/sizeOrder";
 import { UserFacingError, userErrorMessage } from "@/lib/userError";
+import { DELIVERY_STATUSES, type DeliveryStatus } from "./deliveryStatus";
 
 /* Money-path mutations RETURN { ok, error } instead of throwing, because
    Next.js strips thrown Error messages from server actions in production —
@@ -18,18 +19,6 @@ type ActionResult<T = object> =
 
 type OrderStatus = "Pending" | "Paid" | "Partial" | "Completed" | "Canceled";
 export type OrderRange = "today" | "yesterday" | "last7" | "last30" | "all";
-
-// Delivery / fulfillment status — a separate dimension from PaymentStatus.
-// PaymentStatus drives sales + stock; delivery status only tracks the physical
-// journey and never touches money or inventory.
-export const DELIVERY_STATUSES = [
-  "Processing",
-  "Ready",
-  "Handed to courier",
-  "Delivered",
-  "Returned",
-] as const;
-export type DeliveryStatus = (typeof DELIVERY_STATUSES)[number];
 
 /* ---------- Lookups ---------- */
 
