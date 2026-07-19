@@ -1,10 +1,12 @@
 ---
 date: 2026-07-18
+resolved: 2026-07-19
 slug: server-components-render-digest-error
-status: draft   # draft | approved | implementing | shipped
-surfaces: [server-action, db-migration]
+status: shipped   # draft | approved | implementing | shipped
+surfaces: [server-action]
 research: workflow/research/2026-07-18-server-components-render-digest-error.md
 estimated_manual_effort: 1h 10m
+fix_commit: 0fb40ee
 ---
 
 # Fix the masked 500 on /web-orders ("Server Components render" digest) — Implementation Plan
@@ -19,8 +21,40 @@ estimated_manual_effort: 1h 10m
 Components render…"*. That is Next.js's **generic production mask** over a real error: the
 `getWebOrders` server action returns **HTTP 500** (confirmed in the browser console:
 `POST /web-orders → 500`). We will (1) **unmask** the real error so it is never invisible
-again, then (2) apply the **targeted fix** the unmasked error dictates — near-certainly
-re-applying the `deliverystatus` migration to the database Vercel actually uses.
+again, then (2) apply the **targeted fix** the unmasked error dictates.
+
+## ✅ RESOLVED — Actual Root Cause (2026-07-19)
+> The `deliverystatus`-missing-column theory below (see *Current State* / *Conclusion*) was
+> **WRONG**. It was written before the real error was captured. The un-redacted error,
+> logged server-side via a temporary `onRequestError` → DB capture, was:
+>
+> ```
+> A "use server" file can only export async functions, found object.
+>   at src/app/(main)/orders/actions.ts
+> ```
+>
+> **Real cause:** the delivery-status feature added `export const DELIVERY_STATUSES = [...]`
+> (an array) to `src/app/(main)/orders/actions.ts` — a `"use server"` file, which Next.js
+> permits to export **only async functions**. That illegal export throws **at module load**,
+> crashing every route that imports the actions module. `web-orders/actions.ts` imports from
+> it, so `/web-orders` 500'd **before any query ran** — which is why the DB/column/query/auth
+> were all provably fine, why query-level edits did nothing, and why the delivery feature's
+> repeated apply→revert flipped the page broken/working.
+>
+> **Fix (`0fb40ee`):** moved `DELIVERY_STATUSES` + the `DeliveryStatus` type into a plain
+> module `src/app/(main)/orders/deliveryStatus.ts`; imported it back into `orders/actions.ts`
+> and `web-orders/actions.ts`; restored `o.DeliveryStatus` in the list query (the column
+> exists and works — it was never the problem). Verified: `/web-orders` loads orders, no 500.
+>
+> **What still held from the plan:** Phase 1 (unmask) was the right first move and is what
+> exposed the truth — though the *first* unmask attempt (`throw UserFacingError`) was itself
+> still redacted; the error only became visible once captured server-side via
+> `onRequestError`. See memory [[use-server-async-exports-only]].
+>
+> **Shipped commits:** `3ed018d` (return errors as data — kept), `df66683` (unrelated
+> WordPress logo 403 fix), `0fb40ee` (the real fix), `5aa28d0` (removed temporary capture).
+> Below is the original diagnostic plan, preserved as the historical trail — its Phase 2
+> "missing column" branch did **not** apply.
 
 ## Estimated Manual Effort
 **1h 10m** — human-in-the-loop time only (Claude Code does the implementation): reviewing
@@ -52,13 +86,15 @@ Established by direct diagnosis against the `.env.local` database (which memory
   no migrate/postinstall). The patch `db/pg/patches/2026-07-17-delivery-status.sql` must be
   applied to the prod DB out-of-band via `db/pg/apply.mjs`.
 
-**Conclusion:** with the query, schema, connectivity, and auth all individually proven
-against the `.env.local` DB, a persistent masked 500 on exactly the `DeliveryStatus` query
-means the **database Vercel connects to (its `DATABASE_URL`) is not in the state this code
-requires** — overwhelmingly likely **missing the `deliverystatus` column** (health's
-`SELECT 1` still passes; `SELECT o.DeliveryStatus` fails with `42703 column … does not
-exist`). This also explains the apply→revert×3 saga: the column was applied to *a* DB, but
-not the one prod uses. Phase 1 confirms this beyond doubt before we touch anything.
+**Conclusion:** ⚠️ **INCORRECT — superseded by the RESOLVED section above.** The reasoning
+that follows was a plausible-but-wrong hypothesis; the real cause was an illegal `const`
+export from a `"use server"` file, not a missing column. Kept verbatim for the trail. ~~with
+the query, schema, connectivity, and auth all individually proven against the `.env.local`
+DB, a persistent masked 500 on exactly the `DeliveryStatus` query means the database Vercel
+connects to is missing the `deliverystatus` column.~~ (In fact the `.env.local` DB **is** the
+prod DB — confirmed by looking up the superadmin uid — and the column **did** exist; the 500
+happened at module load, before the query. The apply→revert×3 saga was the illegal export
+flipping in and out, not a DB-state difference.)
 
 ## Desired End State
 `/web-orders` loads the orders list with no toast error; the `getWebOrders` POST returns
