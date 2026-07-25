@@ -8,7 +8,9 @@ import ReviewsSection from "@/components/shop/ReviewsSection";
 import GallerySection from "@/components/shop/GallerySection";
 import DealsBanner from "@/components/shop/DealsBanner";
 import FeedbackSection from "@/components/shop/FeedbackSection";
+import DesignsSection from "@/components/shop/DesignsSection";
 import Hero from "@/components/shop/Hero";
+import { fetchDesignIdeas } from "@/lib/designIdeas";
 import { SITE_NAME } from "@/lib/seo";
 
 // ISR: regenerate in the background at most once every 60s. This works only
@@ -29,7 +31,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function HomePage() {
-  const [settings, categories, featured, deals, latest, newArrivals, reviews, galleryItems, feedback] = await Promise.all([
+  const [settings, categories, featured, deals, latest, newArrivals, reviews, galleryItems, feedback, designIdeas] = await Promise.all([
     getPublicStoreSettings(),
     getActiveCategories(),
     getFeaturedProducts(8),
@@ -39,6 +41,7 @@ export default async function HomePage() {
     getLatestReviews(),
     getLatestGalleryItems(100),
     getLatestFeedback(100),
+    fetchDesignIdeas({ page: 1, pageSize: 12 }),
   ]);
 
   // Weekly MVP = newest product, with the PDP buy-box data (variants/images/rating).
@@ -74,6 +77,9 @@ export default async function HomePage() {
           <GallerySection items={galleryItems} title="Custom orders, made real" />
         </div>
       )}
+
+      {/* Print design ideas — auto-fetched inspiration feed, links to /designs */}
+      <DesignsSection items={designIdeas.results} />
 
       {latest.length > 0 && <ProductSlider title="Just In" href="/shop?sort=new" products={latest} />}
 
