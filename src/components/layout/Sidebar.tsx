@@ -50,6 +50,7 @@ const navItems = [
   { href: "/dtf-orders", label: "DTF Orders", icon: Shirt },
   { href: "/order-logs", label: "Order Logs", icon: History },
   { href: "/invoices", label: "Invoices", icon: ClipboardList },
+  { href: "/quotations", label: "Quotations", icon: FileText },
   { href: "/finance", label: "Finance", icon: DollarSign },
   { href: "/expenses", label: "Expenses", icon: Wallet },
   { href: "/returns", label: "Returns", icon: RotateCcw },

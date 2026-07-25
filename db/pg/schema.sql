@@ -406,6 +406,26 @@ CREATE TABLE IF NOT EXISTS feedbackitems (
   createdat timestamp NOT NULL DEFAULT now()
 );
 
+-- General-purpose (non-DTF) quotation builder. Line items are stored inline as
+-- a JSON array in itemsjson: [{ description, qty, unitPrice, amount }].
+CREATE TABLE IF NOT EXISTS quotations (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  quoteref text NOT NULL,                 -- e.g. QUO-1001
+  customername text,
+  customerphone text,
+  customeremail text,
+  customeraddress text,
+  itemsjson text,                         -- JSON array of line items
+  subtotal numeric(12,2) NOT NULL DEFAULT 0,
+  discount numeric(12,2) NOT NULL DEFAULT 0,
+  othercharge numeric(12,2) NOT NULL DEFAULT 0,
+  grandtotal numeric(12,2) NOT NULL DEFAULT 0,
+  notes text,
+  validuntil date,
+  status text NOT NULL DEFAULT 'Draft',
+  createdat timestamp NOT NULL DEFAULT now()
+);
+
 -- ============================ INDEXES ============================
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_customers_phone ON customers (phone) WHERE phone IS NOT NULL;
