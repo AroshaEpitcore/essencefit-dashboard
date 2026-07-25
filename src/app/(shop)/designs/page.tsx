@@ -9,8 +9,9 @@ export const metadata: Metadata = {
   alternates: { canonical: "/designs" },
 };
 
-// Revalidate the first paint hourly; the client grid fetches more on demand.
-export const revalidate = 3600;
+// Revalidate the first paint every 10 min; the client grid fetches more on
+// demand (and falls back to a client fetch if this ever renders empty).
+export const revalidate = 600;
 
 export default async function DesignsPage() {
   const feed = await fetchDesignIdeas({ page: 1 });

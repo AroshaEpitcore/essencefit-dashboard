@@ -71,6 +71,14 @@ export default function DesignsBrowser({
     setPage(1);
   }
 
+  // Fallback: if the server-rendered feed came back empty (e.g. the upstream
+  // API was briefly rate-limited during static generation), fetch the default
+  // feed client-side on mount so the grid still populates.
+  useEffect(() => {
+    if (initial.length === 0) fetchPage("", 1, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Infinite scroll: load the next page when the sentinel enters view.
   useEffect(() => {
     const el = sentinel.current;
