@@ -12,6 +12,7 @@ import {
   Banknote,
   AlertTriangle,
   ClipboardList,
+  Printer,
 } from "lucide-react";
 import {
   getDashboardStats,
@@ -67,6 +68,13 @@ type DashboardStats = {
   OrdersToday: number;
   OrdersMonth: number;
   NewOrdersCount: number;
+
+  DtfSalesMonth: number;
+  DtfProfitMonth: number;
+  DtfUnitsMonth: number;
+  DtfOrdersMonth: number;
+  DtfSalesAllTime: number;
+  DtfProfitAllTime: number;
 };
 
 export default function DashboardPage() {
@@ -240,6 +248,50 @@ export default function DashboardPage() {
               value={stats.LowStock}
               icon={<TrendingDown className="w-5 h-5" />}
               color="bg-red-500/20 text-red-600 dark:text-red-400"
+            />
+          </div>
+
+          {/* DTF (print) order stats */}
+          <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
+            <Printer className="w-5 h-5 text-primary" />
+            DTF (Print) Orders
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+            <Card
+              title="DTF Sales (Month)"
+              value={`Rs ${Number(stats.DtfSalesMonth).toFixed(2)}`}
+              icon={<DollarSign className="w-5 h-5" />}
+              color="bg-green-500/20 text-green-600 dark:text-green-400"
+            />
+            <Card
+              title="DTF Profit (Month)"
+              value={`Rs ${Number(stats.DtfProfitMonth).toFixed(2)}`}
+              icon={<Banknote className="w-5 h-5" />}
+              color="bg-purple-500/20 text-purple-600 dark:text-purple-400"
+            />
+            <Card
+              title="DTF Units (Month)"
+              value={stats.DtfUnitsMonth}
+              icon={<Printer className="w-5 h-5" />}
+              color="bg-orange-500/20 text-orange-600 dark:text-orange-400"
+            />
+            <Card
+              title="DTF Orders (Month)"
+              value={stats.DtfOrdersMonth}
+              icon={<ClipboardList className="w-5 h-5" />}
+              color="bg-indigo-500/20 text-indigo-600 dark:text-indigo-400"
+            />
+            <Card
+              title="All-time DTF Sales"
+              value={`Rs ${Number(stats.DtfSalesAllTime).toFixed(2)}`}
+              icon={<DollarSign className="w-5 h-5" />}
+              color="bg-teal-500/20 text-teal-600 dark:text-teal-400"
+            />
+            <Card
+              title="All-time DTF Profit"
+              value={`Rs ${Number(stats.DtfProfitAllTime).toFixed(2)}`}
+              icon={<Banknote className="w-5 h-5" />}
+              color="bg-purple-500/20 text-purple-600 dark:text-purple-400"
             />
           </div>
 

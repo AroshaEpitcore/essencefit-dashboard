@@ -87,7 +87,32 @@ export async function getDashboardStats() {
       (SELECT COUNT(*) FROM Orders WHERE CAST(OrderDate AS DATE) = current_date) AS OrdersToday,
       (SELECT COUNT(*) FROM Orders WHERE OrderDate >= date_trunc('month', current_date)::date) AS OrdersMonth,
 
-      (SELECT COUNT(*) FROM Orders WHERE PaymentStatus = 'Pending') AS NewOrdersCount
+      (SELECT COUNT(*) FROM Orders WHERE PaymentStatus = 'Pending') AS NewOrdersCount,
+
+      /* ---------------- DTF-only aggregates (Sales.PaymentMethod = 'DTF') ---------------- */
+      (SELECT COALESCE(SUM(S.Qty * S.SellingPrice),0)
+       FROM Sales S
+       WHERE S.PaymentMethod = 'DTF'
+         AND CAST(S.SaleDate AS DATE) >= date_trunc('month', current_date)::date) AS DtfSalesMonth,
+
+      (SELECT COALESCE(SUM(S.Qty * (S.SellingPrice - S.CostPrice)),0)
+       FROM Sales S
+       WHERE S.PaymentMethod = 'DTF'
+         AND CAST(S.SaleDate AS DATE) >= date_trunc('month', current_date)::date) AS DtfProfitMonth,
+
+      (SELECT COALESCE(SUM(S.Qty),0)
+       FROM Sales S
+       WHERE S.PaymentMethod = 'DTF'
+         AND CAST(S.SaleDate AS DATE) >= date_trunc('month', current_date)::date) AS DtfUnitsMonth,
+
+      (SELECT COUNT(*) FROM DtfOrders
+       WHERE CAST(CreatedAt AS DATE) >= date_trunc('month', current_date)::date) AS DtfOrdersMonth,
+
+      (SELECT COALESCE(SUM(S.Qty * S.SellingPrice),0)
+       FROM Sales S WHERE S.PaymentMethod = 'DTF') AS DtfSalesAllTime,
+
+      (SELECT COALESCE(SUM(S.Qty * (S.SellingPrice - S.CostPrice)),0)
+       FROM Sales S WHERE S.PaymentMethod = 'DTF') AS DtfProfitAllTime
   `);
 
   return result.recordset[0];
