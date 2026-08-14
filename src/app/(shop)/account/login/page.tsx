@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import { LabeledInput } from "@/components/shop/LabeledInput";
 import { loginCustomer } from "../actions";
@@ -65,12 +65,10 @@ function LoginForm() {
   );
 }
 
-/* useSearchParams needs a Suspense boundary now that the (shop) layout
-   is static (it no longer reads cookies, enabling home-page ISR). */
+/* The /account segment is force-dynamic (see account/layout.tsx), so
+   useSearchParams no longer needs a Suspense boundary — and rendering the form
+   directly avoids a server-fallback → client-content hydration split that
+   surfaced as a React #310 hooks mismatch in production. */
 export default function CustomerLoginPage() {
-  return (
-    <Suspense fallback={null}>
-      <LoginForm />
-    </Suspense>
-  );
+  return <LoginForm />;
 }
