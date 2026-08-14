@@ -4,6 +4,7 @@ import { Phone, Mail, MessageCircle, Facebook, Instagram, Clock, Truck } from "l
 import { getPublicStoreSettings } from "@/lib/storeSettings";
 import { waHref } from "@/lib/wa";
 import ContactWhatsAppForm from "@/components/shop/ContactWhatsAppForm";
+import GalleryBand from "@/components/shop/GalleryBand";
 
 export const metadata: Metadata = {
   title: "Contact Us",
@@ -142,6 +143,8 @@ export default async function ContactPage() {
           <Link href="/gallery" className="rounded-lg border border-gray-300 text-gray-900 text-sm font-semibold px-5 py-2.5 hover:border-gray-900 transition-colors">View gallery</Link>
         </div>
       </div>
+
+      <GalleryBand />
     </div>
   );
 }

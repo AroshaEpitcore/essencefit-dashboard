@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Shirt, Palette, Truck, Banknote, MessageCircle, Sparkles, Package, HeartHandshake } from "lucide-react";
 import { getPublicStoreSettings } from "@/lib/storeSettings";
 import { waHref } from "@/lib/wa";
+import GalleryBand from "@/components/shop/GalleryBand";
 
 export const metadata: Metadata = {
   title: "About Us",
@@ -155,6 +156,10 @@ export default async function AboutPage() {
           </div>
         </div>
       </section>
+
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-16">
+        <GalleryBand />
+      </div>
     </div>
   );
 }

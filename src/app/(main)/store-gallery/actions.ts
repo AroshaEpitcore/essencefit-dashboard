@@ -23,6 +23,7 @@ export type AdminGalleryItem = {
   CreatedAt: string;
   ImageCount: number; // final product photos
   ArtworkCount: number;
+  ProductCount: number; // storefront products this item is assigned to
 };
 
 export async function getAdminGalleryItems(): Promise<AdminGalleryItem[]> {
@@ -33,11 +34,28 @@ export async function getAdminGalleryItems(): Promise<AdminGalleryItem[]> {
            g.IsFeatured, g.IsPublished, g.SortOrder, g.CreatedAt,
            (SELECT gi.Url FROM GalleryImages gi WHERE gi.GalleryItemId = g.Id AND gi.Kind = 'artwork' ORDER BY gi.SortOrder LIMIT 1) AS ArtworkUrl,
            (SELECT COUNT(*) FROM GalleryImages gi WHERE gi.GalleryItemId = g.Id AND gi.Kind = 'final') AS ImageCount,
-           (SELECT COUNT(*) FROM GalleryImages gi WHERE gi.GalleryItemId = g.Id AND gi.Kind = 'artwork') AS ArtworkCount
+           (SELECT COUNT(*) FROM GalleryImages gi WHERE gi.GalleryItemId = g.Id AND gi.Kind = 'artwork') AS ArtworkCount,
+           (SELECT COUNT(*) FROM GalleryItemProducts gp WHERE gp.GalleryItemId = g.Id) AS ProductCount
     FROM GalleryItems g
     ORDER BY g.IsFeatured DESC, CASE WHEN g.SortOrder = 0 THEN 2147483647 ELSE g.SortOrder END, g.CreatedAt DESC
   `);
   return res.recordset as AdminGalleryItem[];
+}
+
+/* Products for the "assign to products" picker on the gallery form. Mirrors the
+   reviews product picker but also returns a thumbnail for the option list. */
+export type GalleryProductOption = { Id: string; Name: string; CategoryName: string; ImageUrl: string | null };
+
+export async function getGalleryProductOptions(): Promise<GalleryProductOption[]> {
+  await requireAdmin();
+  const pool = await getDb();
+  const res = await pool.request().query(`
+    SELECT p.Id, p.Name, COALESCE(cat.Name, '') AS CategoryName, p.ImageUrl
+    FROM Products p
+    LEFT JOIN Categories cat ON cat.Id = p.CategoryId
+    ORDER BY p.Name
+  `);
+  return res.recordset as GalleryProductOption[];
 }
 
 export type GalleryItemForEdit = {
@@ -49,6 +67,7 @@ export type GalleryItemForEdit = {
   SortOrder: number;
   Images: string[]; // final product photos, ordered
   Artworks: string[]; // customer's artwork images, ordered
+  ProductIds: string[]; // storefront products this item is assigned to
 };
 
 export async function getGalleryItemForEdit(id: string): Promise<GalleryItemForEdit | null> {
@@ -66,10 +85,15 @@ export async function getGalleryItemForEdit(id: string): Promise<GalleryItemForE
     .input("Id", sql.UniqueIdentifier, id)
     .query(`SELECT Url, Kind FROM GalleryImages WHERE GalleryItemId=@Id ORDER BY SortOrder`);
   const rows = imgs.recordset as { Url: string; Kind: string }[];
+  const prods = await pool
+    .request()
+    .input("Id", sql.UniqueIdentifier, id)
+    .query(`SELECT ProductId FROM GalleryItemProducts WHERE GalleryItemId=@Id`);
   return {
-    ...(item as Omit<GalleryItemForEdit, "Images" | "Artworks">),
+    ...(item as Omit<GalleryItemForEdit, "Images" | "Artworks" | "ProductIds">),
     Images: rows.filter((x) => x.Kind !== "artwork").map((x) => x.Url),
     Artworks: rows.filter((x) => x.Kind === "artwork").map((x) => x.Url),
+    ProductIds: (prods.recordset as { ProductId: string }[]).map((x) => x.ProductId),
   };
 }
 
@@ -82,6 +106,7 @@ export type SaveGalleryItemInput = {
   isPublished: boolean;
   sortOrder: number;
   images: string[];
+  productIds: string[];
 };
 
 export async function saveGalleryItem(inp: SaveGalleryItemInput): Promise<{ id: string }> {
@@ -132,6 +157,16 @@ export async function saveGalleryItem(inp: SaveGalleryItemInput): Promise<{ id: 
   for (let i = 0; i < inp.images.length; i++) await insert(inp.images[i], "final", i);
   for (let i = 0; i < inp.artworks.length; i++) await insert(inp.artworks[i], "artwork", i);
 
+  // Replace the product assignments (deduped) so this item surfaces on those PDPs.
+  await pool.request().input("Gid", sql.UniqueIdentifier, id).query(`DELETE FROM GalleryItemProducts WHERE GalleryItemId=@Gid`);
+  for (const pid of [...new Set(inp.productIds)]) {
+    await pool
+      .request()
+      .input("Gid", sql.UniqueIdentifier, id)
+      .input("Pid", sql.UniqueIdentifier, pid)
+      .query(`INSERT INTO GalleryItemProducts (GalleryItemId, ProductId) VALUES (@Gid, @Pid)`);
+  }
+
   return { id: id! };
 }
 
@@ -139,6 +174,7 @@ export async function deleteGalleryItem(id: string): Promise<{ ok: true }> {
   await requireAdmin();
   const pool = await getDb();
   await pool.request().input("Id", sql.UniqueIdentifier, id).query(`DELETE FROM GalleryImages WHERE GalleryItemId=@Id`);
+  await pool.request().input("Id", sql.UniqueIdentifier, id).query(`DELETE FROM GalleryItemProducts WHERE GalleryItemId=@Id`);
   await pool.request().input("Id", sql.UniqueIdentifier, id).query(`DELETE FROM GalleryItems WHERE Id=@Id`);
   return { ok: true };
 }

@@ -394,6 +394,15 @@ CREATE TABLE IF NOT EXISTS galleryimages (
   createdat timestamp NOT NULL DEFAULT now()
 );
 
+-- Links a gallery item to storefront products (many-to-many). An assigned
+-- item surfaces on that product's PDP; pages with no assigned item fall back
+-- to showing all published items.
+CREATE TABLE IF NOT EXISTS galleryitemproducts (
+  galleryitemid uuid NOT NULL,
+  productid     uuid NOT NULL,
+  PRIMARY KEY (galleryitemid, productid)
+);
+
 -- Admin-managed feedback wall: each item is one customer-feedback screenshot
 -- (WhatsApp chat etc.) with an optional customer name. Screenshot-first:
 -- no product link, rating, or message.
@@ -446,6 +455,7 @@ CREATE INDEX IF NOT EXISTS ix_sales_dtforderid ON sales (dtforderid);
 CREATE INDEX IF NOT EXISTS ix_reviews_productid ON reviews (productid);
 CREATE INDEX IF NOT EXISTS ix_reviewimages_reviewid ON reviewimages (reviewid);
 CREATE INDEX IF NOT EXISTS ix_galleryimages_galleryitemid ON galleryimages (galleryitemid);
+CREATE INDEX IF NOT EXISTS ix_galleryitemproducts_productid ON galleryitemproducts (productid);
 
 -- Hardening round 2026-07-05 (also in db/pg/patches/2026-07-05-hardening.sql)
 CREATE INDEX IF NOT EXISTS ix_orderitems_orderid        ON orderitems (orderid);

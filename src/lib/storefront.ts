@@ -665,6 +665,26 @@ export async function getLatestGalleryItems(limit = 6): Promise<GalleryItem[]> {
   return attachGalleryImages(pool, res.recordset as GalleryItem[]);
 }
 
+// Gallery items an admin has assigned to a specific product — drives the
+// product-specific "Custom orders" slider on the PDP. Empty when none assigned
+// (the PDP then falls back to the general all-items band).
+export async function getGalleryItemsForProduct(productId: string, limit = 100): Promise<GalleryItem[]> {
+  const pool = await getDb();
+  const res = await pool
+    .request()
+    .input("pid", sql.UniqueIdentifier, productId)
+    .input("n", sql.Int, limit)
+    .query(`
+      SELECT g.Id, g.CustomerName, g.Caption AS Caption, g.IsFeatured, g.CreatedAt
+      FROM GalleryItems g
+      JOIN GalleryItemProducts gp ON gp.GalleryItemId = g.Id
+      WHERE gp.ProductId = @pid AND g.IsPublished = true
+      ORDER BY g.IsFeatured DESC, CASE WHEN g.SortOrder = 0 THEN 2147483647 ELSE g.SortOrder END, g.CreatedAt DESC
+      LIMIT @n OFFSET 0
+    `);
+  return attachGalleryImages(pool, res.recordset as GalleryItem[]);
+}
+
 // /gallery page: customer-name search + incremental "load more" cap.
 export async function getGalleryItems(opts: { q?: string; limit: number }): Promise<{ items: GalleryItem[]; total: number }> {
   const pool = await getDb();

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { fetchDesignIdeas, DESIGN_TOPICS } from "@/lib/designIdeas";
 import DesignsBrowser from "./DesignsBrowser";
+import GalleryBand from "@/components/shop/GalleryBand";
 
 export const metadata: Metadata = {
   title: "Print Design Ideas",
@@ -30,6 +31,8 @@ export default async function DesignsPage() {
         initialHasMore={feed.hasMore}
         topics={DESIGN_TOPICS}
       />
+
+      <GalleryBand />
     </div>
   );
 }

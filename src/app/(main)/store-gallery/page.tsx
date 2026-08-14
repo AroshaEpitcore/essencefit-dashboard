@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
-import { Images, Save, Plus, Trash2, ImagePlus, X, Pencil, Star } from "lucide-react";
+import { Images, Save, Plus, Trash2, ImagePlus, X, Pencil, Star, Search, Package } from "lucide-react";
 import {
   getAdminGalleryItems,
   getGalleryItemForEdit,
   saveGalleryItem,
   deleteGalleryItem,
+  getGalleryProductOptions,
   type AdminGalleryItem,
+  type GalleryProductOption,
 } from "./actions";
 
 async function uploadFile(file: File): Promise<string> {
@@ -34,6 +36,7 @@ type FormState = {
   isPublished: boolean;
   sortOrder: number;
   images: string[];
+  productIds: string[];
 };
 
 const EMPTY: FormState = {
@@ -45,6 +48,7 @@ const EMPTY: FormState = {
   isPublished: true,
   sortOrder: 0,
   images: [],
+  productIds: [],
 };
 
 export default function GalleryAdminPage() {
@@ -56,6 +60,8 @@ export default function GalleryAdminPage() {
   const [uploadingImages, setUploadingImages] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<AdminGalleryItem | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [products, setProducts] = useState<GalleryProductOption[]>([]);
+  const [productQuery, setProductQuery] = useState("");
 
   async function refresh() {
     setItems(await getAdminGalleryItems());
@@ -66,7 +72,27 @@ export default function GalleryAdminPage() {
       .then(setItems)
       .catch((e) => toast.error(e.message || "Load failed"))
       .finally(() => setLoading(false));
+    getGalleryProductOptions()
+      .then(setProducts)
+      .catch(() => {
+        /* non-fatal: form still works without the product picker */
+      });
   }, []);
+
+  const filteredProducts = products.filter((p) => {
+    const q = productQuery.trim().toLowerCase();
+    if (!q) return true;
+    return p.Name.toLowerCase().includes(q) || p.CategoryName.toLowerCase().includes(q);
+  });
+
+  function toggleProduct(id: string) {
+    setF((prev) => ({
+      ...prev,
+      productIds: prev.productIds.includes(id)
+        ? prev.productIds.filter((x) => x !== id)
+        : [...prev.productIds, id],
+    }));
+  }
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setF((prev) => ({ ...prev, [key]: value }));
@@ -117,6 +143,7 @@ export default function GalleryAdminPage() {
         isPublished: g.IsPublished,
         sortOrder: g.SortOrder,
         images: g.Images,
+        productIds: g.ProductIds,
       });
     } catch (e: any) {
       toast.error(e.message || "Load failed");
@@ -135,6 +162,7 @@ export default function GalleryAdminPage() {
         isPublished: f.isPublished,
         sortOrder: f.sortOrder,
         images: f.images,
+        productIds: f.productIds,
       });
       toast.success(f.id ? "Gallery item updated" : "Gallery item added");
       resetForm();
@@ -240,6 +268,80 @@ export default function GalleryAdminPage() {
             </label>
           </div>
         </div>
+
+        {/* Assign to products — this item then shows in the "Custom orders"
+            slider on each selected product's page. */}
+        <div className="sm:col-span-2">
+          <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
+            <label className="block text-sm font-medium">
+              Show on these products&apos; pages <span className="text-gray-400">(optional, multiple)</span>
+            </label>
+            <div className="flex items-center gap-3 text-xs">
+              <span className="text-gray-400">{f.productIds.length} selected</span>
+              <button
+                type="button"
+                onClick={() => setF((prev) => ({ ...prev, productIds: filteredProducts.map((p) => p.Id) }))}
+                className="font-semibold text-primary hover:underline"
+              >
+                Select all{productQuery ? " (matches)" : ""}
+              </button>
+              {f.productIds.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setF((prev) => ({ ...prev, productIds: [] }))}
+                  className="font-semibold text-gray-500 hover:underline"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="relative mb-2">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              className={`${input} pl-9`}
+              value={productQuery}
+              onChange={(e) => setProductQuery(e.target.value)}
+              placeholder="Search products by name or category…"
+            />
+          </div>
+
+          <div className="max-h-64 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700/60">
+            {products.length === 0 ? (
+              <p className="text-sm text-gray-400 px-3 py-4">No products available.</p>
+            ) : filteredProducts.length === 0 ? (
+              <p className="text-sm text-gray-400 px-3 py-4">No products match &ldquo;{productQuery}&rdquo;.</p>
+            ) : (
+              filteredProducts.map((p) => {
+                const checked = f.productIds.includes(p.Id);
+                return (
+                  <label
+                    key={p.Id}
+                    className={`flex items-center gap-3 px-3 py-2 cursor-pointer ${checked ? "bg-primary/5" : "hover:bg-gray-50 dark:hover:bg-gray-900/40"}`}
+                  >
+                    <input type="checkbox" checked={checked} onChange={() => toggleProduct(p.Id)} className="shrink-0" />
+                    <div className="w-9 h-9 rounded-md overflow-hidden bg-gray-100 dark:bg-gray-700 flex items-center justify-center shrink-0">
+                      {p.ImageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={p.ImageUrl} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <Package className="w-4 h-4 text-gray-400" />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{p.Name}</p>
+                      {p.CategoryName && <p className="text-xs text-gray-400 truncate">{p.CategoryName}</p>}
+                    </div>
+                  </label>
+                );
+              })
+            )}
+          </div>
+          <p className="text-xs text-gray-400 mt-1">
+            Leave empty to keep this item in the general gallery only. Assigned items appear in the &ldquo;Custom orders&rdquo; slider on each product&apos;s page.
+          </p>
+        </div>
       </div>
 
       <div className="flex items-center gap-3 mt-5">
@@ -299,7 +401,7 @@ export default function GalleryAdminPage() {
                   </div>
                   {g.Caption && <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">{g.Caption}</p>}
                   <p className="text-xs text-gray-400 mt-0.5">
-                    {g.ImageCount} photo{g.ImageCount !== 1 ? "s" : ""}{g.ArtworkCount > 0 ? ` · ${g.ArtworkCount} artwork${g.ArtworkCount > 1 ? "s" : ""}` : ""}
+                    {g.ImageCount} photo{g.ImageCount !== 1 ? "s" : ""}{g.ArtworkCount > 0 ? ` · ${g.ArtworkCount} artwork${g.ArtworkCount > 1 ? "s" : ""}` : ""}{g.ProductCount > 0 ? ` · on ${g.ProductCount} product${g.ProductCount > 1 ? "s" : ""}` : ""}
                   </p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">

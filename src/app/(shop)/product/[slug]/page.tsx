@@ -199,7 +199,7 @@ export default async function ProductPage({
         </section>
       )}
 
-      <GalleryBand />
+      <GalleryBand productId={product.Id} />
     </div>
   );
 }
