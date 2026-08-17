@@ -1,7 +1,7 @@
 ---
 date: 2026-07-25
 slug: general-quotation-builder
-status: implementing   # draft | approved | implementing | shipped
+status: shipped   # draft | approved | implementing | shipped
 surfaces: [dashboard]   # single Next.js app (essencefit-dashboard); Maraebiz three-repo template N/A
 research: workflow/research/2026-07-25-general-quotation-builder.md
 estimated_manual_effort: 1h 20m
