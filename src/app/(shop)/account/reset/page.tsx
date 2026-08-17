@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import { LabeledInput } from "@/components/shop/LabeledInput";
 import { resetPassword } from "../actions";
@@ -72,9 +72,12 @@ function ResetForm() {
   );
 }
 
-/* The /account segment is force-dynamic (see account/layout.tsx), so
-   useSearchParams no longer needs a Suspense boundary — rendering the form
-   directly avoids the hydration split that surfaced as a React #310. */
+/* useSearchParams needs a Suspense boundary now that the (shop) layout
+   is static (it no longer reads cookies, enabling home-page ISR). */
 export default function ResetPasswordPage() {
-  return <ResetForm />;
+  return (
+    <Suspense fallback={null}>
+      <ResetForm />
+    </Suspense>
+  );
 }
