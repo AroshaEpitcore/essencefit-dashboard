@@ -31,6 +31,7 @@ import {
   Star,
   Images,
   MessageSquareQuote,
+  Radio,
 } from "lucide-react";
 import { Tooltip } from "react-tooltip";
 
@@ -59,6 +60,7 @@ const navItems = [
   { href: "/suppliers", label: "Suppliers", icon: Truck },
   { href: "/reports", label: "Reports", icon: FileText },
   { href: "/analysis", label: "Analysis", icon: BarChart3 },
+  { href: "/analytics", label: "Website Analytics", icon: Radio },
   { href: "/users", label: "Users", icon: Users },
   { href: "/stock-history", label: "Stock History", icon: Layers2 },
   { href: "/dispatch", label: "Dispatch", icon: SendHorizonal },

@@ -131,7 +131,7 @@ export const config = {
     // Storefront logged-in-only pages (customer session).
     "/account", "/account/orders/:path*", "/account/profile/:path*",
     // Admin panel (main) routes.
-    "/analysis/:path*", "/catalog/:path*", "/color-requests/:path*",
+    "/analysis/:path*", "/analytics/:path*", "/catalog/:path*", "/color-requests/:path*",
     "/customers/:path*", "/dashboard/:path*", "/dispatch/:path*",
     "/dtf/:path*", "/dtf-orders/:path*", "/expenses/:path*",
     "/finance/:path*", "/inventory/:path*", "/invoices/:path*",

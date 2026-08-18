@@ -535,3 +535,19 @@ CREATE TABLE IF NOT EXISTS auth_attempts (
   count        int  NOT NULL DEFAULT 1,
   window_start timestamptz NOT NULL DEFAULT now()
 );
+
+-- Website visitor analytics (admin /analytics page). One row per storefront
+-- page view, captured by a client beacon → /api/track. visitorid is a
+-- daily-rotating salted hash of IP+UA (cookieless, no PII stored).
+CREATE TABLE IF NOT EXISTS page_views (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  path       text NOT NULL,
+  referrer   text,
+  source     text,               -- normalised referrer host (google, instagram, direct, ...)
+  visitorid  text,               -- anonymised daily-rotating hash for unique counts
+  device     text,               -- mobile | tablet | desktop
+  country    text,               -- from CDN geo header when available
+  createdat  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_page_views_createdat ON page_views (createdat);
+CREATE INDEX IF NOT EXISTS idx_page_views_visitor  ON page_views (visitorid, createdat);

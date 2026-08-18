@@ -5,6 +5,7 @@ import StoreHeader from "@/components/shop/StoreHeader";
 import HeaderOffset from "@/components/shop/HeaderOffset";
 import StoreFooter from "@/components/shop/StoreFooter";
 import CookieConsent from "@/components/shop/CookieConsent";
+import PageView from "@/components/shop/PageView";
 import { getActiveCategories, getFeaturedProducts, getCategoryPreviews } from "@/lib/storefront";
 import { getPublicStoreSettings } from "@/lib/storeSettings";
 import { displayFont, headingFont } from "@/lib/fonts";
@@ -46,6 +47,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
             </main>
             <StoreFooter settings={settings} categories={categories} />
             <CookieConsent />
+            <PageView />
           </div>
         </QuickViewProvider>
       </WishlistProvider>
