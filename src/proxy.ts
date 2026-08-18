@@ -27,14 +27,18 @@ function base64urlToString(b64url: string): string {
   return new TextDecoder().decode(bytes);
 }
 
-async function verifyToken(token: string, secret: string): Promise<{ role: string } | null> {
-  const [b64, sig] = token.split(".");
-  if (!b64 || !sig) return null;
+async function hmacB64url(secret: string, payload: string): Promise<string> {
   const key = await crypto.subtle.importKey(
     "raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
   );
-  const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(b64));
-  if (bytesToBase64url(new Uint8Array(mac)) !== sig) return null;
+  const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload));
+  return bytesToBase64url(new Uint8Array(mac));
+}
+
+async function verifyToken(token: string, secret: string): Promise<{ role: string } | null> {
+  const [b64, sig] = token.split(".");
+  if (!b64 || !sig) return null;
+  if ((await hmacB64url(secret, b64)) !== sig) return null;
   try {
     const data = JSON.parse(base64urlToString(b64));
     if (!data.uid || !data.role || !data.exp || Date.now() > data.exp) return null;
@@ -44,14 +48,56 @@ async function verifyToken(token: string, secret: string): Promise<{ role: strin
   }
 }
 
+// Storefront customer session (ef_customer cookie — shape in src/lib/customerAuth.ts).
+async function verifyCustomer(token: string, secret: string): Promise<{ cid: string } | null> {
+  const [b64, sig] = token.split(".");
+  if (!b64 || !sig) return null;
+  if ((await hmacB64url(secret, b64)) !== sig) return null;
+  try {
+    const data = JSON.parse(base64urlToString(b64));
+    if (!data.cid || !data.exp || Date.now() > data.exp) return null;
+    return { cid: data.cid as string };
+  } catch {
+    return null;
+  }
+}
+
+// Logged-in-only storefront pages. Gated here (a real HTTP redirect) instead of
+// via redirect() inside the page: an in-render redirect() from these
+// force-dynamic pages crashes the Next 16 client Router on hydration
+// ("Rendered more hooks than during the previous render", React #310/#418).
+function isCustomerProtected(pathname: string): boolean {
+  return (
+    pathname === "/account" ||
+    pathname.startsWith("/account/orders") ||
+    pathname.startsWith("/account/profile")
+  );
+}
+
 export default async function proxy(req: NextRequest) {
-  const token = req.cookies.get("ef_admin")?.value;
   // Fail closed in production: without a real secret no token can be trusted.
   const secret =
     process.env.SESSION_SECRET ||
     (process.env.NODE_ENV === "production" ? "" : "essencefit-dev-secret-change-me");
-  const session = token && secret ? await verifyToken(token, secret) : null;
   const { pathname } = req.nextUrl;
+
+  // Storefront customer gate (separate cookie/flow from the admin panel below).
+  if (isCustomerProtected(pathname)) {
+    const ctoken = req.cookies.get("ef_customer")?.value;
+    const customer = ctoken && secret ? await verifyCustomer(ctoken, secret) : null;
+    if (!customer) {
+      if (req.method !== "GET") return new NextResponse("Login required", { status: 401 });
+      const url = req.nextUrl.clone();
+      url.pathname = "/account/login";
+      url.search = "";
+      url.searchParams.set("next", pathname);
+      return NextResponse.redirect(url);
+    }
+    return NextResponse.next();
+  }
+
+  const token = req.cookies.get("ef_admin")?.value;
+  const session = token && secret ? await verifyToken(token, secret) : null;
 
   if (!session) {
     // Server actions / fetches get a 401; page loads get the login screen.
@@ -82,6 +128,9 @@ export default async function proxy(req: NextRequest) {
    are whole-segment so the storefront routes don't collide. */
 export const config = {
   matcher: [
+    // Storefront logged-in-only pages (customer session).
+    "/account", "/account/orders/:path*", "/account/profile/:path*",
+    // Admin panel (main) routes.
     "/analysis/:path*", "/catalog/:path*", "/color-requests/:path*",
     "/customers/:path*", "/dashboard/:path*", "/dispatch/:path*",
     "/dtf/:path*", "/dtf-orders/:path*", "/expenses/:path*",
