@@ -54,8 +54,14 @@ export default async function HomePage() {
       ])
     : [[], { shared: [], byColor: {} }, { avg: 0, count: 0 }];
 
+  // The (shop) layout renders a header-height spacer before every page's content.
+  // Home is the exception — the hero sits full-bleed under the fixed header — so
+  // cancel the spacer with a matching negative margin (must stay in sync with
+  // HeaderOffset's heights). Done here (server-rendered) rather than via
+  // usePathname() in HeaderOffset, which caused a hydration mismatch (React #418).
+  const hasPromo = !!settings.announcement;
   return (
-    <div>
+    <div className={hasPromo ? "-mt-[100px] md:-mt-[116px]" : "-mt-16 md:-mt-20"}>
       <Hero slides={settings.heroSlides} storeName={settings.storeName} />
 
       {/* New Collection slider — admin-curated via the "New" flag in Storefront Catalog */}
