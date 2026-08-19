@@ -55,7 +55,7 @@ function DeltaBadge({ cur, prev, note }: { cur: number; prev: number; note: stri
 }
 
 export default function AnalyticsPage() {
-  const [range, setRange] = useState("7d");
+  const [range, setRange] = useState("today");
   const [data, setData] = useState<Analytics | null>(null);
   const [loading, setLoading] = useState(true);
 
