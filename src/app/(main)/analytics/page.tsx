@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Users, Eye, TrendingUp, TrendingDown, Globe2, MonitorSmartphone, FileText, Radio, Layers, Clock,
+  Users, Eye, TrendingUp, TrendingDown, Globe2, MonitorSmartphone, FileText, Radio, Layers, Clock, MapPin,
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -249,6 +249,29 @@ export default function AnalyticsPage() {
                       <div key={c.country} className="relative flex items-center justify-between py-1.5 px-2 rounded overflow-hidden">
                         <div className="absolute inset-y-0 left-0 bg-indigo-500/10 rounded" style={{ width: `${(c.views / max) * 100}%` }} />
                         <span className="relative text-sm mr-3 text-gray-700 dark:text-gray-200">{c.country}</span>
+                        <span className="relative text-sm font-semibold tabular-nums">{nf(c.views)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Cities */}
+            <div className="bg-white dark:bg-gray-800/50 p-6 rounded-xl border border-gray-200 dark:border-gray-700">
+              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><MapPin className="w-5 h-5 text-primary" /> Top cities</h2>
+              {data.cities.length === 0 ? (
+                <p className="text-sm text-gray-400">City data appears once deployed (from CDN geo headers).</p>
+              ) : (
+                <div className="space-y-1">
+                  {data.cities.map((c) => {
+                    const max = data.cities[0].views || 1;
+                    return (
+                      <div key={`${c.city}-${c.country}`} className="relative flex items-center justify-between py-1.5 px-2 rounded overflow-hidden">
+                        <div className="absolute inset-y-0 left-0 bg-teal-500/10 rounded" style={{ width: `${(c.views / max) * 100}%` }} />
+                        <span className="relative text-sm mr-3 text-gray-700 dark:text-gray-200">
+                          {c.city}{c.country ? <span className="text-gray-400">, {c.country}</span> : null}
+                        </span>
                         <span className="relative text-sm font-semibold tabular-nums">{nf(c.views)}</span>
                       </div>
                     );

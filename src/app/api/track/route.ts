@@ -65,6 +65,13 @@ export async function POST(req: NextRequest) {
       req.headers.get("x-vercel-ip-country") ||
       req.headers.get("cf-ipcountry") ||
       null;
+    // Vercel URL-encodes the city header (e.g. "San%20Francisco").
+    const rawCity = req.headers.get("x-vercel-ip-city") || req.headers.get("cf-ipcity");
+    let city: string | null = null;
+    if (rawCity) {
+      try { city = decodeURIComponent(rawCity); } catch { city = rawCity; }
+      city = city.slice(0, 120) || null;
+    }
 
     const ip =
       (req.headers.get("x-forwarded-for") || "").split(",")[0].trim() ||
@@ -86,9 +93,10 @@ export async function POST(req: NextRequest) {
       .input("VisitorId", sql.NVarChar(32), visitorid)
       .input("Device", sql.NVarChar(20), device)
       .input("Country", sql.NVarChar(4), country)
+      .input("City", sql.NVarChar(120), city)
       .query(
-        `INSERT INTO page_views (path, referrer, source, visitorid, device, country)
-         VALUES (@Path, @Referrer, @Source, @VisitorId, @Device, @Country)`
+        `INSERT INTO page_views (path, referrer, source, visitorid, device, country, city)
+         VALUES (@Path, @Referrer, @Source, @VisitorId, @Device, @Country, @City)`
       );
 
     return NextResponse.json({ ok: true });

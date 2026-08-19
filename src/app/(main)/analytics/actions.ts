@@ -127,9 +127,14 @@ export async function getWebAnalytics(range: string = "7d") {
     FROM page_views WHERE ${inWindow} AND country IS NOT NULL AND country <> ''
     GROUP BY country ORDER BY count(*) DESC LIMIT 8
   `);
+  const citiesQ = mkReq().query(`
+    SELECT city AS "City", COALESCE(country, '') AS "Country", count(*) AS "Views"
+    FROM page_views WHERE ${inWindow} AND city IS NOT NULL AND city <> ''
+    GROUP BY city, country ORDER BY count(*) DESC LIMIT 8
+  `);
 
-  const [totals, series, topPages, sources, devices, countries] = await Promise.all([
-    totalsQ, seriesQ, topPagesQ, sourcesQ, devicesQ, countriesQ,
+  const [totals, series, topPages, sources, devices, countries, cities] = await Promise.all([
+    totalsQ, seriesQ, topPagesQ, sourcesQ, devicesQ, countriesQ, citiesQ,
   ]);
 
   const tt = (totals.recordset[0] as Row) || {};
@@ -156,5 +161,6 @@ export async function getWebAnalytics(range: string = "7d") {
     sources: (sources.recordset as Row[]).map((x) => ({ source: String(x.Source), views: num(x.Views) })),
     devices: (devices.recordset as Row[]).map((x) => ({ device: String(x.Device), views: num(x.Views) })),
     countries: (countries.recordset as Row[]).map((x) => ({ country: String(x.Country), views: num(x.Views) })),
+    cities: (cities.recordset as Row[]).map((x) => ({ city: String(x.City), country: String(x.Country), views: num(x.Views) })),
   };
 }

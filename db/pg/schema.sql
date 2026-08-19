@@ -551,3 +551,6 @@ CREATE TABLE IF NOT EXISTS page_views (
 );
 CREATE INDEX IF NOT EXISTS idx_page_views_createdat ON page_views (createdat);
 CREATE INDEX IF NOT EXISTS idx_page_views_visitor  ON page_views (visitorid, createdat);
+
+-- City-level geo for analytics (from Vercel's x-vercel-ip-city header).
+ALTER TABLE page_views ADD COLUMN IF NOT EXISTS city text;
