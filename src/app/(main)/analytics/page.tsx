@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Users, Eye, TrendingUp, TrendingDown, Globe2, MonitorSmartphone, FileText, Radio,
+  Users, Eye, TrendingUp, TrendingDown, Globe2, MonitorSmartphone, FileText, Radio, Layers, Clock,
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -13,10 +13,13 @@ import { getWebAnalytics } from "./actions";
 type Analytics = Awaited<ReturnType<typeof getWebAnalytics>>;
 
 const RANGES = [
-  { days: 7, label: "7 days" },
-  { days: 30, label: "30 days" },
-  { days: 90, label: "90 days" },
+  { key: "today", label: "Today" },
+  { key: "yesterday", label: "Yesterday" },
+  { key: "7d", label: "Last 7 days" },
+  { key: "30d", label: "Last 30 days" },
+  { key: "90d", label: "Last 90 days" },
 ];
+const labelFor = (key: string) => RANGES.find((r) => r.key === key)?.label ?? "Last 7 days";
 const PIE = ["#6366f1", "#22c55e", "#f59e0b", "#ec4899", "#14b8a6", "#8b5cf6"];
 const nf = (n: number) => n.toLocaleString("en-US");
 
@@ -41,33 +44,41 @@ function Stat({
   );
 }
 
-function DeltaBadge({ cur, prev }: { cur: number; prev: number }) {
+function DeltaBadge({ cur, prev, note }: { cur: number; prev: number; note: string }) {
   const { pct, up } = delta(cur, prev);
   return (
     <span className={`inline-flex items-center gap-1 font-medium ${up ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
       {up ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
-      {pct}% <span className="text-gray-400 font-normal">vs prev.</span>
+      {pct}% <span className="text-gray-400 font-normal">{note}</span>
     </span>
   );
 }
 
 export default function AnalyticsPage() {
-  const [days, setDays] = useState(30);
+  const [range, setRange] = useState("7d");
   const [data, setData] = useState<Analytics | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const load = useCallback(async (d: number) => {
+  const load = useCallback(async (key: string) => {
     setLoading(true);
     try {
-      setData(await getWebAnalytics(d));
+      setData(await getWebAnalytics(key));
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { load(days); }, [days, load]);
+  useEffect(() => { load(range); }, [range, load]);
 
-  const empty = data && data.totals.visits === 0 && data.totals.prevVisits === 0 && data.totals.today === 0;
+  const rangeLabel = labelFor(range);
+  const prevNote = range === "today" ? "vs yesterday" : range === "yesterday" ? "vs day before" : "vs prev.";
+  const empty = data && data.totals.visits === 0 && data.totals.prevVisits === 0;
+
+  // 4th KPI: avg/day for multi-day ranges, busiest hour for a single day.
+  const busiest = useMemo(() => {
+    if (!data || !data.hourly) return null;
+    return data.series.reduce((best, s) => (s.visits > best.visits ? s : best), { label: "—", visits: 0 });
+  }, [data]);
 
   return (
     <div className="p-4 sm:p-6 max-w-[1400px] mx-auto">
@@ -78,13 +89,13 @@ export default function AnalyticsPage() {
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">Visitors and traffic across your storefront.</p>
         </div>
-        <div className="inline-flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="inline-flex flex-wrap rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
           {RANGES.map((r) => (
             <button
-              key={r.days}
-              onClick={() => setDays(r.days)}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${
-                days === r.days
+              key={r.key}
+              onClick={() => setRange(r.key)}
+              className={`px-3.5 py-2 text-sm font-medium transition-colors border-l first:border-l-0 border-gray-200 dark:border-gray-700 ${
+                range === r.key
                   ? "bg-primary text-white"
                   : "bg-white dark:bg-gray-800/50 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
               }`}
@@ -100,38 +111,47 @@ export default function AnalyticsPage() {
       ) : empty ? (
         <div className="py-20 text-center bg-white dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700">
           <Radio className="w-10 h-10 mx-auto text-gray-300 mb-3" />
-          <p className="font-medium text-gray-700 dark:text-gray-200">No visits recorded yet</p>
-          <p className="text-sm text-gray-500 mt-1">Data appears here as people browse the storefront. Give it a little time after this deploys.</p>
+          <p className="font-medium text-gray-700 dark:text-gray-200">No visits in this period</p>
+          <p className="text-sm text-gray-500 mt-1">Try a wider range, or give it time as people browse the storefront.</p>
         </div>
       ) : data ? (
         <div className={loading ? "opacity-60 transition-opacity" : "transition-opacity"}>
           {/* KPI row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <Stat
-              title={`Visits (${days}d)`} value={nf(data.totals.visits)}
+              title={`Visits · ${rangeLabel}`} value={nf(data.totals.visits)}
               icon={<Eye className="w-5 h-5" />}
-              sub={<DeltaBadge cur={data.totals.visits} prev={data.totals.prevVisits} />}
+              sub={<DeltaBadge cur={data.totals.visits} prev={data.totals.prevVisits} note={prevNote} />}
             />
             <Stat
-              title={`Unique visitors (${days}d)`} value={nf(data.totals.uniques)}
+              title={`Unique visitors · ${rangeLabel}`} value={nf(data.totals.uniques)}
               icon={<Users className="w-5 h-5" />}
-              sub={<DeltaBadge cur={data.totals.uniques} prev={data.totals.prevUniques} />}
+              sub={<DeltaBadge cur={data.totals.uniques} prev={data.totals.prevUniques} note={prevNote} />}
             />
             <Stat
-              title="Visits today" value={nf(data.totals.today)}
-              icon={<TrendingUp className="w-5 h-5" />}
-              sub={<span className="text-gray-400">{nf(data.totals.todayUniques)} unique</span>}
+              title="Pages / visitor"
+              value={data.totals.uniques ? (data.totals.visits / data.totals.uniques).toFixed(1) : "0.0"}
+              icon={<Layers className="w-5 h-5" />}
+              sub={<span className="text-gray-400">views per unique visitor</span>}
             />
-            <Stat
-              title="Avg visits / day" value={nf(Math.round(data.totals.visits / days))}
-              icon={<Radio className="w-5 h-5" />}
-              sub={<span className="text-gray-400">over the last {days} days</span>}
-            />
+            {data.hourly ? (
+              <Stat
+                title="Busiest hour" value={busiest && busiest.visits > 0 ? busiest.label : "—"}
+                icon={<Clock className="w-5 h-5" />}
+                sub={<span className="text-gray-400">{busiest && busiest.visits > 0 ? `${nf(busiest.visits)} visits` : "no traffic yet"}</span>}
+              />
+            ) : (
+              <Stat
+                title="Avg visits / day" value={nf(Math.round(data.totals.visits / Math.max(1, data.spanDays)))}
+                icon={<Radio className="w-5 h-5" />}
+                sub={<span className="text-gray-400">over {data.spanDays} days</span>}
+              />
+            )}
           </div>
 
           {/* Trend chart */}
           <div className="bg-white dark:bg-gray-800/50 p-6 rounded-xl border border-gray-200 dark:border-gray-700 mb-8">
-            <h2 className="text-lg font-semibold mb-4">Traffic over time</h2>
+            <h2 className="text-lg font-semibold mb-4">{data.hourly ? "Traffic by hour" : "Traffic over time"}</h2>
             <ResponsiveContainer width="100%" height={300}>
               <AreaChart data={data.series} margin={{ left: -18, right: 8, top: 4 }}>
                 <defs>
@@ -145,7 +165,7 @@ export default function AnalyticsPage() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.3} />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(d: string) => d.slice(5)} minTickGap={24} />
+                <XAxis dataKey="label" tick={{ fontSize: 11 }} minTickGap={20} />
                 <YAxis tick={{ fontSize: 11 }} allowDecimals={false} width={44} />
                 <Tooltip />
                 <Legend />
@@ -160,7 +180,7 @@ export default function AnalyticsPage() {
             <div className="bg-white dark:bg-gray-800/50 p-6 rounded-xl border border-gray-200 dark:border-gray-700">
               <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><FileText className="w-5 h-5 text-primary" /> Top pages</h2>
               {data.topPages.length === 0 ? (
-                <p className="text-sm text-gray-400">No data yet.</p>
+                <p className="text-sm text-gray-400">No data in this period.</p>
               ) : (
                 <div className="space-y-1">
                   {data.topPages.map((p) => {
@@ -181,7 +201,7 @@ export default function AnalyticsPage() {
             <div className="bg-white dark:bg-gray-800/50 p-6 rounded-xl border border-gray-200 dark:border-gray-700">
               <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><Globe2 className="w-5 h-5 text-primary" /> Traffic sources</h2>
               {data.sources.length === 0 ? (
-                <p className="text-sm text-gray-400">No data yet.</p>
+                <p className="text-sm text-gray-400">No data in this period.</p>
               ) : (
                 <div className="space-y-1">
                   {data.sources.map((s) => {
@@ -202,7 +222,7 @@ export default function AnalyticsPage() {
             <div className="bg-white dark:bg-gray-800/50 p-6 rounded-xl border border-gray-200 dark:border-gray-700">
               <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><MonitorSmartphone className="w-5 h-5 text-primary" /> Devices</h2>
               {data.devices.length === 0 ? (
-                <p className="text-sm text-gray-400">No data yet.</p>
+                <p className="text-sm text-gray-400">No data in this period.</p>
               ) : (
                 <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
