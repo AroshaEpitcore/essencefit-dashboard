@@ -118,10 +118,29 @@ cost    = 4 × 1175 = 4700
 profit  = 2900
 ```
 
-> A single-variant DTF order can optionally also get a `DtfOrders` header row
-> (Ref `DTF-O-####`, Status `Completed`, StockDeducted true) for traceability,
-> like DTF-O-1014. For multi-size orders we skip the header and just write the
-> `Sales` rows tagged `'DTF'`.
+### Also add a `DtfOrders` header row (so it shows on `/dtf-orders`)
+
+The `/dtf-orders` admin page **only lists rows from the `DtfOrders` table** — it
+does not read `Sales`. So a DTF order recorded as `Sales` rows alone is invisible
+there (and unsearchable), even though it counts in Dashboard/Reports/Finance.
+**Always add a header row so the order appears on that page.**
+
+Header fields: `Ref` = `DTF-O-<max+1>` (get the max from
+`SELECT max(CAST(substring(ref from 7) AS int)) FROM dtforders WHERE ref ~ '^DTF-O-[0-9]+$'`),
+`CustomerName`, `CustomerPhone` `'N/A'`, `Qty`, `EstimatedTotal` = cost,
+`FinalTotal` = sold, `Status` `'Completed'`, `StockDeducted` true, `AdminNote`
+describing the manual entry.
+
+- **Single-variant order:** set `ProductId` + `VariantId` to the sold variant, and
+  set the `Sales` row's `DtfOrderId` to this header's id (linked), like DTF-O-1014.
+- **Multi-size / multi-variant order (e.g. DTF-O-1040):** set `ProductId` for
+  display but leave **`VariantId` NULL**, and leave the `Sales` rows' `DtfOrderId`
+  **NULL** (unlinked). This makes the header a display/traceability row only.
+  ⚠️ Do **not** link multi-variant `Sales` rows to one header: the admin page's
+  status/pricing actions re-sync `Sales` from the header
+  (`DELETE FROM Sales WHERE DtfOrderId=@Id` then re-insert **one** row from the
+  header's single variant), which would wipe your real per-variant rows and
+  double-count. A NULL `VariantId` makes the header inert to that sync.
 
 ---
 
@@ -188,5 +207,6 @@ Run it from the **project root** (so `pg` resolves), then delete the temp file.
 - [ ] Print **per shirt**? Utilities per order or per shirt?
 - [ ] `SellingPrice` / `CostPrice` stored **per unit**, not line totals?
 - [ ] One `Sales` row per size/colour variant?
+- [ ] **DTF order:** `DtfOrders` header row added so it shows on `/dtf-orders`? (multi-variant → `VariantId` NULL, `Sales` unlinked)
 - [ ] Stock deducted (sale) / restored (return) / logged (removal)?
 - [ ] Totals sanity-checked (revenue − cost = profit, and profit isn't negative)?
