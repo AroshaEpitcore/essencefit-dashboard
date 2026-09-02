@@ -18,17 +18,25 @@ export type DtfOrderStatus =
   | "Canceled";
 
 /* ---------- List ---------- */
-export async function getDtfOrders(opts?: { limit?: number; offset?: number; status?: string }) {
+export async function getDtfOrders(opts?: { limit?: number; offset?: number; status?: string; search?: string }) {
   await requireAdmin();
   const limit = Math.min(Math.max(opts?.limit ?? 50, 1), 200);
   const offset = Math.max(opts?.offset ?? 0, 0);
   const status = (opts?.status ?? "").trim();
+  const search = (opts?.search ?? "").trim();
   const pool = await getDb();
 
-  const where = status ? "WHERE o.Status = @Status" : "";
+  // Escape ILIKE wildcards so user input is matched literally.
+  const searchTerm = search ? `%${search.replace(/[\\%_]/g, "\\$&")}%` : "";
+
+  const conds: string[] = [];
+  if (status) conds.push("o.Status = @Status");
+  if (searchTerm) conds.push("(o.CustomerName ILIKE @Search OR o.CustomerPhone ILIKE @Search OR o.WhatsApp ILIKE @Search OR o.Ref ILIKE @Search)");
+  const where = conds.length ? "WHERE " + conds.join(" AND ") : "";
 
   const listReq = pool.request().input("Limit", Int, limit).input("Offset", Int, offset);
   if (status) listReq.input("Status", NVarChar(30), status);
+  if (searchTerm) listReq.input("Search", NVarChar(200), searchTerm);
   const res = await listReq.query(`
     SELECT
       o.Id, o.Ref, o.CustomerName, o.CustomerPhone, o.WhatsApp, o.Qty,
@@ -44,6 +52,7 @@ export async function getDtfOrders(opts?: { limit?: number; offset?: number; sta
 
   const countReq = pool.request();
   if (status) countReq.input("Status", NVarChar(30), status);
+  if (searchTerm) countReq.input("Search", NVarChar(200), searchTerm);
   const count = await countReq.query(`SELECT COUNT(*)::int AS "Total" FROM DtfOrders o ${where}`);
 
   return { rows: res.recordset, total: Number(count.recordset[0]?.Total ?? 0) };

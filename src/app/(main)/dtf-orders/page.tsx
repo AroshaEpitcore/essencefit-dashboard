@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
-import { Shirt, X, FileText, MessageCircle, Check, Loader2, Package } from "lucide-react";
+import { Shirt, X, FileText, MessageCircle, Check, Loader2, Package, Search } from "lucide-react";
 import Pager from "@/components/ui/Pager";
 import {
   getDtfOrders,
@@ -50,13 +50,15 @@ export default function DtfOrdersPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState("");
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [openId, setOpenId] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
     try {
-      const d = await getDtfOrders({ limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE, status });
+      const d = await getDtfOrders({ limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE, status, search: debouncedSearch });
       setRows(d.rows as Row[]);
       setTotal(d.total);
     } catch {
@@ -68,8 +70,13 @@ export default function DtfOrdersPage() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, status]);
-  useEffect(() => { setPage(1); }, [status]);
+  }, [page, status, debouncedSearch]);
+  useEffect(() => { setPage(1); }, [status, debouncedSearch]);
+  // Debounce the search box so we don't hit the DB on every keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
 
   return (
     <div className="text-gray-900 dark:text-white">
@@ -83,10 +90,21 @@ export default function DtfOrdersPage() {
           <h1 className="text-xl font-bold">DTF Orders</h1>
           <p className="text-sm text-gray-500">Customer customization requests — confirm to reserve stock</p>
         </div>
+        <div className="ml-auto relative">
+          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search name, phone, ref…"
+            className="w-56 pl-9 pr-3 py-2.5 rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-sm"
+            aria-label="Search DTF orders"
+          />
+        </div>
         <select
           value={status}
           onChange={(e) => setStatus(e.target.value)}
-          className="ml-auto p-2.5 rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-sm"
+          className="p-2.5 rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-sm"
           aria-label="Filter by status"
         >
           {STATUS_OPTIONS.map((s) => (
@@ -102,7 +120,7 @@ export default function DtfOrdersPage() {
       ) : rows.length === 0 ? (
         <div className="text-center py-16 bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-500">
           <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
-          <p>No DTF orders yet.</p>
+          <p>{debouncedSearch || status ? "No DTF orders match your search." : "No DTF orders yet."}</p>
         </div>
       ) : (
         <div className="bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
