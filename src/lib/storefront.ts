@@ -685,23 +685,24 @@ export async function getGalleryItemsForProduct(productId: string, limit = 100):
   return attachGalleryImages(pool, res.recordset as GalleryItem[]);
 }
 
-// /gallery page: customer-name search + incremental "load more" cap.
-export async function getGalleryItems(opts: { q?: string; limit: number }): Promise<{ items: GalleryItem[]; total: number }> {
+// /gallery page: customer-name search + offset-paged "load more" (infinite scroll).
+export async function getGalleryItems(opts: { q?: string; limit: number; offset?: number }): Promise<{ items: GalleryItem[]; total: number }> {
   const pool = await getDb();
   const where = opts.q ? `WHERE IsPublished = true AND CustomerName ILIKE @q` : `WHERE IsPublished = true`;
+  const offset = Math.max(0, opts.offset ?? 0);
 
   const countReq = pool.request();
   if (opts.q) countReq.input("q", sql.NVarChar(200), `%${opts.q}%`);
   const countRes = await countReq.query(`SELECT COUNT(*) AS cnt FROM GalleryItems ${where}`);
   const total = Number((countRes.recordset[0] as { cnt: number | string })?.cnt ?? 0);
 
-  const req = pool.request().input("n", sql.Int, opts.limit);
+  const req = pool.request().input("n", sql.Int, opts.limit).input("off", sql.Int, offset);
   if (opts.q) req.input("q", sql.NVarChar(200), `%${opts.q}%`);
   const res = await req.query(`
     ${GALLERY_SELECT}
     ${where}
     ORDER BY IsFeatured DESC, CASE WHEN SortOrder = 0 THEN 2147483647 ELSE SortOrder END, CreatedAt DESC
-    LIMIT @n OFFSET 0
+    LIMIT @n OFFSET @off
   `);
   const items = await attachGalleryImages(pool, res.recordset as GalleryItem[]);
   return { items, total };

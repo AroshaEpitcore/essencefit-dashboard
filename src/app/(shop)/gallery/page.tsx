@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getGalleryItems } from "@/lib/storefront";
-import GalleryCard from "@/components/shop/GalleryCard";
+import GalleryGrid from "@/components/shop/GalleryGrid";
 import GallerySearch from "@/components/shop/GallerySearch";
 
 export const dynamic = "force-dynamic";
@@ -22,11 +22,9 @@ export default async function GalleryPage({
 }) {
   const sp = await searchParams;
   const q = sp.q?.trim() || undefined;
-  // Cap the user-controllable limit so a crafted ?show= can't force an
-  // unbounded LIMIT + oversized IN(...) in attachGalleryImages.
-  const show = Math.min(120, Math.max(PAGE_SIZE, Number(sp.show) || PAGE_SIZE));
 
-  const { items, total } = await getGalleryItems({ q, limit: show });
+  // First page only — subsequent pages stream in via infinite scroll.
+  const { items, total } = await getGalleryItems({ q, limit: PAGE_SIZE });
 
   return (
     <div className="max-w-[1920px] mx-auto px-4 sm:px-6 py-6">
@@ -48,25 +46,13 @@ export default async function GalleryPage({
           )}
         </div>
       ) : (
-        <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8">
-            {items.map((item) => (
-              <GalleryCard key={item.Id} item={item} shareable autoOpen={sp.item === item.Id} />
-            ))}
-          </div>
-
-          {items.length < total && (
-            <div className="mt-10 text-center">
-              <Link
-                href={`/gallery?${new URLSearchParams({ ...(q ? { q } : {}), show: String(show + PAGE_SIZE) }).toString()}`}
-                scroll={false}
-                className="inline-block rounded-lg border border-gray-900 text-gray-900 font-semibold px-6 py-3 hover:bg-gray-900 hover:text-white transition-colors"
-              >
-                Load more ({total - items.length} remaining)
-              </Link>
-            </div>
-          )}
-        </>
+        <GalleryGrid
+          key={q || "all"}
+          initialItems={items}
+          total={total}
+          q={q}
+          autoOpenId={sp.item}
+        />
       )}
     </div>
   );
