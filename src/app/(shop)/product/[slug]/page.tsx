@@ -7,6 +7,7 @@ import DesignPicker from "@/components/shop/DesignPicker";
 import ProductCard from "@/components/shop/ProductCard";
 import ProductTags from "@/components/shop/ProductTags";
 import ReviewsSection from "@/components/shop/ReviewsSection";
+import ProductReviews from "@/components/shop/ProductReviews";
 import GalleryBand from "@/components/shop/GalleryBand";
 import ReviewStars from "@/components/shop/ReviewStars";
 import { getPublicStoreSettings } from "@/lib/storeSettings";
@@ -184,9 +185,12 @@ export default async function ProductPage({
         />
       )}
 
+      {/* This product's ratings + public "Write a review" form (always shown). */}
+      <ProductReviews productId={product.Id} avg={rating.avg} count={rating.count} reviews={reviews} />
+
       {sliderReviews.length > 0 && (
-        <div id="reviews" className="mt-14 scroll-mt-[140px]">
-          <ReviewsSection reviews={sliderReviews} title="Customer Reviews" variant="carousel" showProduct bare logo={settings.logoLight || settings.logo} />
+        <div className="mt-14">
+          <ReviewsSection reviews={sliderReviews} title="Loved by our customers" variant="carousel" showProduct bare logo={settings.logoLight || settings.logo} />
         </div>
       )}
 
