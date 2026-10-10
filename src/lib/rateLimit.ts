@@ -19,11 +19,15 @@ export async function consumeRateLimit(
   windowSec: number
 ): Promise<{ allowed: boolean; count: number }> {
   const pool = await getDb();
+  // queryRaw (not query): the default path remaps lowercase pg keys to
+  // PascalCase via COLUMN_CASE, which rewrites "count" -> "Count" — so
+  // reading `.count` returned undefined and every attempt looked allowed,
+  // silently disabling ALL rate limiting. queryRaw keeps the lowercase key.
   const res = await pool
     .request()
     .input("Key", sql.NVarChar(200), key)
     .input("Win", sql.Int, windowSec)
-    .query(`
+    .queryRaw(`
       INSERT INTO auth_attempts (key, count, window_start)
       VALUES (@Key, 1, now())
       ON CONFLICT (key) DO UPDATE SET
