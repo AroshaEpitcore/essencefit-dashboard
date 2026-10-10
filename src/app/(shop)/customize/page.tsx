@@ -6,7 +6,12 @@ import CustomizeForm from "./CustomizeForm";
 import GalleryBand from "@/components/shop/GalleryBand";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Customize & DTF Print" };
+export const metadata = {
+  title: "Custom DTF T-Shirt Printing in Sri Lanka",
+  description:
+    "Design your own custom DTF-printed t-shirts & apparel at EssenceFit Sri Lanka. Upload your artwork, pick your garment and size — island-wide delivery & cash on delivery.",
+  alternates: { canonical: "/customize" },
+};
 
 export default async function CustomizePage() {
   const [products, pricing, settings, account] = await Promise.all([

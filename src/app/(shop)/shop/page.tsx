@@ -8,7 +8,12 @@ export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 24;
 
-export const metadata = { title: "Shop" };
+export const metadata = {
+  title: "Men's T-Shirts, Oversized Tees, Polos & Shorts",
+  description:
+    "Shop men's sportswear & fashion at EssenceFit Sri Lanka — t-shirts, oversized tees, polo collars, shorts and more. Island-wide delivery & cash on delivery.",
+  alternates: { canonical: "/shop" },
+};
 
 export default async function ShopPage({
   searchParams,

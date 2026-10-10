@@ -3,7 +3,7 @@
    and JSON-LD builders. Keeps metadata consistent without needing new DB
    columns: everything here derives from data that already exists. */
 
-export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://essencefits.com").replace(/\/+$/, "");
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://essencefit.lk").replace(/\/+$/, "");
 export const SITE_NAME = "EssenceFit";
 
 export function absoluteUrl(path: string | null | undefined): string {
@@ -23,13 +23,13 @@ function fit(text: string, max = 160): string {
 export function buildProductDescription(name: string, categoryName: string | null, description: string | null): string {
   if (description && description.trim().length >= 40) return fit(description);
   const cat = categoryName ? ` from our ${categoryName} collection` : "";
-  return fit(`Shop ${name}${cat} at ${SITE_NAME}. Premium quality apparel with island-wide delivery across Sri Lanka.`);
+  return fit(`Buy ${name}${cat} at ${SITE_NAME} — Sri Lanka's men's sportswear & fashion brand. Premium quality with island-wide delivery and cash on delivery.`);
 }
 
 export function buildCategoryDescription(name: string, description: string | null, productCount: number): string {
   if (description && description.trim().length >= 40) return fit(description);
   const count = productCount > 0 ? `${productCount} product${productCount !== 1 ? "s" : ""} — ` : "";
-  return fit(`Shop ${name} at ${SITE_NAME}. ${count}island-wide delivery across Sri Lanka.`);
+  return fit(`Shop ${name} at ${SITE_NAME}, Sri Lanka's men's sportswear & fashion brand. ${count}island-wide delivery & cash on delivery across Sri Lanka.`);
 }
 
 export type JsonLd = Record<string, unknown>;

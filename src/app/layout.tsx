@@ -7,15 +7,42 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: { default: `${SITE_NAME} — Premium Apparel, Delivered Island-Wide`, template: `%s | ${SITE_NAME}` },
-  description: "Shop premium apparel and custom DTF-printed t-shirts at EssenceFit. Quality clothing with island-wide delivery across Sri Lanka.",
+  title: {
+    default: `${SITE_NAME} — Men's Sportswear, T-Shirts & Custom DTF Printing | Sri Lanka`,
+    template: `%s | ${SITE_NAME} Sri Lanka`,
+  },
+  description:
+    "EssenceFit is a Sri Lankan men's fashion & sportswear brand — premium t-shirts, oversized tees, polos, shorts and custom DTF-printed apparel. Island-wide delivery & cash on delivery.",
+  keywords: [
+    "mens sportswear Sri Lanka",
+    "mens fashion Sri Lanka",
+    "t shirts Sri Lanka",
+    "oversized t shirts Sri Lanka",
+    "polo t shirts Sri Lanka",
+    "shorts Sri Lanka",
+    "gym wear Sri Lanka",
+    "activewear Sri Lanka",
+    "streetwear Sri Lanka",
+    "custom DTF printing Sri Lanka",
+    "custom t shirt printing Sri Lanka",
+    "online clothing store Sri Lanka",
+    "EssenceFit",
+  ],
+  applicationName: SITE_NAME,
   openGraph: {
     type: "website",
     siteName: SITE_NAME,
     url: SITE_URL,
+    locale: "en_LK",
+    title: `${SITE_NAME} — Men's Sportswear & Custom DTF Printing in Sri Lanka`,
+    description:
+      "Premium men's t-shirts, oversized tees, polos, shorts & custom DTF-printed apparel. Island-wide delivery across Sri Lanka.",
   },
   twitter: {
     card: "summary_large_image",
+    title: `${SITE_NAME} — Men's Sportswear & Custom DTF Printing | Sri Lanka`,
+    description:
+      "Premium men's t-shirts, oversized tees, polos, shorts & custom DTF-printed apparel. Island-wide delivery across Sri Lanka.",
   },
   robots: {
     index: true,

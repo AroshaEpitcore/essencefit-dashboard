@@ -21,12 +21,24 @@ export const revalidate = 60;
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getPublicStoreSettings();
-  const description = `Shop ${settings.storeName || SITE_NAME} — premium apparel and custom DTF-printed t-shirts with island-wide delivery across Sri Lanka.`;
+  const store = settings.storeName || SITE_NAME;
+  const description = `Shop ${store} — Sri Lanka's men's sportswear & fashion brand. Premium t-shirts, oversized tees, polos, shorts and custom DTF-printed apparel with island-wide delivery and cash on delivery.`;
   return {
-    title: { absolute: `${settings.storeName || SITE_NAME} — Premium Apparel, Island-Wide Delivery` },
+    title: { absolute: `${store} — Men's Sportswear, T-Shirts & Custom DTF Printing | Sri Lanka` },
     description,
+    keywords: [
+      "mens sportswear Sri Lanka",
+      "t shirts Sri Lanka",
+      "oversized t shirts Sri Lanka",
+      "polo t shirts Sri Lanka",
+      "shorts Sri Lanka",
+      "custom DTF printing Sri Lanka",
+      "custom t shirt printing Sri Lanka",
+      "streetwear Sri Lanka",
+      store,
+    ],
     alternates: { canonical: "/" },
-    openGraph: { title: settings.storeName || SITE_NAME, description, url: "/", images: settings.logoDark || settings.logo ? [{ url: settings.logoDark || settings.logo }] : undefined },
+    openGraph: { title: `${store} — Men's Sportswear & Custom DTF Printing | Sri Lanka`, description, url: "/", images: settings.logoDark || settings.logo ? [{ url: settings.logoDark || settings.logo }] : undefined },
   };
 }
 
