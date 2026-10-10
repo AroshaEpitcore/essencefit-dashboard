@@ -59,6 +59,8 @@ export async function createWebOrder(
   // buyer a generic "an error occurred" instead of the real reason.
   if (!payload.items?.length) return { ok: false, error: "Your cart is empty." };
   if (!payload.customerPhone?.trim()) return { ok: false, error: "Phone number is required." };
+  if (!payload.email?.trim()) return { ok: false, error: "Email is required." };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email.trim())) return { ok: false, error: "Please enter a valid email address." };
   if (!payload.address?.trim()) return { ok: false, error: "Delivery address is required." };
   if (payload.paymentMethod === "BankTransfer" && !payload.paymentSlipUrl) {
     return { ok: false, error: "Please upload your bank transfer slip." };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import toast, { Toaster } from "react-hot-toast";
@@ -48,6 +48,21 @@ function makePasswordSuggestions(count = 3): string[] {
   while (out.size < count && guard++ < 50) out.add(makeStrongPassword());
   return Array.from(out);
 }
+
+/* One extra suggestion built from the shopper's own details (first name +
+   last 4 phone digits + a symbol, e.g. "Kevin@4567") — easy to remember.
+   Deterministic, so it's safe to compute during render. Returns null until
+   there's enough to make a >=6 char password. */
+function derivePasswordFromDetails(name: string, phone: string): string | null {
+  const first = (name.trim().split(/\s+/)[0] || "").replace(/[^a-zA-Z]/g, "");
+  const digits = (phone || "").replace(/\D/g, "");
+  if (first.length < 2 || digits.length < 3) return null;
+  const cap = first[0].toUpperCase() + first.slice(1).toLowerCase();
+  const pw = `${cap}@${digits.slice(-4)}`;
+  return pw.length >= 6 ? pw : null;
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const selectTrigger =
   "w-full flex items-center justify-between gap-2 bg-white border border-gray-300 rounded-lg px-4 py-2.5 text-left text-gray-900 hover:border-gray-400 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors";
@@ -116,11 +131,21 @@ export default function CheckoutPage() {
   const deliveryKnown = freeApplies || provinceChosen;
   const total = subtotal + deliveryFee;
 
-  // Memorable password suggestions — generated on the client only (random).
-  const [passwordSuggestions, setPasswordSuggestions] = useState<string[]>([]);
+  // Per-field validation errors (shown inline, not as toasts).
+  const [errors, setErrors] = useState<Record<string, string | undefined>>({});
+  const clearErr = (k: string) => setErrors((e) => (e[k] ? { ...e, [k]: undefined } : e));
+
+  // Strong random suggestions — generated on the client only (random).
+  const [randomSuggestions, setRandomSuggestions] = useState<string[]>([]);
   useEffect(() => {
-    if (!loggedIn) setPasswordSuggestions(makePasswordSuggestions());
+    if (!loggedIn) setRandomSuggestions(makePasswordSuggestions(3));
   }, [loggedIn]);
+  // Final list: one easy password built from their details first (if any),
+  // then strong random ones — capped at 3.
+  const passwordSuggestions = useMemo(() => {
+    const derived = derivePasswordFromDetails(f.customer, f.customerPhone);
+    return Array.from(new Set([...(derived ? [derived] : []), ...randomSuggestions])).slice(0, 3);
+  }, [f.customer, f.customerPhone, randomSuggestions]);
 
   async function switchAccount() {
     await logoutCustomer();
@@ -144,15 +169,42 @@ export default function CheckoutPage() {
     }
   }
 
+  // Maps each error key to the DOM id to scroll to, in top-to-bottom order.
+  const ERROR_FIELD_IDS: Array<[string, string]> = [
+    ["customer", "checkout-name"],
+    ["customerPhone", "checkout-phone"],
+    ["email", "checkout-email"],
+    ["province", "checkout-province"],
+    ["address", "checkout-address"],
+    ["password", "checkout-password"],
+    ["slip", "checkout-slip"],
+  ];
+
   async function place() {
-    if (!f.customer.trim()) return toast.error("Please enter your name.");
-    if (!f.customerPhone.trim()) return toast.error("Please enter your phone number.");
-    if (config && config.deliveryProvinces.length > 0 && !f.province) return toast.error("Please select your province.");
-    if (!f.address.trim()) return toast.error("Please enter your delivery address.");
-    if (method === "BankTransfer" && !slipUrl) return toast.error("Please upload your bank transfer slip.");
+    const errs: Record<string, string> = {};
+    if (!f.customer.trim()) errs.customer = "Please enter your name.";
+    if (!f.customerPhone.trim()) errs.customerPhone = "Please enter your phone number.";
+    if (!f.email.trim()) errs.email = "Please enter your email.";
+    else if (!EMAIL_RE.test(f.email.trim())) errs.email = "Please enter a valid email address.";
+    if (config && config.deliveryProvinces.length > 0 && !f.province) errs.province = "Please select your province.";
+    if (!f.address.trim()) errs.address = "Please enter your delivery address.";
     if (!loggedIn && (!password || password.trim().length < 6)) {
-      return toast.error("Please choose a password (at least 6 characters) to create your account, or log in.");
+      errs.password = "Choose a password with at least 6 characters.";
     }
+    if (method === "BankTransfer" && !slipUrl) errs.slip = "Please upload your bank transfer slip.";
+
+    if (Object.keys(errs).length) {
+      setErrors(errs);
+      // Scroll to (and focus) the first invalid field, top-to-bottom.
+      const firstId = ERROR_FIELD_IDS.find(([key]) => errs[key])?.[1];
+      if (firstId) {
+        const el = document.getElementById(firstId);
+        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+        setTimeout(() => (el as HTMLElement | null)?.focus?.({ preventScroll: true }), 300);
+      }
+      return;
+    }
+    setErrors({});
 
     setPlacing(true);
     try {
@@ -203,37 +255,38 @@ export default function CheckoutPage() {
             </div>
             <div className="grid sm:grid-cols-2 gap-4">
               <LabeledInput
-                id="checkout-name" label="Full name (සම්පූර්ණ නම) *" autoComplete="name"
-                value={f.customer} onChange={(e) => setF({ ...f, customer: e.target.value })}
+                id="checkout-name" label="Full name (සම්පූර්ණ නම) *" autoComplete="name" error={errors.customer}
+                value={f.customer} onChange={(e) => { setF({ ...f, customer: e.target.value }); clearErr("customer"); }}
               />
               <LabeledInput
-                id="checkout-phone" label="Phone number (දුරකථන අංකය) *" type="tel" inputMode="numeric" required autoComplete="tel username"
-                value={formatPhone(f.customerPhone)} onChange={(e) => setF({ ...f, customerPhone: cleanPhoneInput(e.target.value) })}
+                id="checkout-phone" label="Phone number (දුරකථන අංකය) *" type="tel" inputMode="numeric" required autoComplete="tel username" error={errors.customerPhone}
+                value={formatPhone(f.customerPhone)} onChange={(e) => { setF({ ...f, customerPhone: cleanPhoneInput(e.target.value) }); clearErr("customerPhone"); }}
               />
               <LabeledInput
                 id="checkout-phone2" label="Secondary phone (දෙවන දුරකථන අංකය) (optional)" type="tel" inputMode="numeric" autoComplete="tel"
                 value={formatPhone(f.secondaryPhone)} onChange={(e) => setF({ ...f, secondaryPhone: cleanPhoneInput(e.target.value) })}
               />
               <LabeledInput
-                id="checkout-email" label="Email (ඊමේල්) (optional)" type="email" autoComplete="email"
-                value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })}
+                id="checkout-email" label="Email (ඊමේල්) *" type="email" autoComplete="email" error={errors.email}
+                value={f.email} onChange={(e) => { setF({ ...f, email: e.target.value }); clearErr("email"); }}
               />
               {config && config.deliveryProvinces.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Province (පළාත) *</label>
+                <div id="checkout-province">
+                  <label className={`block text-sm font-medium mb-1.5 ${errors.province ? "text-red-600" : "text-gray-700"}`}>Province (පළාත) *</label>
                   <Select
                     ariaLabel="Province"
                     placeholder="Select province"
                     value={f.province}
-                    onChange={(v) => setF({ ...f, province: v })}
-                    triggerClassName={selectTrigger}
+                    onChange={(v) => { setF({ ...f, province: v }); clearErr("province"); }}
+                    triggerClassName={errors.province ? selectTrigger.replace("border-gray-300", "border-red-500") : selectTrigger}
                     options={config.deliveryProvinces.map((p) => ({ value: p.name, label: `${p.name} — ${money(p.fee)}` }))}
                   />
+                  {errors.province && <p className="mt-1 text-xs font-medium text-red-600">{errors.province}</p>}
                 </div>
               )}
               <LabeledTextarea
-                id="checkout-address" label="Delivery address (බෙදාහැරීමේ ලිපිනය) *" rows={3} containerClassName="sm:col-span-2" autoComplete="street-address"
-                value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })}
+                id="checkout-address" label="Delivery address (බෙදාහැරීමේ ලිපිනය) *" rows={3} containerClassName="sm:col-span-2" autoComplete="street-address" error={errors.address}
+                value={f.address} onChange={(e) => { setF({ ...f, address: e.target.value }); clearErr("address"); }}
               />
               <LabeledTextarea
                 id="checkout-notes" label="Order notes (ඇණවුම් සටහන්) (optional)" rows={2} containerClassName="sm:col-span-2"
@@ -266,9 +319,9 @@ export default function CheckoutPage() {
               </p>
               <LabeledInput
                 id="checkout-password" label="Choose a password (මුරපදයක් තෝරන්න — අවම අකුරු 6ක්) *" type="password"
-                autoComplete="new-password"
+                autoComplete="new-password" error={errors.password}
                 placeholder="e.g. essence123 (උදා: essence123)"
-                value={password} onChange={(e) => setPassword(e.target.value)}
+                value={password} onChange={(e) => { setPassword(e.target.value); clearErr("password"); }}
               />
               {passwordSuggestions.length > 0 && (
                 <div className="mt-2">
@@ -278,7 +331,7 @@ export default function CheckoutPage() {
                     </p>
                     <button
                       type="button"
-                      onClick={() => setPasswordSuggestions(makePasswordSuggestions())}
+                      onClick={() => setRandomSuggestions(makePasswordSuggestions(3))}
                       className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
                     >
                       <RefreshCw className="w-3 h-3" /> New
@@ -331,7 +384,7 @@ export default function CheckoutPage() {
             </div>
 
             {method === "BankTransfer" && config && (
-              <div className="mt-4 bg-gray-50 rounded-lg p-4 text-sm">
+              <div id="checkout-slip" className={`mt-4 bg-gray-50 rounded-lg p-4 text-sm ${errors.slip ? "ring-1 ring-red-500" : ""}`}>
                 <p className="font-medium text-gray-900 mb-2">Bank details</p>
                 {config.bank.bank ? (
                   <ul className="text-gray-600 space-y-0.5">
@@ -345,8 +398,9 @@ export default function CheckoutPage() {
                 )}
                 <label className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-900 text-white cursor-pointer text-sm font-medium hover:bg-gray-800">
                   <Upload className="w-4 h-4" /> {uploading ? "Uploading..." : slipUrl ? "Slip uploaded ✓" : "Upload deposit slip *"}
-                  <input type="file" accept="image/*" hidden onChange={(e) => onSlip(e.target.files?.[0] || null)} />
+                  <input type="file" accept="image/*" hidden onChange={(e) => { onSlip(e.target.files?.[0] || null); clearErr("slip"); }} />
                 </label>
+                {errors.slip && <p className="mt-2 text-xs font-medium text-red-600">{errors.slip}</p>}
               </div>
             )}
           </section>

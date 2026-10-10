@@ -59,7 +59,7 @@ const runStamp = String(Date.now()).slice(-6);
 const guest = {
   name: `AutoTest Buyer ${runStamp}`,
   phone: uniquePhone(),
-  email: uniqueEmail(),
+  email: "arosharavishan1210@gmail.com", // real inbox (emails only actually send with E2E_ALLOW_EMAILS=1)
   password: "AutoTest#123",
   address: "12/4 Test Lane, Galle Road",
 };
@@ -171,7 +171,8 @@ async function fillGuestCheckout(
 ) {
   await hydratedFill(page, "#checkout-name", data.name);
   await page.locator("#checkout-phone").fill(data.phone);
-  if (data.email) await page.locator("#checkout-email").fill(data.email);
+  // Email is required now — fill a unique one when the case didn't specify.
+  await page.locator("#checkout-email").fill(data.email ?? uniqueEmail());
   await selectProvince(page, data.province);
   await page.locator("#checkout-address").fill(data.address);
   if (data.notes) await page.locator("#checkout-notes").fill(data.notes);
@@ -383,7 +384,8 @@ test("admin verifies the bank payment → Paid (sales created), back to Pending 
   // Put it back to Pending so the test run doesn't inflate real sales figures
   await page.getByRole("button", { name: /^All/ }).click();
   const cardAgain = adminOrderCard(page, order2Id);
-  await cardAgain.locator("select").selectOption("Pending");
+  // The card now has two selects (Payment + Delivery status) — target Payment (first).
+  await cardAgain.locator("select").first().selectOption("Pending");
   await expect(page.getByText("Status updated").first()).toBeVisible();
   await expect.poll(async () => (await fetchOrder(order2Id)).paymentstatus, { timeout: 20_000 }).toBe("Pending");
   expect(await fetchSalesCount(order2Id)).toBe(0);
@@ -502,7 +504,7 @@ test("order over the free-delivery threshold ships free; admin cancel restores s
   const admin = await asAdmin.newPage();
   await admin.goto("/web-orders", { waitUntil: "domcontentloaded" });
   const card = adminOrderCard(admin, orderId);
-  await card.locator("select").selectOption("Canceled");
+  await card.locator("select").first().selectOption("Canceled"); // Payment select (first of two)
   await expect(admin.getByText("Status updated").first()).toBeVisible();
 
   await expect.poll(async () => (await fetchOrder(orderId)).paymentstatus, { timeout: 20_000 }).toBe("Canceled");
@@ -547,11 +549,14 @@ test("checkout rejects missing name, phone, province, address and short password
 
   await page.locator("#checkout-address").fill("1 Validation Street");
   await place();
-  await expect(page.getByText(/Please choose a password/).first()).toBeVisible();
+  await expect(page.getByText(/Choose a password/).first()).toBeVisible();
 
   await page.locator("#checkout-password").fill("123"); // too short
   await place();
-  await expect(page.getByText(/Please choose a password/).first()).toBeVisible();
+  await expect(page.getByText(/Choose a password/).first()).toBeVisible();
+
+  // Email is required too — a missing/invalid email is flagged inline.
+  await expect(page.getByText(/enter your email|valid email/i).first()).toBeVisible();
 
   // Nothing was created for this phone
   expect(await fetchOrderCountForPhone(phone)).toBe(0);
