@@ -24,28 +24,28 @@ async function uploadSlip(file: File): Promise<string> {
   return data.url as string;
 }
 
-/* Memorable but hard-to-guess password suggestions, e.g. "blue-tiger-42".
-   Random, so these are generated on the client (in an effect, never during
-   render) to avoid a hydration mismatch. */
-const PW_ADJECTIVES = [
-  "blue", "red", "gold", "swift", "bold", "cool", "lucky", "happy", "royal",
-  "mega", "neon", "ocean", "sunny", "brave", "calm", "epic", "fresh", "jolly",
-];
-const PW_NOUNS = [
-  "tiger", "lion", "eagle", "shark", "panda", "comet", "river", "stone",
-  "flame", "wolf", "falcon", "cobra", "zebra", "mango", "lotus", "rocket",
-];
-function pick<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-function makeMemorablePassword(): string {
-  const num = Math.floor(Math.random() * 90) + 10; // 10-99
-  return `${pick(PW_ADJECTIVES)}-${pick(PW_NOUNS)}-${num}`;
+/* Professional, Keychain-style strong password suggestions, e.g. "k9mx-R2p-tqw":
+   mixed case + digits, grouped with hyphens, with ambiguous characters
+   (l/1/I, o/0) removed so they're still easy to read and type. Random, so
+   these are generated on the client (in an effect, never during render) to
+   avoid a hydration mismatch. */
+const PW_LOWER = "abcdefghijkmnpqrstuvwxyz"; // no l, o
+const PW_UPPER = "ABCDEFGHJKLMNPQRSTUVWXYZ"; // no I, O
+const PW_DIGITS = "23456789"; // no 0, 1
+function makeStrongPassword(): string {
+  const r = (s: string) => s[Math.floor(Math.random() * s.length)];
+  const base = PW_LOWER + PW_DIGITS;
+  const chars = Array.from({ length: 10 }, () => r(base));
+  // Guarantee at least one uppercase and one digit, at random positions.
+  chars[Math.floor(Math.random() * 10)] = r(PW_UPPER);
+  chars[Math.floor(Math.random() * 10)] = r(PW_DIGITS);
+  const s = chars.join("");
+  return `${s.slice(0, 4)}-${s.slice(4, 7)}-${s.slice(7, 10)}`;
 }
 function makePasswordSuggestions(count = 3): string[] {
   const out = new Set<string>();
   let guard = 0;
-  while (out.size < count && guard++ < 50) out.add(makeMemorablePassword());
+  while (out.size < count && guard++ < 50) out.add(makeStrongPassword());
   return Array.from(out);
 }
 
@@ -192,8 +192,10 @@ export default function CheckoutPage() {
       <p className="text-gray-500 mb-8">Almost there — fill in your details to complete the order.</p>
 
       <div className="grid lg:grid-cols-[1fr_380px] gap-8">
-        {/* Form */}
-        <div className="space-y-6">
+        {/* Form (a real <form> so browsers offer to generate & save a strong
+            password; the Place-order button sits outside it, so Enter here
+            never submits). */}
+        <form className="space-y-6" onSubmit={(e) => e.preventDefault()} autoComplete="on">
           <section className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
             <div className="flex items-center gap-3 mb-5">
               <StepBadge n={1} />
@@ -201,19 +203,19 @@ export default function CheckoutPage() {
             </div>
             <div className="grid sm:grid-cols-2 gap-4">
               <LabeledInput
-                id="checkout-name" label="Full name (සම්පූර්ණ නම) *"
+                id="checkout-name" label="Full name (සම්පූර්ණ නම) *" autoComplete="name"
                 value={f.customer} onChange={(e) => setF({ ...f, customer: e.target.value })}
               />
               <LabeledInput
-                id="checkout-phone" label="Phone number (දුරකථන අංකය) *" type="tel" inputMode="numeric" required
+                id="checkout-phone" label="Phone number (දුරකථන අංකය) *" type="tel" inputMode="numeric" required autoComplete="tel username"
                 value={formatPhone(f.customerPhone)} onChange={(e) => setF({ ...f, customerPhone: cleanPhoneInput(e.target.value) })}
               />
               <LabeledInput
-                id="checkout-phone2" label="Secondary phone (දෙවන දුරකථන අංකය) (optional)" type="tel" inputMode="numeric"
+                id="checkout-phone2" label="Secondary phone (දෙවන දුරකථන අංකය) (optional)" type="tel" inputMode="numeric" autoComplete="tel"
                 value={formatPhone(f.secondaryPhone)} onChange={(e) => setF({ ...f, secondaryPhone: cleanPhoneInput(e.target.value) })}
               />
               <LabeledInput
-                id="checkout-email" label="Email (ඊමේල්) (optional)" type="email"
+                id="checkout-email" label="Email (ඊමේල්) (optional)" type="email" autoComplete="email"
                 value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })}
               />
               {config && config.deliveryProvinces.length > 0 && (
@@ -230,7 +232,7 @@ export default function CheckoutPage() {
                 </div>
               )}
               <LabeledTextarea
-                id="checkout-address" label="Delivery address (බෙදාහැරීමේ ලිපිනය) *" rows={3} containerClassName="sm:col-span-2"
+                id="checkout-address" label="Delivery address (බෙදාහැරීමේ ලිපිනය) *" rows={3} containerClassName="sm:col-span-2" autoComplete="street-address"
                 value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })}
               />
               <LabeledTextarea
@@ -264,6 +266,7 @@ export default function CheckoutPage() {
               </p>
               <LabeledInput
                 id="checkout-password" label="Choose a password (මුරපදයක් තෝරන්න — අවම අකුරු 6ක්) *" type="password"
+                autoComplete="new-password"
                 placeholder="e.g. essence123 (උදා: essence123)"
                 value={password} onChange={(e) => setPassword(e.target.value)}
               />
@@ -347,7 +350,7 @@ export default function CheckoutPage() {
               </div>
             )}
           </section>
-        </div>
+        </form>
 
         {/* Summary */}
         <div className="lg:sticky lg:top-24 h-max bg-white border border-gray-200 rounded-xl shadow-sm p-6">
