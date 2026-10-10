@@ -11,7 +11,7 @@ import {
   hashFingerprint,
   type CustomerSession,
 } from "@/lib/customerAuth";
-import { sendCustomerPasswordReset } from "@/lib/orderNotify";
+import { sendCustomerPasswordReset, sendCustomerWelcome } from "@/lib/orderNotify";
 import { consumeRateLimit, clientIp } from "@/lib/rateLimit";
 
 const TOO_MANY = "Too many attempts — please wait a few minutes and try again.";
@@ -86,6 +86,8 @@ export async function registerCustomer(input: {
       .query(`INSERT INTO Customers (Id, Name, Email, Phone, PasswordHash)
               VALUES (@Id, @Name, @Email, @Phone, @Hash)`);
   }
+
+  await sendCustomerWelcome({ to: email, customerName: name });
 
   await setSessionCookie(id);
   return { ok: true };

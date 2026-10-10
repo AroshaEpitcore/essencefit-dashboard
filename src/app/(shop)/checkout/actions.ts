@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import { getDb, sql } from "@/lib/db";
 import { getPublicStoreSettings } from "@/lib/storeSettings";
 import { getCurrentCustomer, setSessionCookie } from "@/lib/customerAuth";
-import { sendOrderNotification, sendCustomerOrderConfirmation } from "@/lib/orderNotify";
+import { sendOrderNotification, sendCustomerOrderConfirmation, sendCustomerWelcome } from "@/lib/orderNotify";
 import { UserFacingError, userErrorMessage } from "@/lib/userError";
 import { consumeRateLimit } from "@/lib/rateLimit";
 
@@ -292,6 +292,10 @@ export async function createWebOrder(
     });
 
     if (email) {
+      // Welcome the customer when this checkout just created their account.
+      if (accountReady && wantsAccount) {
+        await sendCustomerWelcome({ to: email, customerName: name });
+      }
       await sendCustomerOrderConfirmation({
         to: email,
         customerName: name,

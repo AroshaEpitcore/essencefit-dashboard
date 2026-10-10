@@ -305,6 +305,40 @@ export async function sendCustomerDeliveryUpdate(input: {
   }
 }
 
+// Welcome email — sent once when a customer account is first created (at
+// checkout or via the register page). Only call when an email is present.
+// Same fire-and-forget safety: a bad/missing key or Resend outage is caught
+// and logged, never thrown, so it can't break signup/checkout.
+export async function sendCustomerWelcome(input: {
+  to: string;
+  customerName: string;
+}): Promise<void> {
+  try {
+    const settings = await getPublicStoreSettings();
+    const store = settings.storeName || "Store";
+    const site = process.env.NEXT_PUBLIC_SITE_URL || "";
+    const loginUrl = site ? `${site}/account/login` : "/account/login";
+    const body = `
+      <h1 style="margin:0 0 8px;font-size:20px;color:#111827;">Welcome to ${escapeHtml(store)} 🎉</h1>
+      <p style="margin:0 0 20px;font-size:14px;color:#6b7280;">
+        Hi ${escapeHtml(input.customerName || "there")}, your account is ready! Sign in any time
+        with your phone number or email to track your orders, see your order history and check out faster.
+      </p>
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 20px;">
+        <tr>
+          <td style="border-radius:8px;background:${BRAND_COLOR};">
+            <a href="${loginUrl}" style="display:inline-block;padding:12px 20px;color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;">Sign in to your account →</a>
+          </td>
+        </tr>
+      </table>
+      <p style="margin:0;font-size:13px;color:#6b7280;">Thanks for joining us — happy shopping!</p>`;
+    const html = emailShell(store, BRAND_COLOR, body, `${store} — welcome`);
+    await resendSend(input.to, `Welcome to ${store} — your account is ready`, html);
+  } catch (err) {
+    console.error("[orderNotify] failed to send welcome email", err);
+  }
+}
+
 // Same fire-and-forget safety as sendOrderNotification. Only called when the
 // customer actually provided an email — callers should check that first.
 export async function sendCustomerOrderConfirmation(input: CustomerConfirmInput): Promise<void> {
