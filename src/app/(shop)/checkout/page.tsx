@@ -170,24 +170,24 @@ export default function CheckoutPage() {
             </div>
             <div className="grid sm:grid-cols-2 gap-4">
               <LabeledInput
-                id="checkout-name" label="Full name *"
+                id="checkout-name" label="Full name (සම්පූර්ණ නම) *"
                 value={f.customer} onChange={(e) => setF({ ...f, customer: e.target.value })}
               />
               <LabeledInput
-                id="checkout-phone" label="Phone number *" type="tel" inputMode="numeric" required
+                id="checkout-phone" label="Phone number (දුරකථන අංකය) *" type="tel" inputMode="numeric" required
                 value={formatPhone(f.customerPhone)} onChange={(e) => setF({ ...f, customerPhone: cleanPhoneInput(e.target.value) })}
               />
               <LabeledInput
-                id="checkout-phone2" label="Secondary phone (optional)" type="tel" inputMode="numeric"
+                id="checkout-phone2" label="Secondary phone (දෙවන දුරකථන අංකය) (optional)" type="tel" inputMode="numeric"
                 value={formatPhone(f.secondaryPhone)} onChange={(e) => setF({ ...f, secondaryPhone: cleanPhoneInput(e.target.value) })}
               />
               <LabeledInput
-                id="checkout-email" label="Email (optional)" type="email"
+                id="checkout-email" label="Email (ඊමේල්) (optional)" type="email"
                 value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })}
               />
               {config && config.deliveryProvinces.length > 0 && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Province *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Province (පළාත) *</label>
                   <Select
                     ariaLabel="Province"
                     placeholder="Select province"
@@ -199,11 +199,11 @@ export default function CheckoutPage() {
                 </div>
               )}
               <LabeledTextarea
-                id="checkout-address" label="Delivery address *" rows={3} containerClassName="sm:col-span-2"
+                id="checkout-address" label="Delivery address (බෙදාහැරීමේ ලිපිනය) *" rows={3} containerClassName="sm:col-span-2"
                 value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })}
               />
               <LabeledTextarea
-                id="checkout-notes" label="Order notes (optional)" rows={2} containerClassName="sm:col-span-2"
+                id="checkout-notes" label="Order notes (ඇණවුම් සටහන්) (optional)" rows={2} containerClassName="sm:col-span-2"
                 value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })}
               />
             </div>
@@ -232,7 +232,8 @@ export default function CheckoutPage() {
                 We&apos;ll save your details so you can sign in (with your phone or email) and follow your order anytime.
               </p>
               <LabeledInput
-                id="checkout-password" label="Choose a password (min 6 characters) *" type="password"
+                id="checkout-password" label="Choose a password (මුරපදයක් තෝරන්න — අවම අකුරු 6ක්) *" type="password"
+                placeholder="e.g. essence123 (උදා: essence123)"
                 value={password} onChange={(e) => setPassword(e.target.value)}
               />
             </section>
