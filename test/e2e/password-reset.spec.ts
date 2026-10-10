@@ -86,7 +86,9 @@ test("login works with the new password and rejects the old one", async ({ brows
   await hydratedFill(page, "#login-identifier", email);
   await page.locator("#login-password").fill(oldPassword);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page.getByText("Invalid credentials.").first()).toBeVisible();
+  // Remote Supabase round-trip → the error toast can take >5s under load; give
+  // it the same headroom as the other server-dependent assertions here.
+  await expect(page.getByText("Invalid credentials.").first()).toBeVisible({ timeout: 15_000 });
 
   await page.locator("#login-password").fill(newPassword);
   await page.getByRole("button", { name: "Sign in" }).click();
