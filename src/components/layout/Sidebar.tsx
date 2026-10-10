@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useAuth, ADMIN_ONLY_ROUTES } from "@/lib/useAuth";
+import { getPendingWebOrderCount } from "@/app/(main)/web-orders/actions";
 import {
   LayoutDashboard,
   Boxes,
@@ -73,6 +75,20 @@ export default function Sidebar({ collapsed }: { collapsed: boolean }) {
   const pathname = usePathname();
   const { isAdmin } = useAuth();
 
+  // Pending website-orders count → red dot on the "Website Orders" item.
+  const [pendingWeb, setPendingWeb] = useState(0);
+  useEffect(() => {
+    if (!isAdmin) return;
+    let active = true;
+    const tick = () =>
+      getPendingWebOrderCount()
+        .then((n) => { if (active) setPendingWeb(n); })
+        .catch(() => {});
+    tick();
+    const id = setInterval(tick, 30_000);
+    return () => { active = false; clearInterval(id); };
+  }, [isAdmin]);
+
   const visibleItems = isAdmin
     ? navItems
     : navItems.filter(
@@ -104,17 +120,23 @@ export default function Sidebar({ collapsed }: { collapsed: boolean }) {
                 : "text-gray-300 hover:bg-gray-700 hover:text-white"
             }`;
 
+            // Red dot when there are pending website orders awaiting action.
+            const showDot = item.href === "/web-orders" && pendingWeb > 0;
+
             return (
               <li key={item.href}>
                 {collapsed ? (
                   <>
                     <Link
                       href={item.href}
-                      className={`${linkClasses} justify-center`}
+                      className={`${linkClasses} justify-center relative`}
                       data-tooltip-id={`tooltip-${item.href}`}
-                      data-tooltip-content={item.label}
+                      data-tooltip-content={showDot ? `${item.label} — ${pendingWeb} pending` : item.label}
                     >
                       <Icon className="h-5 w-5" />
+                      {showDot && (
+                        <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-[#0b1220]" />
+                      )}
                     </Link>
                     <Tooltip
                       id={`tooltip-${item.href}`}
@@ -126,6 +148,11 @@ export default function Sidebar({ collapsed }: { collapsed: boolean }) {
                   <Link href={item.href} className={linkClasses}>
                     <Icon className="h-5 w-5" />
                     {item.label}
+                    {showDot && (
+                      <span className="ml-auto inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold">
+                        {pendingWeb}
+                      </span>
+                    )}
                   </Link>
                 )}
               </li>

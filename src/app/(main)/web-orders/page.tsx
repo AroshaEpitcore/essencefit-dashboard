@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
-import { getWebOrders, verifyWebPayment, setWebOrderStatus, setWebDeliveryStatus, getWebOrderDetails } from "./actions";
+import { getWebOrders, verifyWebPayment, setWebOrderStatus, setWebDeliveryStatus, getWebOrderDetails, type WebOrderTab, type WebOrderCounts } from "./actions";
 import {
   Globe, Truck, Landmark, CheckCircle2, ExternalLink, Phone, MapPin, ShieldCheck, RefreshCw, Package, ChevronDown,
   Search as SearchIcon,
@@ -31,15 +31,25 @@ const deliveryColor: Record<string, string> = {
 
 const PAGE_SIZE = 50;
 
+const TABS: { key: WebOrderTab; label: string }[] = [
+  { key: "pending", label: "Pending orders" },
+  { key: "unverified", label: "Needs verification" },
+  { key: "paid", label: "Paid" },
+  { key: "completed", label: "Completed" },
+  { key: "canceled", label: "Canceled" },
+  { key: "all", label: "All" },
+];
+const EMPTY_COUNTS: WebOrderCounts = { all: 0, pending: 0, unverified: 0, paid: 0, completed: 0, canceled: 0 };
+
 export default function WebOrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
-  const [unverifiedTotal, setUnverifiedTotal] = useState(0);
+  const [counts, setCounts] = useState<WebOrderCounts>(EMPTY_COUNTS);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
   const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState<"all" | "unverified">("all");
+  const [tab, setTab] = useState<WebOrderTab>("pending");
   const [slip, setSlip] = useState<string | null>(null);
   const [items, setItems] = useState<Record<string, any[]>>({});
   const [openItems, setOpenItems] = useState<string | null>(null);
@@ -50,7 +60,7 @@ export default function WebOrdersPage() {
   }, [search]);
   useEffect(() => {
     setPage(1);
-  }, [debounced, filter]);
+  }, [debounced, tab]);
 
   async function toggleItems(id: string) {
     if (openItems === id) { setOpenItems(null); return; }
@@ -72,12 +82,12 @@ export default function WebOrdersPage() {
         limit: PAGE_SIZE,
         offset: (page - 1) * PAGE_SIZE,
         search: debounced,
-        unverifiedOnly: filter === "unverified",
+        tab,
       });
       if (!d.ok) throw new Error(d.error);
       setOrders(d.rows);
       setTotal(d.total);
-      setUnverifiedTotal(d.unverifiedTotal);
+      setCounts(d.counts);
     } catch (e: any) {
       if (!quiet) toast.error(e.message || "Failed to load");
     } finally {
@@ -92,7 +102,7 @@ export default function WebOrdersPage() {
     const interval = setInterval(() => load(true), 30_000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, debounced, filter]);
+  }, [page, debounced, tab]);
 
   async function verify(id: string) {
     if (!confirm("Mark this bank-transfer payment as verified and set the order to Paid?")) return;
@@ -148,10 +158,28 @@ export default function WebOrdersPage() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2 mb-4">
-        <button onClick={() => setFilter("all")} className={`px-4 py-2 rounded-lg text-sm font-medium ${filter === "all" ? "bg-primary text-white" : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"}`}>All ({total})</button>
-        <button onClick={() => setFilter("unverified")} className={`px-4 py-2 rounded-lg text-sm font-medium ${filter === "unverified" ? "bg-primary text-white" : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"}`}>
-          Needs verification ({unverifiedTotal})
-        </button>
+        {TABS.map(({ key, label }) => {
+          const n = counts[key];
+          const active = tab === key;
+          // Pending is the attention tab — tint it red when it has orders and isn't active.
+          const pendingAlert = key === "pending" && n > 0 && !active;
+          return (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              className={`relative px-4 py-2 rounded-lg text-sm font-medium ${
+                active
+                  ? "bg-primary text-white"
+                  : pendingAlert
+                  ? "bg-red-500/15 text-red-600 dark:text-red-400"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+              }`}
+            >
+              {label} ({n})
+              {pendingAlert && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-red-500" />}
+            </button>
+          );
+        })}
         <div className="relative ml-auto">
           <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
@@ -169,7 +197,11 @@ export default function WebOrdersPage() {
       ) : shown.length === 0 ? (
         <div className="bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl text-center py-12 text-gray-500 dark:text-gray-400">
           <Globe className="w-12 h-12 mx-auto mb-3 opacity-50" />
-          No website orders yet.
+          {debounced
+            ? "No orders match your search."
+            : counts.all === 0
+            ? "No website orders yet."
+            : `No ${TABS.find((t) => t.key === tab)?.label.toLowerCase()} orders.`}
         </div>
       ) : (
         <>
@@ -277,7 +309,7 @@ export default function WebOrdersPage() {
           <Pager
             page={page}
             pageSize={PAGE_SIZE}
-            total={filter === "unverified" ? unverifiedTotal : total}
+            total={total}
             onPage={setPage}
           />
         </div>
