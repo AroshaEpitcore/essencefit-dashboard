@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import toast, { Toaster } from "react-hot-toast";
@@ -22,6 +22,26 @@ async function uploadSlip(file: File): Promise<string> {
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Upload failed");
   return data.url as string;
+}
+
+/* Suggest a few easy-to-remember passwords from the shopper's own details
+   (name + phone they've already typed). Deterministic — no Math.random — so
+   it can't cause a hydration mismatch, and regenerates as they type. Returns
+   [] until there's enough to build a >=6 char suggestion. */
+function suggestPasswords(name: string, phone: string): string[] {
+  const first = (name.trim().split(/\s+/)[0] || "").replace(/[^a-zA-Z]/g, "");
+  if (first.length < 2) return [];
+  const cap = first[0].toUpperCase() + first.slice(1).toLowerCase();
+  const digits = (phone || "").replace(/\D/g, "");
+  if (digits.length < 3) return [];
+  const last4 = digits.slice(-4);
+  const last3 = digits.slice(-3);
+  const candidates = [
+    `${cap}${last4}`,
+    `${cap.toLowerCase()}@${last4}`,
+    `${cap}${last3}#`,
+  ];
+  return Array.from(new Set(candidates.filter((p) => p.length >= 6))).slice(0, 3);
 }
 
 const selectTrigger =
@@ -90,6 +110,12 @@ export default function CheckoutPage() {
   const deliveryFee = freeApplies ? 0 : provinceChosen ? baseFee : 0;
   const deliveryKnown = freeApplies || provinceChosen;
   const total = subtotal + deliveryFee;
+
+  // Easy password suggestions built from the name + phone already entered.
+  const passwordSuggestions = useMemo(
+    () => suggestPasswords(f.customer, f.customerPhone),
+    [f.customer, f.customerPhone]
+  );
 
   async function switchAccount() {
     await logoutCustomer();
@@ -236,6 +262,29 @@ export default function CheckoutPage() {
                 placeholder="e.g. essence123 (උදා: essence123)"
                 value={password} onChange={(e) => setPassword(e.target.value)}
               />
+              {passwordSuggestions.length > 0 && (
+                <div className="mt-2">
+                  <p className="text-xs text-gray-500 mb-1.5">
+                    Suggestions — tap to use (යෝජිත මුරපද — තට්ටු කර භාවිතා කරන්න)
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {passwordSuggestions.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => { setPassword(s); toast.success("Password filled — remember it!"); }}
+                        className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+                          password === s
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-gray-300 text-gray-700 hover:border-primary hover:text-primary"
+                        }`}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </section>
           )}
 
