@@ -18,6 +18,7 @@ const ADMIN_ONLY_ROUTES = [
   "/settings",
   "/dtf",
   "/dtf-orders",
+  "/print-jobs",
   "/catalog",
   "/store-settings",
 ];

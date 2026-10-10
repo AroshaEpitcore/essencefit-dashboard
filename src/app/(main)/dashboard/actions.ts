@@ -112,7 +112,32 @@ export async function getDashboardStats() {
        FROM Sales S WHERE S.PaymentMethod = 'DTF') AS DtfSalesAllTime,
 
       (SELECT COALESCE(SUM(S.Qty * (S.SellingPrice - S.CostPrice)),0)
-       FROM Sales S WHERE S.PaymentMethod = 'DTF') AS DtfProfitAllTime
+       FROM Sales S WHERE S.PaymentMethod = 'DTF') AS DtfProfitAllTime,
+
+      /* ---------------- Print-job aggregates (Sales.PaymentMethod = 'PrintJob') ---------------- */
+      (SELECT COALESCE(SUM(S.Qty * S.SellingPrice),0)
+       FROM Sales S
+       WHERE S.PaymentMethod = 'PrintJob'
+         AND CAST(S.SaleDate AS DATE) >= date_trunc('month', current_date)::date) AS PrintJobChargeMonth,
+
+      (SELECT COALESCE(SUM(S.Qty * (S.SellingPrice - S.CostPrice)),0)
+       FROM Sales S
+       WHERE S.PaymentMethod = 'PrintJob'
+         AND CAST(S.SaleDate AS DATE) >= date_trunc('month', current_date)::date) AS PrintJobProfitMonth,
+
+      (SELECT COALESCE(SUM(S.Qty),0)
+       FROM Sales S
+       WHERE S.PaymentMethod = 'PrintJob'
+         AND CAST(S.SaleDate AS DATE) >= date_trunc('month', current_date)::date) AS PrintJobUnitsMonth,
+
+      (SELECT COUNT(*) FROM PrintJobs
+       WHERE CAST(CreatedAt AS DATE) >= date_trunc('month', current_date)::date) AS PrintJobsMonth,
+
+      (SELECT COALESCE(SUM(S.Qty * S.SellingPrice),0)
+       FROM Sales S WHERE S.PaymentMethod = 'PrintJob') AS PrintJobChargeAllTime,
+
+      (SELECT COALESCE(SUM(S.Qty * (S.SellingPrice - S.CostPrice)),0)
+       FROM Sales S WHERE S.PaymentMethod = 'PrintJob') AS PrintJobProfitAllTime
   `);
 
   return result.recordset[0];

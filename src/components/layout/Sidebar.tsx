@@ -49,6 +49,7 @@ const navItems = [
   { href: "/store-feedback", label: "Feedback", icon: MessageSquareQuote },
   { href: "/dtf", label: "DTF Printing", icon: Printer },
   { href: "/dtf-orders", label: "DTF Orders", icon: Shirt },
+  { href: "/print-jobs", label: "Print Jobs", icon: Printer },
   { href: "/order-logs", label: "Order Logs", icon: History },
   { href: "/invoices", label: "Invoices", icon: ClipboardList },
   { href: "/quotations", label: "Quotations", icon: FileText },

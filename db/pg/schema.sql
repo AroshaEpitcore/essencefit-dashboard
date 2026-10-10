@@ -554,3 +554,34 @@ CREATE INDEX IF NOT EXISTS idx_page_views_visitor  ON page_views (visitorid, cre
 
 -- City-level geo for analytics (from Vercel's x-vercel-ip-city header).
 ALTER TABLE page_views ADD COLUMN IF NOT EXISTS city text;
+
+-- Print Jobs (job-work printing). A supplier hands over blank garments; we pay
+-- the DTF shop per print, print them, and hand them back. charge = dtf + profit.
+-- No stock movement; each batch also writes one synced sales row
+-- (PaymentMethod='PrintJob') so profit shows in Dashboard/Finance/Reports.
+-- See db/pg/patches/2026-10-10-print-jobs.sql (incl. the hidden product seed).
+CREATE TABLE IF NOT EXISTS printjobs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  ref text NOT NULL,
+  giver text,
+  garment text,
+  qty int NOT NULL DEFAULT 1,
+  dtfcostperunit numeric(12,2) NOT NULL DEFAULT 0,
+  profitperunit numeric(12,2) NOT NULL DEFAULT 0,
+  chargeperunit numeric(12,2) NOT NULL DEFAULT 0,
+  totalcost numeric(12,2) NOT NULL DEFAULT 0,
+  totalcharge numeric(12,2) NOT NULL DEFAULT 0,
+  totalprofit numeric(12,2) NOT NULL DEFAULT 0,
+  status text NOT NULL DEFAULT 'Pending',
+  handedoverat timestamp,
+  note text,
+  createdat timestamp NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS ix_printjobs_createdat ON printjobs (createdat);
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS printjobid uuid;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_sales_printjobs') THEN
+    ALTER TABLE sales ADD CONSTRAINT fk_sales_printjobs
+      FOREIGN KEY (printjobid) REFERENCES printjobs(id) ON DELETE CASCADE;
+  END IF;
+END $$;
