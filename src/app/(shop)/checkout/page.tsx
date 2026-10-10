@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import toast, { Toaster } from "react-hot-toast";
-import { Landmark, Truck, Upload, Check, ShoppingBag, ArrowRight } from "lucide-react";
+import { Landmark, Truck, Upload, Check, ShoppingBag, ArrowRight, RefreshCw } from "lucide-react";
 import { useCart } from "@/components/shop/CartContext";
 import Select from "@/components/shop/Select";
 import { LabeledInput, LabeledTextarea } from "@/components/shop/LabeledInput";
@@ -24,24 +24,29 @@ async function uploadSlip(file: File): Promise<string> {
   return data.url as string;
 }
 
-/* Suggest a few easy-to-remember passwords from the shopper's own details
-   (name + phone they've already typed). Deterministic — no Math.random — so
-   it can't cause a hydration mismatch, and regenerates as they type. Returns
-   [] until there's enough to build a >=6 char suggestion. */
-function suggestPasswords(name: string, phone: string): string[] {
-  const first = (name.trim().split(/\s+/)[0] || "").replace(/[^a-zA-Z]/g, "");
-  if (first.length < 2) return [];
-  const cap = first[0].toUpperCase() + first.slice(1).toLowerCase();
-  const digits = (phone || "").replace(/\D/g, "");
-  if (digits.length < 3) return [];
-  const last4 = digits.slice(-4);
-  const last3 = digits.slice(-3);
-  const candidates = [
-    `${cap}${last4}`,
-    `${cap.toLowerCase()}@${last4}`,
-    `${cap}${last3}#`,
-  ];
-  return Array.from(new Set(candidates.filter((p) => p.length >= 6))).slice(0, 3);
+/* Memorable but hard-to-guess password suggestions, e.g. "blue-tiger-42".
+   Random, so these are generated on the client (in an effect, never during
+   render) to avoid a hydration mismatch. */
+const PW_ADJECTIVES = [
+  "blue", "red", "gold", "swift", "bold", "cool", "lucky", "happy", "royal",
+  "mega", "neon", "ocean", "sunny", "brave", "calm", "epic", "fresh", "jolly",
+];
+const PW_NOUNS = [
+  "tiger", "lion", "eagle", "shark", "panda", "comet", "river", "stone",
+  "flame", "wolf", "falcon", "cobra", "zebra", "mango", "lotus", "rocket",
+];
+function pick<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+function makeMemorablePassword(): string {
+  const num = Math.floor(Math.random() * 90) + 10; // 10-99
+  return `${pick(PW_ADJECTIVES)}-${pick(PW_NOUNS)}-${num}`;
+}
+function makePasswordSuggestions(count = 3): string[] {
+  const out = new Set<string>();
+  let guard = 0;
+  while (out.size < count && guard++ < 50) out.add(makeMemorablePassword());
+  return Array.from(out);
 }
 
 const selectTrigger =
@@ -111,11 +116,11 @@ export default function CheckoutPage() {
   const deliveryKnown = freeApplies || provinceChosen;
   const total = subtotal + deliveryFee;
 
-  // Easy password suggestions built from the name + phone already entered.
-  const passwordSuggestions = useMemo(
-    () => suggestPasswords(f.customer, f.customerPhone),
-    [f.customer, f.customerPhone]
-  );
+  // Memorable password suggestions — generated on the client only (random).
+  const [passwordSuggestions, setPasswordSuggestions] = useState<string[]>([]);
+  useEffect(() => {
+    if (!loggedIn) setPasswordSuggestions(makePasswordSuggestions());
+  }, [loggedIn]);
 
   async function switchAccount() {
     await logoutCustomer();
@@ -264,9 +269,18 @@ export default function CheckoutPage() {
               />
               {passwordSuggestions.length > 0 && (
                 <div className="mt-2">
-                  <p className="text-xs text-gray-500 mb-1.5">
-                    Suggestions — tap to use (යෝජිත මුරපද — තට්ටු කර භාවිතා කරන්න)
-                  </p>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <p className="text-xs text-gray-500">
+                      Suggestions — tap to use (යෝජිත මුරපද — තට්ටු කර භාවිතා කරන්න)
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setPasswordSuggestions(makePasswordSuggestions())}
+                      className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                    >
+                      <RefreshCw className="w-3 h-3" /> New
+                    </button>
+                  </div>
                   <div className="flex flex-wrap gap-2">
                     {passwordSuggestions.map((s) => (
                       <button
