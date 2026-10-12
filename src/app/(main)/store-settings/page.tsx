@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import { getStoreSettings, saveStoreSettings } from "../settings/actions";
+import { getCatalogCategories } from "../catalog/actions";
 import type { StoreSettings, HeroSlide } from "@/lib/storeSettings";
 import { Globe, Save, ImagePlus, Plus, Trash2, Landmark, Truck, Phone, Share2, BellRing } from "lucide-react";
 
@@ -22,9 +23,13 @@ const card = "bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gr
 export default function StoreSettingsPage() {
   const [s, setS] = useState<StoreSettings | null>(null);
   const [saving, setSaving] = useState(false);
+  const [cats, setCats] = useState<{ Id: string; Name: string }[]>([]);
 
   useEffect(() => {
     getStoreSettings().then(setS).catch((e) => toast.error(e.message || "Load failed"));
+    getCatalogCategories()
+      .then((rows) => setCats(rows.map((c) => ({ Id: c.Id, Name: c.Name }))))
+      .catch(() => {});
   }, []);
 
   function set<K extends keyof StoreSettings>(key: K, value: StoreSettings[K]) {
@@ -221,6 +226,36 @@ export default function StoreSettingsPage() {
               <input type="number" value={s.freeDeliveryOver} onChange={(e) => set("freeDeliveryOver", Number(e.target.value) || 0)} className={input} />
             </div>
           </div>
+
+          {/* Category-quantity free delivery, e.g. "buy 3 shorts → free delivery" */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Free delivery category <span className="text-gray-400">(none = off)</span></label>
+              <select
+                value={s.freeDeliveryCategoryId}
+                onChange={(e) => set("freeDeliveryCategoryId", e.target.value)}
+                className={input}
+              >
+                <option value="">— None —</option>
+                {cats.map((c) => (
+                  <option key={c.Id} value={c.Id}>{c.Name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Qty from category for free delivery <span className="text-gray-400">(0 = off)</span></label>
+              <input
+                type="number"
+                min={0}
+                value={s.freeDeliveryCategoryQty}
+                onChange={(e) => set("freeDeliveryCategoryQty", Number(e.target.value) || 0)}
+                className={input}
+              />
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 -mt-2">
+            Buy this many items from the chosen category and delivery is free — e.g. choose <b>Shorts</b> and <b>3</b> for “buy any 3 shorts, get free delivery”.
+          </p>
 
           <div>
             <div className="flex items-center justify-between mb-2">

@@ -15,6 +15,7 @@ type ProductLite = {
   ImageUrl: string | null;
   SellingPrice: number;
   CompareAtPrice: number | null;
+  CategoryId?: string | null;
 };
 
 /* Storefront selector for "select by image" products: each design is a variant
@@ -79,6 +80,7 @@ export default function DesignPicker({
       price: design.Price,
       qty: Math.min(qty, stock),
       maxStock: stock,
+      categoryId: product.CategoryId ?? null,
     });
     if (buyNow) router.push("/cart");
     else toast.success("Added to cart");

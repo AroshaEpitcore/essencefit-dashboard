@@ -13,6 +13,7 @@ type ProductLite = {
   ImageUrl: string | null;
   SellingPrice: number;
   CompareAtPrice: number | null;
+  CategoryId?: string | null;
 };
 
 /* Owns the selected colour so the gallery (left) and the picker (right) stay in

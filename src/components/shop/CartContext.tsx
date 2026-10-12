@@ -13,6 +13,9 @@ export type CartItem = {
   price: number;
   qty: number;
   maxStock: number;
+  // Product's category, used for the "buy N from a category → free delivery" rule.
+  // Optional so carts saved before this field still load fine (just won't count).
+  categoryId?: string | null;
 };
 
 type CartContextValue = {

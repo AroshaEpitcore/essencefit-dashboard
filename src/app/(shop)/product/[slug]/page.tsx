@@ -70,6 +70,7 @@ export default async function ProductPage({
   const productLite = {
     Id: product.Id, Name: product.Name, Slug: product.Slug, ImageUrl: product.ImageUrl,
     SellingPrice: product.SellingPrice, CompareAtPrice: product.CompareAtPrice,
+    CategoryId: product.CategoryId,
   };
   const headerSlot = (
     <div>

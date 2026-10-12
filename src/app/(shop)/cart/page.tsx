@@ -16,7 +16,16 @@ export default function CartPage() {
 
   // Delivery depends on the province chosen at checkout, so the cart only shows
   // the subtotal — except when the order already qualifies for free delivery.
-  const freeDelivery = !!config && config.freeDeliveryOver > 0 && subtotal >= config.freeDeliveryOver;
+  const freeByValue = !!config && config.freeDeliveryOver > 0 && subtotal >= config.freeDeliveryOver;
+  // "Buy N from a category → free delivery" (e.g. 3 shorts). Items saved before
+  // this field carry no categoryId and simply don't count.
+  const freeCategoryQty = config?.freeDeliveryCategoryId
+    ? items.reduce((s, i) => (i.categoryId === config.freeDeliveryCategoryId ? s + i.qty : s), 0)
+    : 0;
+  const freeByCategory =
+    !!config && !!config.freeDeliveryCategoryId && config.freeDeliveryCategoryQty > 0 &&
+    freeCategoryQty >= config.freeDeliveryCategoryQty;
+  const freeDelivery = freeByValue || freeByCategory;
   const freeDeliveryProgress =
     config && config.freeDeliveryOver > 0 ? Math.min(100, (subtotal / config.freeDeliveryOver) * 100) : null;
 

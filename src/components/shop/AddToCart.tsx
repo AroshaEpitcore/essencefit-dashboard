@@ -16,6 +16,7 @@ type ProductLite = {
   ImageUrl: string | null;
   SellingPrice: number;
   CompareAtPrice: number | null;
+  CategoryId?: string | null;
 };
 
 function uniqBy<T>(arr: T[], key: (x: T) => string): T[] {
@@ -147,6 +148,7 @@ export default function AddToCart({
       price,
       qty: Math.min(qty, stock),
       maxStock: stock,
+      categoryId: product.CategoryId ?? null,
     });
     if (buyNow) router.push("/cart");
     else toast.success("Added to cart");

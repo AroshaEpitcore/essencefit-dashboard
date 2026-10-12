@@ -125,7 +125,15 @@ export default function CheckoutPage() {
   const provinceChosen = !hasProvinces || !!f.province;
   const baseFee = provinceFee != null ? provinceFee : config?.deliveryFee ?? 0;
   // Free delivery only when the admin threshold is set AND met — never just because no province is picked yet.
-  const freeApplies = !!config && config.freeDeliveryOver > 0 && subtotal >= config.freeDeliveryOver;
+  const freeByValue = !!config && config.freeDeliveryOver > 0 && subtotal >= config.freeDeliveryOver;
+  // "Buy N from a category → free delivery" (e.g. 3 shorts), set in Store Settings.
+  const freeCategoryQty = config?.freeDeliveryCategoryId
+    ? items.reduce((s, i) => (i.categoryId === config.freeDeliveryCategoryId ? s + i.qty : s), 0)
+    : 0;
+  const freeByCategory =
+    !!config && !!config.freeDeliveryCategoryId && config.freeDeliveryCategoryQty > 0 &&
+    freeCategoryQty >= config.freeDeliveryCategoryQty;
+  const freeApplies = freeByValue || freeByCategory;
   // Until the province is chosen the fee is unknown, so don't count it (and don't call it "Free").
   const deliveryFee = freeApplies ? 0 : provinceChosen ? baseFee : 0;
   const deliveryKnown = freeApplies || provinceChosen;

@@ -53,6 +53,11 @@ export type StoreSettings = {
   bank: BankDetails;
   deliveryFee: number;
   freeDeliveryOver: number; // 0 = disabled
+  // Category-quantity free-delivery rule: free delivery when the cart holds at
+  // least `freeDeliveryCategoryQty` items from the category `freeDeliveryCategoryId`.
+  // Disabled when the id is empty or the qty is 0 (e.g. "buy 3 shorts → free delivery").
+  freeDeliveryCategoryId: string; // "" = disabled
+  freeDeliveryCategoryQty: number; // 0 = disabled
   deliveryProvinces: DeliveryProvince[]; // per-province delivery fees (Sri Lanka)
   contactPhone: string;
   contactEmail: string;
@@ -71,6 +76,8 @@ export const STORE_KEYS = {
   bank: "bank_details",
   deliveryFee: "delivery_fee",
   freeDeliveryOver: "free_delivery_over",
+  freeDeliveryCategoryId: "free_delivery_category_id",
+  freeDeliveryCategoryQty: "free_delivery_category_qty",
   deliveryProvinces: "delivery_provinces",
   contactPhone: "contact_phone",
   contactEmail: "contact_email",
@@ -89,6 +96,8 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
   bank: { bank: "", accountName: "", accountNo: "", branch: "" },
   deliveryFee: 400,
   freeDeliveryOver: 7500,
+  freeDeliveryCategoryId: "",
+  freeDeliveryCategoryQty: 0,
   deliveryProvinces: DEFAULT_PROVINCES,
   contactPhone: "",
   contactEmail: "",
@@ -152,6 +161,8 @@ export async function getPublicStoreSettings(): Promise<StoreSettings> {
     bank: parseJson<BankDetails>(map[STORE_KEYS.bank], d.bank),
     deliveryFee: Number(map[STORE_KEYS.deliveryFee] ?? d.deliveryFee) || 0,
     freeDeliveryOver: Number(map[STORE_KEYS.freeDeliveryOver] ?? d.freeDeliveryOver) || 0,
+    freeDeliveryCategoryId: map[STORE_KEYS.freeDeliveryCategoryId] || d.freeDeliveryCategoryId,
+    freeDeliveryCategoryQty: Number(map[STORE_KEYS.freeDeliveryCategoryQty] ?? d.freeDeliveryCategoryQty) || 0,
     deliveryProvinces: normaliseProvinces(parseJson<unknown>(map[STORE_KEYS.deliveryProvinces], null)),
     contactPhone: map[STORE_KEYS.contactPhone] || d.contactPhone,
     contactEmail: map[STORE_KEYS.contactEmail] || d.contactEmail,

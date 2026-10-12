@@ -13,6 +13,8 @@ const { UniqueIdentifier, NVarChar, Int, Decimal } = sql;
 export type CheckoutConfig = {
   deliveryFee: number;
   freeDeliveryOver: number;
+  freeDeliveryCategoryId: string;
+  freeDeliveryCategoryQty: number;
   deliveryProvinces: { name: string; fee: number }[];
   storeName: string;
   bank: { bank: string; accountName: string; accountNo: string; branch: string };
@@ -23,6 +25,8 @@ export async function getCheckoutConfig(): Promise<CheckoutConfig> {
   return {
     deliveryFee: s.deliveryFee,
     freeDeliveryOver: s.freeDeliveryOver,
+    freeDeliveryCategoryId: s.freeDeliveryCategoryId,
+    freeDeliveryCategoryQty: s.freeDeliveryCategoryQty,
     deliveryProvinces: s.deliveryProvinces,
     storeName: s.storeName,
     bank: s.bank,
@@ -96,6 +100,8 @@ export async function createWebOrder(
     // 1) Re-read live price + stock for each variant; validate availability.
     const priced: Array<{ variantId: string; qty: number; price: number; name: string }> = [];
     let subtotal = 0;
+    // Running count of items from the free-delivery category (for the N-per-category rule).
+    let freeCategoryQty = 0;
 
     for (const it of payload.items) {
       if (!it.qty || it.qty < 1) continue;
@@ -105,6 +111,7 @@ export async function createWebOrder(
           SELECT COALESCE((SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(v.Id)), 0) AS Stock,
                  COALESCE(v.SellingPrice, p.SellingPrice) AS Price,
                  prod.Name AS ProductName,
+                 prod.CategoryId AS CategoryId,
                  sz.Name AS SizeName,
                  cl.Name AS ColorName
           FROM ProductVariants v
@@ -121,20 +128,29 @@ export async function createWebOrder(
       }
       const price = Number(row.Price);
       subtotal += price * it.qty;
+      if (config.freeDeliveryCategoryId && String(row.CategoryId) === config.freeDeliveryCategoryId) {
+        freeCategoryQty += it.qty;
+      }
       const variant = [row.SizeName, row.ColorName].filter(Boolean).join(" / ");
       priced.push({ variantId: it.variantId, qty: it.qty, price, name: variant ? `${row.ProductName} (${variant})` : row.ProductName });
     }
 
     if (!priced.length) throw new UserFacingError("Your cart is empty.");
 
-    // 2) Delivery fee — by chosen province (server-side; falls back to the flat fee)
+    // 2) Delivery fee — by chosen province (server-side; falls back to the flat fee).
+    //    Free when the cart value clears the threshold OR enough items from the
+    //    configured category are present (e.g. buy 3 shorts → free delivery).
     const province = payload.province?.trim() || null;
     const provinceFee = province
       ? config.deliveryProvinces.find((p) => p.name.toLowerCase() === province.toLowerCase())?.fee
       : undefined;
     const baseFee = provinceFee != null ? provinceFee : config.deliveryFee;
-    const deliveryFee =
-      config.freeDeliveryOver > 0 && subtotal >= config.freeDeliveryOver ? 0 : baseFee;
+    const freeByValue = config.freeDeliveryOver > 0 && subtotal >= config.freeDeliveryOver;
+    const freeByCategory =
+      !!config.freeDeliveryCategoryId &&
+      config.freeDeliveryCategoryQty > 0 &&
+      freeCategoryQty >= config.freeDeliveryCategoryQty;
+    const deliveryFee = freeByValue || freeByCategory ? 0 : baseFee;
     const total = subtotal + deliveryFee;
 
     // 3) Upsert customer by phone (auto-creates the customer record / account)
