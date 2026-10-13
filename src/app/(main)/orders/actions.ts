@@ -312,10 +312,9 @@ async function resolveStock(tx: Transaction, variantId: string) {
     .query(`
       SELECT dbo.fn_StockVariantId(@VariantId) AS StockVid,
              (SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(@VariantId)) AS Qty,
-             COALESCE((SELECT z.SellingPrice FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(@VariantId)), 0) AS SellingPrice,
-             COALESCE((SELECT p.PrintOnDemand FROM ProductVariants v JOIN Products p ON p.Id = v.ProductId WHERE v.Id = @VariantId), false) AS IsPOD
+             COALESCE((SELECT z.SellingPrice FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(@VariantId)), 0) AS SellingPrice
     `);
-  return r.recordset[0] as { StockVid: string | null; Qty: number | null; SellingPrice: number; IsPOD: boolean } | undefined;
+  return r.recordset[0] as { StockVid: string | null; Qty: number | null; SellingPrice: number } | undefined;
 }
 
 async function logStock(
@@ -346,10 +345,13 @@ async function validateAndReduceStock(
   const resolved: Array<{ stockVid: string; prev: number; price: number; qty: number }> = [];
   for (const it of items) {
     const v = await resolveStock(tx, it.VariantId);
-    if (v?.IsPOD) continue; // print-on-demand: made to order, never reserves stock
-    const inStock = v?.Qty ?? 0;
+    // CK/Hurley shorts are flagged print-on-demand but back onto a shared blank
+    // (fn_StockVariantId resolves it) — they hold real stock and MUST deduct,
+    // exactly like the storefront checkout. Skip only when nothing resolves.
+    if (!v?.StockVid) continue;
+    const inStock = v.Qty ?? 0;
     if (it.Qty > inStock) throw new UserFacingError(`Not enough stock. In stock: ${inStock}`);
-    resolved.push({ stockVid: v!.StockVid!, prev: inStock, price: v!.SellingPrice ?? 0, qty: it.Qty });
+    resolved.push({ stockVid: v.StockVid, prev: inStock, price: v.SellingPrice ?? 0, qty: it.Qty });
   }
 
   for (const r of resolved) {
@@ -375,7 +377,7 @@ async function restoreStockFromOrder(
 
   for (const it of items.recordset as Array<{ VariantId: string; Qty: number }>) {
     const v = await resolveStock(tx, it.VariantId);
-    if (!v?.StockVid || v.IsPOD) continue; // POD never deducted, so nothing to restore
+    if (!v?.StockVid) continue; // nothing resolvable to restore
     const prev = v.Qty ?? 0;
     await new sql.Request(tx)
       .input("Vid", UniqueIdentifier, v.StockVid)
