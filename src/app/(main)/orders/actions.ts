@@ -242,7 +242,11 @@ export async function getRecentOrders(limit: number = 20, range: OrderRange = "a
       o.DeliveryFee,
       o.Total,
       (SELECT COUNT(*) FROM OrderItems oi WHERE oi.OrderId = o.Id) AS LineCount,
-      (SELECT COALESCE(SUM(oi.Qty * COALESCE((SELECT z.CostPrice FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(oi.VariantId)), COALESCE(p2.CostPrice, 0))), 0)
+      (SELECT COALESCE(SUM(oi.Qty * (
+                COALESCE((SELECT z.CostPrice FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(oi.VariantId)), COALESCE(p2.CostPrice, 0))
+                + COALESCE(p2.Utilities, 0)
+                + CASE WHEN oi.IsDtf THEN COALESCE(oi.PrintCost, 0) ELSE 0 END
+              )), 0)
        FROM OrderItems oi
        JOIN ProductVariants pv ON pv.Id = oi.VariantId
        JOIN Products p2 ON p2.Id = pv.ProductId
@@ -286,7 +290,9 @@ export async function getOrderDetails(orderId: string) {
         oi.SellingPrice,
         oi.PrintCost,
         oi.IsDtf,
-        COALESCE((SELECT z.CostPrice FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(oi.VariantId)), COALESCE(p.CostPrice, 0)) AS CostPrice,
+        COALESCE((SELECT z.CostPrice FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(oi.VariantId)), COALESCE(p.CostPrice, 0))
+          + COALESCE(p.Utilities, 0)
+          + CASE WHEN oi.IsDtf THEN COALESCE(oi.PrintCost, 0) ELSE 0 END AS CostPrice,
         (SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(oi.VariantId)) AS CurrentStock,
         p.Id          AS ProductId,
         p.CategoryId  AS CategoryId,
