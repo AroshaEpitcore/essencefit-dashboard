@@ -167,6 +167,11 @@ export type OrderItemInput = {
   VariantId: string;
   Qty: number;
   SellingPrice: number;
+  // DTF print line: made on a blank with a per-unit print (e.g. A3). When the
+  // order becomes Paid/Completed the Sales row is tagged PaymentMethod='DTF' and
+  // costed as blank + utilities + PrintCost. Defaults: not a print line.
+  PrintCost?: number;
+  IsDtf?: boolean;
 };
 
 export type OrderPayload = {
@@ -279,6 +284,8 @@ export async function getOrderDetails(orderId: string) {
         oi.VariantId,
         oi.Qty,
         oi.SellingPrice,
+        oi.PrintCost,
+        oi.IsDtf,
         COALESCE((SELECT z.CostPrice FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(oi.VariantId)), COALESCE(p.CostPrice, 0)) AS CostPrice,
         (SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(oi.VariantId)) AS CurrentStock,
         p.Id          AS ProductId,
@@ -493,7 +500,11 @@ async function insertSalesRows(
   items: OrderItemInput[]
 ) {
   for (const it of items) {
-    const unitCost = await resolveUnitCost(tx, it.VariantId);
+    // DTF print line: cost = blank + utilities (resolveUnitCost) + per-unit print;
+    // tag it 'DTF' so it rolls into the DTF dashboard tiles. Plain lines are 'Order'.
+    const printCost = it.IsDtf ? Number(it.PrintCost ?? 0) : 0;
+    const unitCost = (await resolveUnitCost(tx, it.VariantId)) + printCost;
+    const paymentMethod = it.IsDtf ? "DTF" : "Order";
     await new sql.Request(tx)
       .input("Id", UniqueIdentifier, crypto.randomUUID())
       .input("OrderId", UniqueIdentifier, orderId)
@@ -501,7 +512,7 @@ async function insertSalesRows(
       .input("Qty", Int, it.Qty)
       .input("SellingPrice", Decimal(18, 2), it.SellingPrice)
       .input("CostPrice", Decimal(18, 2), unitCost)
-      .input("PaymentMethod", NVarChar(50), "Order")
+      .input("PaymentMethod", NVarChar(50), paymentMethod)
       .input("PaymentStatus", NVarChar(20), status)
       .input("SaleDate", sql.DateTime2(7), orderDate)
       .query(`
@@ -573,9 +584,11 @@ export async function createOrder(payload: OrderPayload): Promise<ActionResult<{
         .input("VariantId", UniqueIdentifier, it.VariantId)
         .input("Qty", Int, it.Qty)
         .input("SellingPrice", Decimal(18, 2), it.SellingPrice)
+        .input("PrintCost", Decimal(18, 2), it.IsDtf ? Number(it.PrintCost ?? 0) : 0)
+        .input("IsDtf", sql.Bit, it.IsDtf ? 1 : 0)
         .query(`
-          INSERT INTO OrderItems (Id, OrderId, VariantId, Qty, SellingPrice)
-          VALUES (@Id, @OrderId, @VariantId, @Qty, @SellingPrice)
+          INSERT INTO OrderItems (Id, OrderId, VariantId, Qty, SellingPrice, PrintCost, IsDtf)
+          VALUES (@Id, @OrderId, @VariantId, @Qty, @SellingPrice, @PrintCost, @IsDtf)
         `);
     }
 
@@ -711,8 +724,8 @@ export async function updateOrderStatusCore(orderId: string, newStatus: OrderSta
     // Current order items — reused for stock reconciliation and sales
     const itemsRes = await new sql.Request(tx)
       .input("Id", UniqueIdentifier, orderId)
-      .query(`SELECT VariantId, Qty, SellingPrice FROM OrderItems WHERE OrderId=@Id`);
-    const mapped = itemsRes.recordset as Array<{ VariantId: string; Qty: number; SellingPrice: number }>;
+      .query(`SELECT VariantId, Qty, SellingPrice, PrintCost, IsDtf FROM OrderItems WHERE OrderId=@Id`);
+    const mapped = itemsRes.recordset as Array<{ VariantId: string; Qty: number; SellingPrice: number; PrintCost: number; IsDtf: boolean }>;
 
     // Cancel → return stock to the pool; reactivate → re-deduct (idempotent via StockDeducted)
     await reconcileOrderStock(tx, orderId, newStatus, mapped);
@@ -926,9 +939,11 @@ export async function updateOrder(orderId: string, payload: OrderPayload): Promi
         .input("VariantId", UniqueIdentifier, it.VariantId)
         .input("Qty", Int, it.Qty)
         .input("SellingPrice", Decimal(18, 2), it.SellingPrice)
+        .input("PrintCost", Decimal(18, 2), it.IsDtf ? Number(it.PrintCost ?? 0) : 0)
+        .input("IsDtf", sql.Bit, it.IsDtf ? 1 : 0)
         .query(`
-          INSERT INTO OrderItems (Id, OrderId, VariantId, Qty, SellingPrice)
-          VALUES (@Id, @OrderId, @VariantId, @Qty, @SellingPrice)
+          INSERT INTO OrderItems (Id, OrderId, VariantId, Qty, SellingPrice, PrintCost, IsDtf)
+          VALUES (@Id, @OrderId, @VariantId, @Qty, @SellingPrice, @PrintCost, @IsDtf)
         `);
     }
 

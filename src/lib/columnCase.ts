@@ -168,6 +168,7 @@ export const COLUMN_CASE: Record<string, string> = {
   "imgsort": "ImgSort",
   "instock": "InStock",
   "isactive": "IsActive",
+  "isdtf": "IsDtf",
   "isdtfprintable": "IsDtfPrintable",
   "isfeatured": "IsFeatured",
   "isnewarrival": "IsNewArrival",

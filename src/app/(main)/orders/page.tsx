@@ -56,6 +56,8 @@ type LineDraft = {
   qty: number;
   price: number;
   label?: string; // human-readable line label (product / design / size+colour)
+  isDtf?: boolean;   // DTF print line (made on a blank with a per-unit print)
+  printCost?: number; // per-unit print cost (A3 etc.) when isDtf
 };
 
 const ORDER_STATUSES = [
@@ -200,6 +202,8 @@ export default function OrdersPage() {
 
   const [lineQty, setLineQty] = useState<number>(1);
   const [linePrice, setLinePrice] = useState<number>(0);
+  const [lineIsDtf, setLineIsDtf] = useState<boolean>(false);
+  const [linePrintCost, setLinePrintCost] = useState<number>(0);
 
   // create form
   const [customer, setCustomer] = useState("");
@@ -287,6 +291,8 @@ export default function OrdersPage() {
   const [editSelDesign, setEditSelDesign] = useState("");
   const [editLineQty, setEditLineQty] = useState<number>(1);
   const [editLinePrice, setEditLinePrice] = useState<number>(0);
+  const [editLineIsDtf, setEditLineIsDtf] = useState<boolean>(false);
+  const [editLinePrintCost, setEditLinePrintCost] = useState<number>(0);
 
   const [editSelectedKey, setEditSelectedKey] = useState<string | null>(null);
   const [editMode, setEditMode] = useState<"add" | "replace">("add");
@@ -503,6 +509,8 @@ export default function OrdersPage() {
 
     setEditLineQty(line.qty);
     setEditLinePrice(line.price);
+    setEditLineIsDtf(!!line.isDtf);
+    setEditLinePrintCost(Number(line.printCost || 0));
   }
 
   // Selected-product type flags drive whether we show the size/colour cascade
@@ -680,6 +688,8 @@ export default function OrdersPage() {
           qty: lineQty,
           price: Number(linePrice || d.SellingPrice || 0),
           label: `${selProdMeta?.Name ?? "Product"} — Design ${designNo}`,
+          isDtf: lineIsDtf,
+          printCost: lineIsDtf ? Number(linePrintCost || 0) : 0,
         };
         setSelDesign("");
       } else {
@@ -701,11 +711,15 @@ export default function OrdersPage() {
           qty: lineQty,
           price: Number(linePrice || v.SellingPrice || 0),
           label: `${selProdMeta?.Name ?? "Product"}${sizeName || colorName ? ` (${[sizeName, colorName].filter(Boolean).join(" / ")})` : ""}`,
+          isDtf: lineIsDtf,
+          printCost: lineIsDtf ? Number(linePrintCost || 0) : 0,
         };
       }
 
       setLines((p) => [...p, row]);
       setLineQty(1);
+      setLineIsDtf(false);
+      setLinePrintCost(0);
       return;
     }
 
@@ -725,6 +739,8 @@ export default function OrdersPage() {
         qty: editLineQty,
         price: Number(editLinePrice || d.SellingPrice || 0),
         label: `${editSelProdMeta?.Name ?? "Product"} — Design ${designNo}`,
+        isDtf: editLineIsDtf,
+        printCost: editLineIsDtf ? Number(editLinePrintCost || 0) : 0,
       };
     } else {
       if (!editSelProd || !editSelSize || !editSelColor)
@@ -745,6 +761,8 @@ export default function OrdersPage() {
         qty: editLineQty,
         price: Number(editLinePrice || v.SellingPrice || 0),
         label: `${editSelProdMeta?.Name ?? "Product"}${sizeName || colorName ? ` (${[sizeName, colorName].filter(Boolean).join(" / ")})` : ""}`,
+        isDtf: editLineIsDtf,
+        printCost: editLineIsDtf ? Number(editLinePrintCost || 0) : 0,
       };
     }
 
@@ -774,6 +792,8 @@ export default function OrdersPage() {
     setEditDesigns([]);
     setEditLineQty(1);
     setEditLinePrice(0);
+    setEditLineIsDtf(false);
+    setEditLinePrintCost(0);
   }
 
   function removeLine(target: "create" | "edit", key: string) {
@@ -953,6 +973,8 @@ export default function OrdersPage() {
         VariantId: l.variant!.VariantId,
         Qty: l.qty,
         SellingPrice: Number(l.price || 0),
+        IsDtf: !!l.isDtf,
+        PrintCost: l.isDtf ? Number(l.printCost || 0) : 0,
       })),
     };
 
@@ -1042,6 +1064,8 @@ export default function OrdersPage() {
     setEditDesigns([]);
     setEditLineQty(1);
     setEditLinePrice(0);
+    setEditLineIsDtf(false);
+    setEditLinePrintCost(0);
     setEditMode("add");
     setEditSelectedKey(null);
   }
@@ -1090,6 +1114,8 @@ export default function OrdersPage() {
         },
         qty: Number(it.Qty),
         price: Number(it.SellingPrice),
+        isDtf: !!it.IsDtf,
+        printCost: Number(it.PrintCost ?? 0),
       }));
 
       resetEditPickers();
@@ -1128,6 +1154,8 @@ export default function OrdersPage() {
         VariantId: l.variant!.VariantId,
         Qty: l.qty,
         SellingPrice: Number(l.price || 0),
+        IsDtf: !!l.isDtf,
+        PrintCost: l.isDtf ? Number(l.printCost || 0) : 0,
       })),
     };
 
@@ -1483,6 +1511,32 @@ export default function OrdersPage() {
           />
         </div>
 
+        {/* DTF print toggle — tags this line as a print-on-demand DTF sale with a per-shirt print cost */}
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              checked={lineIsDtf}
+              onChange={(e) => setLineIsDtf(e.target.checked)}
+            />
+            DTF print (A3 etc.)
+          </label>
+          {lineIsDtf && (
+            <input
+              type="number"
+              step="0.01"
+              min={0}
+              value={linePrintCost}
+              onChange={(e) => setLinePrintCost(parseFloat(e.target.value || "0"))}
+              className="w-48 bg-gray-50 dark:bg-gray-800/50 border rounded-lg px-4 py-2"
+              placeholder="Print cost / shirt"
+            />
+          )}
+          {lineIsDtf && (
+            <span className="text-xs text-gray-500">Adds to cost &amp; counts in DTF totals when paid.</span>
+          )}
+        </div>
+
         <div className="mt-3 flex justify-end">
           <button
             onClick={() => addLine("create")}
@@ -1504,9 +1558,17 @@ export default function OrdersPage() {
                   className="flex items-center justify-between gap-3 bg-gray-50 dark:bg-gray-900/30 border border-gray-200 dark:border-gray-700 rounded-lg p-3"
                 >
                   <div className="text-sm">
-                    <div className={l.label ? "font-medium" : "font-mono"}>{l.label || l.variant?.VariantId}</div>
+                    <div className={l.label ? "font-medium" : "font-mono"}>
+                      {l.label || l.variant?.VariantId}
+                      {l.isDtf && (
+                        <span className="ml-2 inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 align-middle">
+                          DTF
+                        </span>
+                      )}
+                    </div>
                     <div className="text-xs text-gray-500">
                       Qty {l.qty} × Rs {l.price.toFixed(2)}
+                      {l.isDtf && l.printCost ? ` · print Rs ${Number(l.printCost).toFixed(2)}/pc` : ""}
                     </div>
                   </div>
 
@@ -2442,6 +2504,29 @@ export default function OrdersPage() {
               />
             </div>
 
+            {/* DTF print toggle (edit) */}
+            <div className="mb-4 flex flex-wrap items-center gap-3">
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={editLineIsDtf}
+                  onChange={(e) => setEditLineIsDtf(e.target.checked)}
+                />
+                DTF print (A3 etc.)
+              </label>
+              {editLineIsDtf && (
+                <input
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  value={editLinePrintCost}
+                  onChange={(e) => setEditLinePrintCost(parseFloat(e.target.value || "0"))}
+                  className="w-48 bg-gray-50 dark:bg-gray-800/50 border rounded-lg px-3 py-2"
+                  placeholder="Print cost / shirt"
+                />
+              )}
+            </div>
+
             <div className="flex justify-end mb-4 gap-2">
               {editMode === "replace" && (
                 <button
@@ -2549,6 +2634,11 @@ export default function OrdersPage() {
                 >
                   <div className={l.label ? "text-xs font-medium" : "text-xs font-mono"}>
                     {l.label || l.variant?.VariantId}
+                    {l.isDtf && (
+                      <span className="ml-2 inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 align-middle">
+                        DTF{l.printCost ? ` · Rs ${Number(l.printCost).toFixed(2)}` : ""}
+                      </span>
+                    )}
                   </div>
 
                   <div

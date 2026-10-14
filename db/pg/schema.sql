@@ -140,7 +140,9 @@ CREATE TABLE IF NOT EXISTS orderitems (
   orderid uuid NOT NULL,
   variantid uuid NOT NULL,
   qty integer NOT NULL,
-  sellingprice numeric(18,2) NOT NULL
+  sellingprice numeric(18,2) NOT NULL,
+  printcost numeric(18,2) NOT NULL DEFAULT 0,  -- per-unit DTF print cost (A3 etc.); 0 for non-print lines
+  isdtf boolean NOT NULL DEFAULT false         -- line is a DTF print -> Sales row gets PaymentMethod='DTF' + print cost
 );
 
 CREATE TABLE IF NOT EXISTS sales (
