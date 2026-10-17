@@ -221,7 +221,7 @@ export default function AddToCart({
                   disabled={!avail}
                   title={s.name + (avail ? "" : " — sold out")}
                   onClick={() => setSizeId(s.id)}
-                  className={`min-w-[3rem] h-11 px-3 rounded-full border-2 text-sm font-medium flex items-center justify-center transition-colors ${
+                  className={`min-w-[3rem] h-11 px-3 rounded-full border-2 text-base font-medium flex items-center justify-center transition-colors ${
                     !avail
                       ? "border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed"
                       : selected
