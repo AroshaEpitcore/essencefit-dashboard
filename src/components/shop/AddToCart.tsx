@@ -171,7 +171,7 @@ export default function AddToCart({
       {/* COLOUR */}
       {hasColors && (
         <div className="mb-5">
-          <p className="text-xs font-semibold tracking-wide text-gray-700 mb-2">
+          <p className="text-sm font-semibold tracking-wide text-gray-700 mb-2">
             COLOUR{colorId && colorId !== "none" ? `: ${allColors.find((c) => c.id === colorId)?.name ?? ""}` : ""}
           </p>
           <div className="flex flex-wrap gap-2.5">
@@ -209,7 +209,7 @@ export default function AddToCart({
       {/* SIZE */}
       {hasSizes && (
         <div className="mb-5">
-          <p className="text-xs font-semibold tracking-wide text-gray-700 mb-2">SIZE</p>
+          <p className="text-sm font-semibold tracking-wide text-gray-700 mb-2">SIZE</p>
           <div className="flex flex-wrap gap-2.5">
             {allSizes.map((s) => {
               const avail = sizeAvailable(s.id);
