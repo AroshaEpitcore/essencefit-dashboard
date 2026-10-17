@@ -34,7 +34,7 @@ input:-webkit-autofill:focus {
 
 /* Storefront headings use the dedicated heading font */
 .store-headings :is(h1, h2, h3) {
-  font-family: var(--font-heading), "Montserrat", ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-heading), "Orbitron", ui-sans-serif, system-ui, sans-serif;
 }
 
 /* Promo marquee — the content is duplicated, so translating by -50% loops seamlessly */
