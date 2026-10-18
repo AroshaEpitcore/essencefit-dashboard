@@ -34,6 +34,7 @@ import {
   Images,
   MessageSquareQuote,
   Radio,
+  Megaphone,
 } from "lucide-react";
 import { Tooltip } from "react-tooltip";
 
@@ -49,6 +50,7 @@ const navItems = [
   { href: "/reviews", label: "Reviews", icon: Star },
   { href: "/store-gallery", label: "Gallery", icon: Images },
   { href: "/store-feedback", label: "Feedback", icon: MessageSquareQuote },
+  { href: "/promos", label: "Promo Popups", icon: Megaphone },
   { href: "/dtf", label: "DTF Printing", icon: Printer },
   { href: "/dtf-orders", label: "DTF Orders", icon: Shirt },
   { href: "/print-jobs", label: "Print Jobs", icon: Printer },

@@ -6,8 +6,10 @@ import HeaderOffset from "@/components/shop/HeaderOffset";
 import StoreFooter from "@/components/shop/StoreFooter";
 import CookieConsent from "@/components/shop/CookieConsent";
 import PageView from "@/components/shop/PageView";
+import PromoPopup from "@/components/shop/PromoPopup";
 import { getActiveCategories, getFeaturedProducts, getCategoryPreviews } from "@/lib/storefront";
 import { getPublicStoreSettings } from "@/lib/storeSettings";
+import { getActivePopups } from "@/lib/promos";
 import { displayFont, headingFont } from "@/lib/fonts";
 import { organizationJsonLd, websiteJsonLd } from "@/lib/seo";
 
@@ -15,11 +17,12 @@ import { organizationJsonLd, websiteJsonLd } from "@/lib/seo";
    forced EVERY storefront page dynamic and disabled the home page's ISR.
    The navbar account state is fetched client-side by AccountMenu instead. */
 export default async function ShopLayout({ children }: { children: React.ReactNode }) {
-  const [settings, categories, featured, categoryProducts] = await Promise.all([
+  const [settings, categories, featured, categoryProducts, popups] = await Promise.all([
     getPublicStoreSettings(),
     getActiveCategories(),
     getFeaturedProducts(6),
     getCategoryPreviews(4),
+    getActivePopups(),
   ]);
 
   const orgLd = organizationJsonLd({
@@ -48,6 +51,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
             <StoreFooter settings={settings} categories={categories} />
             <CookieConsent />
             <PageView />
+            <PromoPopup popups={popups} />
           </div>
         </QuickViewProvider>
       </WishlistProvider>

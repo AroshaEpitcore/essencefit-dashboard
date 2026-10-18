@@ -136,7 +136,7 @@ export const config = {
     "/dtf/:path*", "/dtf-orders/:path*", "/expenses/:path*",
     "/finance/:path*", "/inventory/:path*", "/invoices/:path*",
     "/map/:path*", "/order-logs/:path*", "/orders/:path*",
-    "/purchases/:path*", "/reports/:path*", "/returns/:path*",
+    "/promos/:path*", "/purchases/:path*", "/reports/:path*", "/returns/:path*",
     "/reviews/:path*", "/sales/:path*", "/settings/:path*",
     "/stock-history/:path*", "/stocks/:path*", "/store-feedback/:path*",
     "/store-gallery/:path*", "/store-settings/:path*", "/suppliers/:path*",

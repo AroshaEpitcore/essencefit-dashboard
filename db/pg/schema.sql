@@ -405,6 +405,42 @@ CREATE TABLE IF NOT EXISTS galleryitemproducts (
   PRIMARY KEY (galleryitemid, productid)
 );
 
+-- Admin-configurable storefront promo popups (new items / discounts / coupon /
+-- announcement) with trigger, frequency-cap, targeting and scheduling rules.
+CREATE TABLE IF NOT EXISTS popups (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  isactive boolean NOT NULL DEFAULT true,
+  priority integer NOT NULL DEFAULT 0,
+  layout text NOT NULL DEFAULT 'center',        -- center | corner | bar
+  heading text NOT NULL DEFAULT '',
+  body text NOT NULL DEFAULT '',
+  imageurl text,
+  ctatext text,
+  ctalink text,
+  couponcode text,
+  accentcolor text,
+  triggertype text NOT NULL DEFAULT 'delay',     -- immediate | delay | scroll | exit
+  triggervalue integer NOT NULL DEFAULT 30,      -- seconds (delay) or percent (scroll)
+  frequency text NOT NULL DEFAULT 'session',     -- always | session | daily | once
+  showon text NOT NULL DEFAULT 'all',            -- all | home | shop | product
+  device text NOT NULL DEFAULT 'all',            -- all | desktop | mobile
+  audience text NOT NULL DEFAULT 'all',          -- all | new | returning
+  startat timestamp,
+  endat timestamp,
+  createdat timestamp NOT NULL DEFAULT now()
+);
+
+-- Popup analytics (impression | click | dismiss), written via a rate-limited beacon.
+CREATE TABLE IF NOT EXISTS popup_events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  popupid uuid NOT NULL,
+  event text NOT NULL,
+  visitorid text,
+  createdat timestamp NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS ix_popup_events_popupid ON popup_events (popupid);
+
 -- Admin-managed feedback wall: each item is one customer-feedback screenshot
 -- (WhatsApp chat etc.) with an optional customer name. Screenshot-first:
 -- no product link, rating, or message.
