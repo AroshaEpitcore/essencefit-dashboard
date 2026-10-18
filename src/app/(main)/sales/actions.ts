@@ -70,13 +70,15 @@ export async function sellStock(
   await tx.begin();
 
   try {
-    // check stock
+    // check stock — availability is OWN + blank (sell own first, overflow to blank)
     const check = await tx
       .request()
       .input("vid", sql.UniqueIdentifier, variantId)
-      .query(`SELECT Qty FROM ProductVariants WHERE Id=@vid`);
-    if (check.recordset.length === 0) throw new UserFacingError("Variant not found");
-    if (check.recordset[0].Qty < qty) throw new UserFacingError(`Not enough stock. In stock: ${check.recordset[0].Qty}`);
+      .query(`SELECT dbo.fn_available_qty(@vid) AS "Avail",
+                     (SELECT 1 FROM ProductVariants WHERE Id=@vid) AS "Exists"`);
+    if (!check.recordset[0]?.Exists) throw new UserFacingError("Variant not found");
+    const inStock = Number(check.recordset[0]?.Avail ?? 0);
+    if (inStock < qty) throw new UserFacingError(`Not enough stock. In stock: ${inStock}`);
 
     // real unit cost: prefer the resolved stock (blank) variant's own
     // CostPrice, else the product's, plus the product's Utilities
@@ -94,29 +96,29 @@ export async function sellStock(
       `);
     const unitCost = Number(costRow.recordset[0]?.UnitCost ?? 0);
 
-    // insert sale
+    // insert sale (explicit Id so the stock deduction can be keyed to it)
+    const saleId = crypto.randomUUID();
     await tx
       .request()
+      .input("id", sql.UniqueIdentifier, saleId)
       .input("vid", sql.UniqueIdentifier, variantId)
       .input("qty", sql.Int, qty)
       .input("price", sql.Decimal(18, 2), sellingPrice)
       .input("cost", sql.Decimal(18, 2), unitCost)
       .query(`
-        INSERT INTO Sales (VariantId, Qty, SellingPrice, CostPrice)
-        VALUES (@vid, @qty, @price, @cost)
+        INSERT INTO Sales (Id, VariantId, Qty, SellingPrice, CostPrice)
+        VALUES (@id, @vid, @qty, @price, @cost)
       `);
 
-    // reduce stock — guarded so a concurrent sale can't take it below zero
-    const upd = await tx
+    // reduce stock — OWN first, overflow to the blank; atomic + re-checked under
+    // a row lock so a concurrent sale can't take it below zero. Records the split.
+    const d = await tx
       .request()
       .input("vid", sql.UniqueIdentifier, variantId)
       .input("qty", sql.Int, qty)
-      .query(`
-        UPDATE ProductVariants
-        SET Qty = Qty - @qty
-        WHERE Id=@vid AND Qty >= @qty
-      `);
-    if (!upd.rowsAffected[0]) throw new UserFacingError("Not enough stock for this sale.");
+      .input("ref", sql.UniqueIdentifier, saleId)
+      .query(`SELECT dbo.deduct_stock(@vid, @qty, @ref, 'sale', 'manual-sale') AS "Ok"`);
+    if (!d.recordset[0]?.Ok) throw new UserFacingError("Not enough stock for this sale.");
 
     await tx.commit();
     return { ok: true };
