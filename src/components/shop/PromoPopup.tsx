@@ -262,13 +262,13 @@ export default function PromoPopup({ popups }: { popups: PublicPopup[] }) {
   // SPLIT layout — content left, full-height image right (landscape modal)
   if (active.layout === "split") {
     return (
-      <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center sm:p-4">
+      <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/50 backdrop-blur-sm promo-fade" onClick={close} aria-hidden />
         <div
           role="dialog"
           aria-modal="true"
           aria-label={active.heading || "Promotion"}
-          className="relative w-full sm:max-w-3xl bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden grid sm:grid-cols-2 promo-pop"
+          className="relative w-full max-w-3xl bg-white rounded-2xl shadow-2xl overflow-hidden grid sm:grid-cols-2 promo-pop"
         >
           {closeBtn}
           {/* image — top on mobile, right on desktop */}
@@ -308,13 +308,13 @@ export default function PromoPopup({ popups }: { popups: PublicPopup[] }) {
 
   // CENTER (modal) layout — default
   return (
-    <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm promo-fade" onClick={close} aria-hidden />
       <div
         role="dialog"
         aria-modal="true"
         aria-label={active.heading || "Promotion"}
-        className="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden promo-pop"
+        className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden promo-pop"
       >
         {closeBtn}
         {content}
