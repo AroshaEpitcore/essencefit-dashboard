@@ -47,7 +47,7 @@ export async function getCatalogProducts(): Promise<CatalogProduct[]> {
       p.CostPrice, p.SellingPrice, p.CompareAtPrice,
       p.Description, p.ImageUrl, p.IsActive, p.IsFeatured, p.IsNewArrival, p.IsDtfPrintable,
       p.BlankProductId, blank.Name AS BlankName, p.DtfProfit, p.PrintOnDemand, p.SelectByImage, p.SortOrder,
-      COALESCE((SELECT SUM(b.Qty) FROM ProductVariants b WHERE b.ProductId = COALESCE(p.BlankProductId, p.Id)), 0) AS Stock,
+      COALESCE((SELECT SUM(dbo.fn_available_qty(v.Id)) FROM ProductVariants v WHERE v.ProductId = p.Id), 0) AS Stock,
       (SELECT COUNT(*) FROM ProductImages pi WHERE pi.ProductId = p.Id) AS ImageCount
     FROM Products p
     LEFT JOIN Categories cat ON cat.Id = p.CategoryId

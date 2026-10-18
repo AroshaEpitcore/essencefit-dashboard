@@ -56,7 +56,7 @@ export async function getDesignsByProduct(productId: string) {
     .input("pid", UniqueIdentifier, productId)
     .query(`
       SELECT pi.VariantId, pi.Url, pi.SortOrder,
-             COALESCE((SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(pi.VariantId)), 0) AS Qty,
+             COALESCE(dbo.fn_available_qty(pi.VariantId), 0) AS Qty,
              COALESCE(v.SellingPrice, p.SellingPrice) AS SellingPrice
       FROM ProductImages pi
       JOIN ProductVariants v ON v.Id = pi.VariantId
@@ -293,7 +293,7 @@ export async function getOrderDetails(orderId: string) {
         COALESCE((SELECT z.CostPrice FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(oi.VariantId)), COALESCE(p.CostPrice, 0))
           + COALESCE(p.Utilities, 0)
           + CASE WHEN oi.IsDtf THEN COALESCE(oi.PrintCost, 0) ELSE 0 END AS CostPrice,
-        (SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(oi.VariantId)) AS CurrentStock,
+        dbo.fn_available_qty(oi.VariantId) AS CurrentStock,
         p.Id          AS ProductId,
         p.CategoryId  AS CategoryId,
         v.SizeId      AS SizeId,
@@ -352,30 +352,32 @@ async function logStock(
 async function validateAndReduceStock(
   tx: Transaction,
   items: OrderItemInput[],
-  reason: string = "order-sale"
+  reason: string,
+  orderId: string
 ) {
-  // Validate first (resolve once), then reduce + log so nothing changes if any line is short.
-  const resolved: Array<{ stockVid: string; prev: number; price: number; qty: number }> = [];
+  // Validate availability first (OWN + blank) so nothing deducts if any line is short.
   for (const it of items) {
-    const v = await resolveStock(tx, it.VariantId);
-    // CK/Hurley shorts are flagged print-on-demand but back onto a shared blank
-    // (fn_StockVariantId resolves it) — they hold real stock and MUST deduct,
-    // exactly like the storefront checkout. Skip only when nothing resolves.
-    if (!v?.StockVid) continue;
-    const inStock = v.Qty ?? 0;
-    if (it.Qty > inStock) throw new UserFacingError(`Not enough stock. In stock: ${inStock}`);
-    resolved.push({ stockVid: v.StockVid, prev: inStock, price: v.SellingPrice ?? 0, qty: it.Qty });
+    if (!it.Qty || it.Qty < 1) continue;
+    const a = await new sql.Request(tx)
+      .input("VariantId", UniqueIdentifier, it.VariantId)
+      .query(`SELECT dbo.fn_available_qty(@VariantId) AS "Avail"`);
+    const avail = Number(a.recordset[0]?.Avail ?? 0);
+    if (it.Qty > avail) throw new UserFacingError(`Not enough stock. In stock: ${avail}`);
   }
 
-  for (const r of resolved) {
-    // Guarded decrement — the WHERE re-checks stock under the UPDATE's row
-    // lock so concurrent orders can't oversell past the SELECT-time check.
-    const upd = await new sql.Request(tx)
-      .input("Vid", UniqueIdentifier, r.stockVid)
-      .input("Qty", Int, r.qty)
-      .query(`UPDATE ProductVariants SET Qty = Qty - @Qty WHERE Id = @Vid AND Qty >= @Qty`);
-    if (!upd.rowsAffected[0]) throw new UserFacingError(`Not enough stock. In stock: ${r.prev}`);
-    await logStock(tx, r.stockVid, -r.qty, reason, r.prev, r.price);
+  // Deduct OWN stock first, overflow to the blank — recording the split against
+  // this order so a cancel/edit/delete restores each pool exactly. Atomic +
+  // re-checked under a row lock inside deduct_stock, so concurrent orders can't
+  // oversell past the availability check above.
+  for (const it of items) {
+    if (!it.Qty || it.Qty < 1) continue;
+    const d = await new sql.Request(tx)
+      .input("VariantId", UniqueIdentifier, it.VariantId)
+      .input("Qty", Int, it.Qty)
+      .input("RefId", UniqueIdentifier, orderId)
+      .input("Reason", NVarChar(50), reason)
+      .query(`SELECT dbo.deduct_stock(@VariantId, @Qty, @RefId, 'order', @Reason) AS "Ok"`);
+    if (!d.recordset[0]?.Ok) throw new UserFacingError(`Not enough stock for an item in this order.`);
   }
 }
 
@@ -384,6 +386,16 @@ async function restoreStockFromOrder(
   orderId: string,
   reason: string = "order-return"
 ) {
+  // Reverse the recorded own/blank split exactly (orders deducted under the
+  // split model). Returns the number of allocation rows reversed.
+  const res = await new sql.Request(tx)
+    .input("RefId", UniqueIdentifier, orderId)
+    .input("Reason", NVarChar(50), reason)
+    .query(`SELECT dbo.restore_stock(@RefId, @Reason) AS "N"`);
+  if (Number(res.recordset[0]?.N ?? 0) > 0) return;
+
+  // Legacy fallback: orders deducted before the split model have no allocation
+  // recorded — restore the whole line qty to the resolved (blank) variant, as before.
   const items = await new sql.Request(tx)
     .input("OrderId", UniqueIdentifier, orderId)
     .query(`SELECT VariantId, Qty FROM OrderItems WHERE OrderId=@OrderId`);
@@ -415,7 +427,7 @@ async function reconcileOrderStock(
   const shouldDeduct = newStatus !== "Canceled";
 
   if (shouldDeduct && !deducted) {
-    await validateAndReduceStock(tx, items, "order-sale");
+    await validateAndReduceStock(tx, items, "order-sale", orderId);
     await new sql.Request(tx).input("Id", UniqueIdentifier, orderId)
       .query(`UPDATE Orders SET StockDeducted = true WHERE Id=@Id`);
   } else if (!shouldDeduct && deducted) {
@@ -581,7 +593,7 @@ export async function createOrder(payload: OrderPayload): Promise<ActionResult<{
         VALUES (@Id, @Customer, @CustomerPhone, @SecondaryPhone, @Address, @WaybillId, @PackagePrintPrice, @Notes, @CustomerId, @PaymentStatus, @OrderDate, @CompletedAt, @Subtotal, @ManualDiscount, @Discount, @DeliveryFee, @Total)
       `);
 
-    await validateAndReduceStock(tx, payload.Items);
+    await validateAndReduceStock(tx, payload.Items, "order-sale", orderId);
 
     for (const it of payload.Items) {
       await new sql.Request(tx)
@@ -931,7 +943,7 @@ export async function updateOrder(orderId: string, payload: OrderPayload): Promi
 
     // reduce stock for new items unless the order is Canceled; keep the flag in sync
     const shouldDeduct = payload.PaymentStatus !== "Canceled";
-    if (shouldDeduct) await validateAndReduceStock(tx, payload.Items, "order-sale");
+    if (shouldDeduct) await validateAndReduceStock(tx, payload.Items, "order-sale", orderId);
     await new sql.Request(tx)
       .input("Id", UniqueIdentifier, orderId)
       .input("Ded", sql.Bit, shouldDeduct ? 1 : 0)

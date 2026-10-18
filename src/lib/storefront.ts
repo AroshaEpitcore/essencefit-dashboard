@@ -41,7 +41,7 @@ const PRODUCT_SELECT = `
   SELECT
     p.Id, p.Name, p.Slug, p.ImageUrl, p.SellingPrice, p.CompareAtPrice, p.IsNewArrival,
     cat.Name AS CategoryName, cat.Slug AS CategorySlug,
-    COALESCE((SELECT SUM(b.Qty) FROM ProductVariants b WHERE b.ProductId = COALESCE(p.BlankProductId, p.Id)), 0) AS Stock,
+    COALESCE((SELECT SUM(dbo.fn_available_qty(v.Id)) FROM ProductVariants v WHERE v.ProductId = p.Id), 0) AS Stock,
     (SELECT pi.Url FROM ProductImages pi
        WHERE pi.ProductId = p.Id AND (p.ImageUrl IS NULL OR pi.Url <> p.ImageUrl)
        ORDER BY CASE WHEN pi.ColorId IS NULL THEN 0 ELSE 1 END, pi.SortOrder LIMIT 1) AS HoverImageUrl
@@ -75,7 +75,7 @@ async function attachColors<T extends StoreProduct>(
       MAX(CASE WHEN COALESCE(sv.Qty, 0) > 0 THEN 1 ELSE 0 END) AS InStock
     FROM ProductVariants v
     JOIN Colors c ON c.Id = v.ColorId
-    LEFT JOIN LATERAL (SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(v.Id)) sv ON true
+    LEFT JOIN LATERAL (SELECT dbo.fn_available_qty(v.Id) AS Qty) sv ON true
     WHERE v.ColorId IS NOT NULL AND v.ProductId IN (${params.join(",")})
     GROUP BY v.ProductId, c.Id, c.Name, c.Hex
     ORDER BY ImgSort, c.Name
@@ -274,10 +274,10 @@ export async function searchProducts(
   if (params.q) where.push("(p.Name ILIKE @q OR p.Description ILIKE @q OR cat.Name ILIKE @q)");
   if (params.categorySlug) where.push("cat.Slug = @catSlug");
   if (params.sizeId) {
-    where.push("EXISTS (SELECT 1 FROM ProductVariants v WHERE v.ProductId = p.Id AND v.SizeId = @sizeId AND v.Qty > 0)");
+    where.push("EXISTS (SELECT 1 FROM ProductVariants v WHERE v.ProductId = p.Id AND v.SizeId = @sizeId AND dbo.fn_available_qty(v.Id) > 0)");
   }
   if (params.colorId) {
-    where.push("EXISTS (SELECT 1 FROM ProductVariants v WHERE v.ProductId = p.Id AND v.ColorId = @colorId AND v.Qty > 0)");
+    where.push("EXISTS (SELECT 1 FROM ProductVariants v WHERE v.ProductId = p.Id AND v.ColorId = @colorId AND dbo.fn_available_qty(v.Id) > 0)");
   }
   if (params.minPrice != null) where.push("p.SellingPrice >= @minP");
   if (params.maxPrice != null) where.push("p.SellingPrice <= @maxP");
@@ -403,7 +403,7 @@ export async function getProductDesigns(productId: string): Promise<StoreDesign[
     .input("pid", sql.UniqueIdentifier, productId)
     .query(`
       SELECT v.Id AS VariantId, pi.Url AS Image,
-             COALESCE((SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(v.Id)), 0) AS Qty,
+             COALESCE(dbo.fn_available_qty(v.Id), 0) AS Qty,
              COALESCE(v.SellingPrice, p.SellingPrice) AS Price
       FROM ProductImages pi
       JOIN ProductVariants v ON v.Id = pi.VariantId
@@ -422,7 +422,7 @@ export async function getProductVariants(productId: string): Promise<StoreVarian
     .query(`
       SELECT v.Id AS VariantId, v.SizeId, s.Name AS SizeName,
              v.ColorId, c.Name AS ColorName, c.Hex AS ColorHex,
-             COALESCE((SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(v.Id)), 0) AS Qty,
+             COALESCE(dbo.fn_available_qty(v.Id), 0) AS Qty,
              COALESCE(v.SellingPrice, p.SellingPrice) AS SellingPrice,
              COALESCE((SELECT z.CostPrice FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(v.Id)), COALESCE(v.CostPrice, p.CostPrice)) AS CostPrice
       FROM ProductVariants v

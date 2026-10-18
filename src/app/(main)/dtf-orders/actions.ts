@@ -124,33 +124,23 @@ export async function confirmDtfOrder(id: string): Promise<DtfResult> {
 
     // Deduct stock once, only if a variant was chosen and not already deducted.
     if (o.VariantId && !o.StockDeducted) {
-      const vr = await new sql.Request(tx)
+      const a = await new sql.Request(tx)
         .input("Vid", UniqueIdentifier, o.VariantId)
-        .query(`SELECT dbo.fn_StockVariantId(@Vid) AS StockVid,
-                       (SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(@Vid)) AS Qty,
-                       COALESCE((SELECT z.SellingPrice FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(@Vid)),0) AS SellingPrice LIMIT 1`);
-      const v = vr.recordset[0];
-      const stock = v?.Qty ?? 0;
-      const stockVid = v?.StockVid;
+        .query(`SELECT dbo.fn_available_qty(@Vid) AS "Avail"`);
+      const stock = Number(a.recordset[0]?.Avail ?? 0);
       if (o.Qty > stock) throw new UserFacingError(`Not enough stock — only ${stock} of the chosen variant in stock.`);
 
-      // Guarded decrement — re-checks stock under the UPDATE's row lock
-      const upd = await new sql.Request(tx)
-        .input("Vid", UniqueIdentifier, stockVid)
+      // Deduct OWN stock first, overflow to the blank — recording the split
+      // against this DTF order so a cancel restores each pool exactly.
+      // deduct_stock re-checks under a row lock and logs StockHistory per pool.
+      const d = await new sql.Request(tx)
+        .input("Vid", UniqueIdentifier, o.VariantId)
         .input("Qty", Int, o.Qty)
-        .query(`UPDATE ProductVariants SET Qty = Qty - @Qty WHERE Id=@Vid AND Qty >= @Qty`);
-      if (!upd.rowsAffected[0]) {
+        .input("RefId", UniqueIdentifier, id)
+        .query(`SELECT dbo.deduct_stock(@Vid, @Qty, @RefId, 'dtf', 'dtf-order') AS "Ok"`);
+      if (!d.recordset[0]?.Ok) {
         throw new UserFacingError(`Not enough stock — only ${stock} of the chosen variant in stock.`);
       }
-
-      await new sql.Request(tx)
-        .input("VariantId", UniqueIdentifier, stockVid)
-        .input("ChangeQty", Int, -o.Qty)
-        .input("PreviousQty", Int, stock)
-        .input("NewQty", Int, stock - o.Qty)
-        .input("SellingPrice", Decimal(18, 2), v?.SellingPrice ?? 0)
-        .query(`INSERT INTO StockHistory (VariantId, ChangeQty, Reason, PreviousQty, NewQty, PriceAtChange, CreatedAt)
-                VALUES (@VariantId, @ChangeQty, 'dtf-order', @PreviousQty, @NewQty, @SellingPrice, now())`);
     }
 
     await new sql.Request(tx)
@@ -248,27 +238,36 @@ export async function setDtfOrderStatus(id: string, status: DtfOrderStatus): Pro
 
     // Canceling a stock-reserved order restores it exactly once.
     if (status === "Canceled" && o.StockDeducted && o.VariantId) {
-      const vr = await new sql.Request(tx)
-        .input("Vid", UniqueIdentifier, o.VariantId)
-        .query(`SELECT dbo.fn_StockVariantId(@Vid) AS StockVid,
-                       (SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(@Vid)) AS Qty,
-                       COALESCE((SELECT z.SellingPrice FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(@Vid)),0) AS SellingPrice LIMIT 1`);
-      const stock = vr.recordset[0]?.Qty ?? 0;
-      const stockVid = vr.recordset[0]?.StockVid;
+      // Reverse the recorded own/blank split exactly (orders deducted under the split model).
+      const rr = await new sql.Request(tx)
+        .input("RefId", UniqueIdentifier, id)
+        .query(`SELECT dbo.restore_stock(@RefId, 'dtf-cancel') AS "N"`);
 
-      await new sql.Request(tx)
-        .input("Vid", UniqueIdentifier, stockVid)
-        .input("Qty", Int, o.Qty)
-        .query(`UPDATE ProductVariants SET Qty = Qty + @Qty WHERE Id=@Vid`);
+      if (Number(rr.recordset[0]?.N ?? 0) === 0) {
+        // Legacy fallback: DTF order deducted before the split model — restore
+        // the whole qty to the resolved (blank) variant, as before.
+        const vr = await new sql.Request(tx)
+          .input("Vid", UniqueIdentifier, o.VariantId)
+          .query(`SELECT dbo.fn_StockVariantId(@Vid) AS StockVid,
+                         (SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(@Vid)) AS Qty,
+                         COALESCE((SELECT z.SellingPrice FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(@Vid)),0) AS SellingPrice LIMIT 1`);
+        const stock = vr.recordset[0]?.Qty ?? 0;
+        const stockVid = vr.recordset[0]?.StockVid;
 
-      await new sql.Request(tx)
-        .input("VariantId", UniqueIdentifier, stockVid)
-        .input("ChangeQty", Int, o.Qty)
-        .input("PreviousQty", Int, stock)
-        .input("NewQty", Int, stock + o.Qty)
-        .input("SellingPrice", Decimal(18, 2), vr.recordset[0]?.SellingPrice ?? 0)
-        .query(`INSERT INTO StockHistory (VariantId, ChangeQty, Reason, PreviousQty, NewQty, PriceAtChange, CreatedAt)
-                VALUES (@VariantId, @ChangeQty, 'dtf-cancel', @PreviousQty, @NewQty, @SellingPrice, now())`);
+        await new sql.Request(tx)
+          .input("Vid", UniqueIdentifier, stockVid)
+          .input("Qty", Int, o.Qty)
+          .query(`UPDATE ProductVariants SET Qty = Qty + @Qty WHERE Id=@Vid`);
+
+        await new sql.Request(tx)
+          .input("VariantId", UniqueIdentifier, stockVid)
+          .input("ChangeQty", Int, o.Qty)
+          .input("PreviousQty", Int, stock)
+          .input("NewQty", Int, stock + o.Qty)
+          .input("SellingPrice", Decimal(18, 2), vr.recordset[0]?.SellingPrice ?? 0)
+          .query(`INSERT INTO StockHistory (VariantId, ChangeQty, Reason, PreviousQty, NewQty, PriceAtChange, CreatedAt)
+                  VALUES (@VariantId, @ChangeQty, 'dtf-cancel', @PreviousQty, @NewQty, @SellingPrice, now())`);
+      }
 
       await new sql.Request(tx)
         .input("Id", UniqueIdentifier, id)

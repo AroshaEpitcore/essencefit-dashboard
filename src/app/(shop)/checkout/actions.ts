@@ -108,7 +108,7 @@ export async function createWebOrder(
       const r = await new sql.Request(tx)
         .input("vid", UniqueIdentifier, it.variantId)
         .query(`
-          SELECT COALESCE((SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(v.Id)), 0) AS Stock,
+          SELECT COALESCE(dbo.fn_available_qty(v.Id), 0) AS Stock,
                  COALESCE(v.SellingPrice, p.SellingPrice) AS Price,
                  prod.Name AS ProductName,
                  prod.CategoryId AS CategoryId,
@@ -251,34 +251,19 @@ export async function createWebOrder(
         .query(`INSERT INTO OrderItems (Id, OrderId, VariantId, Qty, SellingPrice)
                 VALUES (@Id, @OrderId, @VariantId, @Qty, @SellingPrice)`);
 
-      // Resolve to the blank-aware variant, decrement, and log the sale to StockHistory.
-      const vr = await new sql.Request(tx)
+      // Deduct OWN stock first, overflow to the blank — recording the split
+      // against this order so admin cancel/edit/delete restores each pool
+      // exactly. deduct_stock re-checks availability under a row lock (so two
+      // simultaneous checkouts can't both take the last unit) and writes a
+      // StockHistory 'order-sale' row per pool touched.
+      const d = await new sql.Request(tx)
         .input("VariantId", UniqueIdentifier, it.variantId)
-        .query(`
-          SELECT dbo.fn_StockVariantId(@VariantId) AS StockVid,
-                 (SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(@VariantId)) AS Qty,
-                 COALESCE((SELECT z.SellingPrice FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(@VariantId)), 0) AS SellingPrice
-        `);
-      const sv = vr.recordset[0];
-      const prev = sv?.Qty ?? 0;
-      // Guarded decrement: `Qty >= @Qty` re-checks under the row lock the
-      // UPDATE takes, so two simultaneous checkouts can't both take the last
-      // unit (the earlier SELECT check alone is racy at Read Committed).
-      const upd = await new sql.Request(tx)
-        .input("Vid", UniqueIdentifier, sv.StockVid)
         .input("Qty", Int, it.qty)
-        .query(`UPDATE ProductVariants SET Qty = Qty - @Qty WHERE Id = @Vid AND Qty >= @Qty`);
-      if (!upd.rowsAffected[0]) {
+        .input("RefId", UniqueIdentifier, orderId)
+        .query(`SELECT dbo.deduct_stock(@VariantId, @Qty, @RefId, 'order', 'order-sale') AS "Ok"`);
+      if (!d.recordset[0]?.Ok) {
         throw new UserFacingError(`"${it.name}" just sold out — please adjust your cart and try again.`);
       }
-      await new sql.Request(tx)
-        .input("VariantId", UniqueIdentifier, sv.StockVid)
-        .input("ChangeQty", Int, -it.qty)
-        .input("PreviousQty", Int, prev)
-        .input("NewQty", Int, prev - it.qty)
-        .input("Price", Decimal(18, 2), sv?.SellingPrice ?? 0)
-        .query(`INSERT INTO StockHistory (VariantId, ChangeQty, Reason, PreviousQty, NewQty, PriceAtChange, CreatedAt)
-                VALUES (@VariantId, @ChangeQty, 'order-sale', @PreviousQty, @NewQty, @Price, now())`);
     }
 
     // 6) Status log
