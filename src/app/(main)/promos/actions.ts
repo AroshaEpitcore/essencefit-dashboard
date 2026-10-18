@@ -33,7 +33,7 @@ export type PopupInput = {
 
 export type AdminPopup = PopupInput & { id: string; impressions: number; clicks: number; createdAt: string };
 
-const LAYOUT = new Set(["center", "corner", "bar"]);
+const LAYOUT = new Set(["center", "split", "corner", "bar"]);
 const TRIGGER = new Set(["immediate", "delay", "scroll", "exit"]);
 const FREQ = new Set(["always", "session", "daily", "once"]);
 const SHOWON = new Set(["all", "home", "shop", "product"]);

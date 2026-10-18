@@ -259,6 +259,53 @@ export default function PromoPopup({ popups }: { popups: PublicPopup[] }) {
     );
   }
 
+  // SPLIT layout — content left, full-height image right (landscape modal)
+  if (active.layout === "split") {
+    return (
+      <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center sm:p-4">
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm promo-fade" onClick={close} aria-hidden />
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={active.heading || "Promotion"}
+          className="relative w-full sm:max-w-3xl bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden grid sm:grid-cols-2 promo-pop"
+        >
+          {closeBtn}
+          {/* image — top on mobile, right on desktop */}
+          {active.imageUrl && (
+            <img src={active.imageUrl} alt="" className="order-1 sm:order-2 w-full h-44 sm:h-full object-cover" />
+          )}
+          {/* content — bottom on mobile, left on desktop */}
+          <div className={`order-2 sm:order-1 p-8 flex flex-col justify-center text-left ${active.imageUrl ? "" : "sm:col-span-2 text-center"}`}>
+            <h2 className="store-headings text-3xl font-extrabold leading-tight" style={{ color: accent }}>
+              {active.heading}
+            </h2>
+            {active.body && <p className="mt-3 text-[15px] text-gray-600 leading-relaxed">{active.body}</p>}
+            {active.couponCode && (
+              <button type="button" onClick={copyCoupon}
+                className="mt-5 inline-flex items-center gap-2 self-start rounded-xl border-2 border-dashed px-4 py-2.5 font-mono font-bold tracking-wider transition hover:bg-gray-50"
+                style={{ borderColor: accent, color: accent }} aria-label="Copy coupon code">
+                {active.couponCode}{copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              </button>
+            )}
+            {active.ctaText && (
+              active.ctaLink ? (
+                <a href={active.ctaLink} onClick={onCta} className="mt-6 block w-full rounded-xl py-3.5 text-center font-semibold text-white transition hover:opacity-90" style={{ backgroundColor: accent }}>
+                  {active.ctaText}
+                </a>
+              ) : (
+                <button type="button" onClick={() => { beacon(active.id, "click"); close(); }} className="mt-6 block w-full rounded-xl py-3.5 text-center font-semibold text-white transition hover:opacity-90" style={{ backgroundColor: accent }}>
+                  {active.ctaText}
+                </button>
+              )
+            )}
+          </div>
+        </div>
+        <PromoAnim />
+      </div>
+    );
+  }
+
   // CENTER (modal) layout — default
   return (
     <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center">

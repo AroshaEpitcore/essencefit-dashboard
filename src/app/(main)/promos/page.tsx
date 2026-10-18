@@ -26,7 +26,7 @@ const BLANK: PopupInput = {
 };
 
 const SELECTS = {
-  layout: ["center", "corner", "bar"],
+  layout: ["center", "split", "corner", "bar"],
   trigger: ["immediate", "delay", "scroll", "exit"],
   frequency: ["always", "session", "daily", "once"],
   showOn: ["all", "home", "shop", "product"],
@@ -231,22 +231,35 @@ function Editor({ value, set, save, saving, cancel, onPickImage, uploading }: {
         <p className="text-xs font-semibold text-gray-500 mb-2 flex items-center gap-1"><Eye className="w-3.5 h-3.5" /> Live preview</p>
         <div className="relative rounded-xl bg-gray-100 dark:bg-gray-800 min-h-[420px] grid place-items-center p-6 overflow-hidden">
           <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px]" />
-          <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden">
-            <button className="absolute top-3 right-3 grid place-items-center w-8 h-8 rounded-full bg-white/80 text-gray-700 shadow"><X className="w-4 h-4" /></button>
-            {value.imageUrl ? <img src={value.imageUrl} alt="" className="w-full h-40 object-cover" /> : null}
-            <div className="p-6 text-center">
-              <h2 className="text-2xl font-extrabold leading-tight" style={{ color: accent }}>{value.heading || "Your heading"}</h2>
-              {value.body ? <p className="mt-2 text-[15px] text-gray-600">{value.body}</p> : <p className="mt-2 text-[15px] text-gray-400">Your message…</p>}
-              {value.couponCode ? (
-                <span className="mt-4 inline-flex items-center gap-2 rounded-xl border-2 border-dashed px-4 py-2.5 font-mono font-bold tracking-wider" style={{ borderColor: accent, color: accent }}>
-                  {value.couponCode} <Copy className="w-4 h-4" />
-                </span>
-              ) : null}
-              {value.ctaText ? <div className="mt-5 rounded-xl py-3 font-semibold text-white" style={{ backgroundColor: accent }}>{value.ctaText}</div> : null}
+          {value.layout === "split" ? (
+            <div className="relative w-full max-w-xl bg-white rounded-2xl shadow-2xl overflow-hidden grid grid-cols-2">
+              <button className="absolute top-3 right-3 grid place-items-center w-8 h-8 rounded-full bg-white/80 text-gray-700 shadow z-10"><X className="w-4 h-4" /></button>
+              <div className="p-6 flex flex-col justify-center text-left">
+                <h2 className="text-2xl font-extrabold leading-tight" style={{ color: accent }}>{value.heading || "Your heading"}</h2>
+                {value.body ? <p className="mt-2 text-sm text-gray-600">{value.body}</p> : <p className="mt-2 text-sm text-gray-400">Your message…</p>}
+                {value.couponCode ? <span className="mt-3 inline-flex self-start items-center gap-2 rounded-lg border-2 border-dashed px-3 py-1.5 font-mono font-bold text-sm" style={{ borderColor: accent, color: accent }}>{value.couponCode} <Copy className="w-3.5 h-3.5" /></span> : null}
+                {value.ctaText ? <div className="mt-4 rounded-lg py-2.5 text-center text-sm font-semibold text-white" style={{ backgroundColor: accent }}>{value.ctaText}</div> : null}
+              </div>
+              {value.imageUrl ? <img src={value.imageUrl} alt="" className="w-full h-full object-cover" /> : <div className="bg-gray-200 grid place-items-center text-xs text-gray-400">image</div>}
             </div>
-          </div>
+          ) : (
+            <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden">
+              <button className="absolute top-3 right-3 grid place-items-center w-8 h-8 rounded-full bg-white/80 text-gray-700 shadow"><X className="w-4 h-4" /></button>
+              {value.imageUrl ? <img src={value.imageUrl} alt="" className="w-full h-40 object-cover" /> : null}
+              <div className="p-6 text-center">
+                <h2 className="text-2xl font-extrabold leading-tight" style={{ color: accent }}>{value.heading || "Your heading"}</h2>
+                {value.body ? <p className="mt-2 text-[15px] text-gray-600">{value.body}</p> : <p className="mt-2 text-[15px] text-gray-400">Your message…</p>}
+                {value.couponCode ? (
+                  <span className="mt-4 inline-flex items-center gap-2 rounded-xl border-2 border-dashed px-4 py-2.5 font-mono font-bold tracking-wider" style={{ borderColor: accent, color: accent }}>
+                    {value.couponCode} <Copy className="w-4 h-4" />
+                  </span>
+                ) : null}
+                {value.ctaText ? <div className="mt-5 rounded-xl py-3 font-semibold text-white" style={{ backgroundColor: accent }}>{value.ctaText}</div> : null}
+              </div>
+            </div>
+          )}
         </div>
-        <p className="mt-2 text-xs text-gray-400">Preview shows the centre layout; corner/bar differ on the live site.</p>
+        <p className="mt-2 text-xs text-gray-400">Preview approximates center/split; corner/bar differ on the live site.</p>
       </div>
     </div>
   );

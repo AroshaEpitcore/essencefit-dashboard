@@ -4,7 +4,7 @@ import { getDb } from "@/lib/db";
    many lowercase columns don't each need a columnCase entry; we map to a typed
    camelCase shape here. Admin writes live in src/app/(main)/promos/actions.ts. */
 
-export type PopupLayout = "center" | "corner" | "bar";
+export type PopupLayout = "center" | "split" | "corner" | "bar";
 export type TriggerType = "immediate" | "delay" | "scroll" | "exit";
 export type Frequency = "always" | "session" | "daily" | "once";
 export type ShowOn = "all" | "home" | "shop" | "product";
