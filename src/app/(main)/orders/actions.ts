@@ -109,7 +109,7 @@ export async function getVariant(productId: string, sizeId: string, colorId: str
     .input("cid", UniqueIdentifier, colorId)
     .query(`
       SELECT v.Id AS VariantId,
-        COALESCE((SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(v.Id)), 0) AS InStock,
+        COALESCE(dbo.fn_available_qty(v.Id), 0) AS InStock,
         COALESCE(v.SellingPrice, p.SellingPrice) AS SellingPrice
       FROM ProductVariants v
       JOIN Products p ON p.Id = v.ProductId
@@ -133,7 +133,7 @@ export async function getVariantStockByProductAndSize(
     .input("sid", UniqueIdentifier, sizeId)
     .query(`
       SELECT v.ColorId,
-             COALESCE((SELECT z.Qty FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(v.Id)), 0) AS Qty
+             COALESCE(dbo.fn_available_qty(v.Id), 0) AS Qty
       FROM ProductVariants v
       WHERE v.ProductId=@pid AND v.SizeId=@sid
     `);
