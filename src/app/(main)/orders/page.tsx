@@ -248,6 +248,7 @@ export default function OrdersPage() {
   // details
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [details, setDetails] = useState<Record<string, any[]>>({});
+  const [detailsError, setDetailsError] = useState<Record<string, string>>({});
 
   // bulk selection
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
@@ -1015,13 +1016,19 @@ export default function OrdersPage() {
       setSavingStatus(orderId);
       const res = await updateOrderStatus(orderId, nextStatus);
       if (!res.ok) throw new Error(res.error);
-      toast.success("Status updated");
+      toast.success(`Status set to ${nextStatus}`);
       const updateStatus = (prev: any[]) =>
         prev.map((ord) =>
           ord.Id === orderId ? { ...ord, PaymentStatus: nextStatus } : ord
         );
       setRecent(updateStatus);
       setAllOrders(updateStatus);
+
+      // Completing an order implies it has been delivered — auto-advance the
+      // delivery status so the admin doesn't have to set it separately.
+      if (nextStatus === "Completed") {
+        await saveDeliveryStatus(orderId, "Delivered");
+      }
     } catch (e: any) {
       toast.error(e.message ?? "Failed to update status");
     } finally {
@@ -1049,13 +1056,20 @@ export default function OrdersPage() {
   }
 
   async function toggleDetails(orderId: string) {
-    setExpanded((p) => ({ ...p, [orderId]: !p[orderId] }));
-    if (!details[orderId]) {
+    const willExpand = !expanded[orderId];
+    setExpanded((p) => ({ ...p, [orderId]: willExpand }));
+    // Fetch when opening and we have no cached items yet (covers first open and
+    // retry after a previous failure). Leaving details[orderId] undefined while
+    // in-flight drives the "Loading…" state in the render.
+    if (willExpand && !details[orderId]) {
+      setDetailsError((p) => ({ ...p, [orderId]: "" }));
       try {
         const d = await getOrderDetails(orderId);
-        setDetails((p) => ({ ...p, [orderId]: d.items }));
+        setDetails((p) => ({ ...p, [orderId]: d.items ?? [] }));
       } catch (e: any) {
-        toast.error(e.message ?? "Failed to load order details");
+        const msg = e?.message ?? "Failed to load order details";
+        setDetailsError((p) => ({ ...p, [orderId]: msg }));
+        toast.error(msg);
       }
     }
   }
@@ -2169,7 +2183,19 @@ export default function OrdersPage() {
 
                 {expanded[o.Id] && (
                   <div className="mt-3 text-sm space-y-2">
-                    {(details[o.Id] || []).map((it: any) => (
+                    {detailsError[o.Id] ? (
+                      <div className="text-xs text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/40 rounded-lg p-3">
+                        Couldn&apos;t load items. Tap &quot;Order Details&quot; again to retry.
+                      </div>
+                    ) : details[o.Id] === undefined ? (
+                      <div className="flex items-center gap-2 text-xs text-gray-500 p-3">
+                        <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-primary" />
+                        Loading items…
+                      </div>
+                    ) : details[o.Id].length === 0 ? (
+                      <div className="text-xs text-gray-500 p-3">No items on this order.</div>
+                    ) : (
+                      (details[o.Id] || []).map((it: any) => (
                       <div
                         key={it.Id}
                         className="border border-gray-200 dark:border-gray-700 rounded-lg p-3"
@@ -2210,7 +2236,8 @@ export default function OrdersPage() {
                           </span>
                         </div>
                       </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 )}
 
