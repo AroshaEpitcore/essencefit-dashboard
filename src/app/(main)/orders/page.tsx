@@ -104,6 +104,14 @@ const RANGE_OPTIONS: Array<{ key: OrderRange; label: string }> = [
 
 const DELIVERY_OPTIONS = [400, 450, 500] as const;
 
+// Max orders to load for the list/status chips. High enough that the status
+// filter chips and the list are never silently capped below the real total.
+const ORDERS_LIST_LIMIT = 2000;
+// How many cards to render per infinite-scroll page. Also the reset value on
+// filter change — large enough that short filtered lists (e.g. Pending) render
+// in full immediately instead of showing a "load more" spinner flash.
+const ORDERS_PAGE_SIZE = 30;
+
 // Delivery ETA based on charge/area
 function getDeliveryETA(charge: number, orderDate: string): { days: string; date: string } {
   const baseDate = new Date(orderDate);
@@ -298,7 +306,7 @@ export default function OrdersPage() {
   const [editMode, setEditMode] = useState<"add" | "replace">("add");
 
   // Infinite scroll
-  const [visibleCount, setVisibleCount] = useState(10);
+  const [visibleCount, setVisibleCount] = useState(ORDERS_PAGE_SIZE);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   // Filter orders based on search query - searches from ALL orders
@@ -337,12 +345,12 @@ export default function OrdersPage() {
 
   // Reset visible count when filters change
   useEffect(() => {
-    setVisibleCount(10);
+    setVisibleCount(ORDERS_PAGE_SIZE);
   }, [filteredOrders]);
 
   // IntersectionObserver — load 10 more when sentinel enters view
   const loadMore = useCallback(() => {
-    setVisibleCount((c) => Math.min(c + 10, filteredOrders.length));
+    setVisibleCount((c) => Math.min(c + ORDERS_PAGE_SIZE, filteredOrders.length));
   }, [filteredOrders.length]);
 
   useEffect(() => {
@@ -415,11 +423,11 @@ export default function OrdersPage() {
   }, []);
 
   async function loadRecent() {
-    const r = await getRecentOrders(100, range);
+    const r = await getRecentOrders(ORDERS_LIST_LIMIT, range);
     setRecent(r);
 
-    // NEW: Also load all orders for search
-    const all = await getRecentOrders(1000, "all"); // Load more orders for search
+    // Also load all orders (ignoring the range) for search + Totals box
+    const all = await getRecentOrders(ORDERS_LIST_LIMIT, "all");
     setAllOrders(all);
 
     const draftMap: Record<string, OrderStatus> = {};
