@@ -1007,8 +1007,8 @@ export default function OrdersPage() {
     }
   }
 
-  async function saveOrderStatus(orderId: string) {
-    const nextStatus = statusDrafts[orderId];
+  async function saveOrderStatus(orderId: string, explicit?: OrderStatus) {
+    const nextStatus = explicit ?? statusDrafts[orderId];
     if (!nextStatus) return;
 
     try {
@@ -2054,8 +2054,8 @@ export default function OrdersPage() {
                 }`}
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="font-semibold text-lg">
+                  <div className="min-w-0">
+                    <div className="font-semibold text-lg break-words">
                       {o.Customer || "Walk-in"}
                     </div>
 
@@ -2134,7 +2134,7 @@ export default function OrdersPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-end flex-wrap gap-2 shrink-0 max-w-[55%]">
                     {Number(o.DtfLineCount) > 0 && (
                       <span className="text-xs px-2 py-1 rounded-full font-semibold bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
                         DTF
@@ -2223,13 +2223,13 @@ export default function OrdersPage() {
                       </label>
                       <select
                         value={statusDrafts[o.Id] ?? o.PaymentStatus}
-                        onChange={(e) =>
-                          setStatusDrafts((p) => ({
-                            ...p,
-                            [o.Id]: e.target.value as OrderStatus,
-                          }))
-                        }
-                        className="mt-1 w-full bg-gray-50 dark:bg-gray-900/30 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm"
+                        disabled={savingStatus === o.Id}
+                        onChange={(e) => {
+                          const next = e.target.value as OrderStatus;
+                          setStatusDrafts((p) => ({ ...p, [o.Id]: next }));
+                          saveOrderStatus(o.Id, next);
+                        }}
+                        className="mt-1 w-full bg-gray-50 dark:bg-gray-900/30 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm disabled:opacity-50"
                       >
                         {ORDER_STATUSES.map((st) => (
                           <option key={st} value={st}>
@@ -2237,7 +2237,7 @@ export default function OrdersPage() {
                           </option>
                         ))}
                       </select>
-                      <p className="mt-1 text-[11px] text-gray-400">Save with the button below.</p>
+                      <p className="mt-1 text-[11px] text-gray-400">Saves instantly on change.</p>
                     </div>
                     <div>
                       <label className="text-xs text-gray-500">
@@ -2261,16 +2261,6 @@ export default function OrdersPage() {
 
                   {/* Action Buttons */}
                   <div className="flex flex-wrap justify-end gap-2">
-                    {/* Save Status */}
-                    <button
-                      onClick={() => saveOrderStatus(o.Id)}
-                      disabled={savingStatus === o.Id}
-                      className="bg-primary disabled:opacity-50 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-2"
-                    >
-                      <CheckCircle2 className="w-4 h-4" />
-                      {savingStatus === o.Id ? "Saving..." : "Save Status"}
-                    </button>
-
                     {/* Edit */}
                     <button
                       onClick={() => openEdit(o.Id)}
