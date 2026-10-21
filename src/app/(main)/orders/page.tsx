@@ -2135,6 +2135,11 @@ export default function OrdersPage() {
                   </div>
 
                   <div className="flex items-center gap-2">
+                    {Number(o.DtfLineCount) > 0 && (
+                      <span className="text-xs px-2 py-1 rounded-full font-semibold bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+                        DTF
+                      </span>
+                    )}
                     <span className={`text-xs px-3 py-1 rounded-full font-medium ${STATUS_COLORS[o.PaymentStatus] || "bg-gray-100 dark:bg-gray-900/30"}`}>
                       {o.PaymentStatus}
                     </span>
@@ -2169,7 +2174,15 @@ export default function OrdersPage() {
                         key={it.Id}
                         className="border border-gray-200 dark:border-gray-700 rounded-lg p-3"
                       >
-                        <div className="font-medium">{it.ProductName}</div>
+                        <div className="font-medium">
+                          {it.ProductName}
+                          {it.IsDtf && (
+                            <span className="ml-2 inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 align-middle">
+                              DTF print
+                              {Number(it.PrintCost) > 0 ? ` · Rs ${Number(it.PrintCost).toFixed(2)}/pc` : ""}
+                            </span>
+                          )}
+                        </div>
                         <div className="text-xs text-gray-500">
                           {it.SizeName || "-"} / {it.ColorName || "-"}
                         </div>

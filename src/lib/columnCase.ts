@@ -63,6 +63,7 @@ export const COLUMN_CASE: Record<string, string> = {
   "deliverystatus": "DeliveryStatus",
   "description": "Description",
   "designcount": "DesignCount",
+  "dtflinecount": "DtfLineCount",
   "dtfordersmonth": "DtfOrdersMonth",
   "dtfprofitalltime": "DtfProfitAllTime",
   "dtfprofitmonth": "DtfProfitMonth",

@@ -242,6 +242,7 @@ export async function getRecentOrders(limit: number = 20, range: OrderRange = "a
       o.DeliveryFee,
       o.Total,
       (SELECT COUNT(*) FROM OrderItems oi WHERE oi.OrderId = o.Id) AS LineCount,
+      (SELECT COUNT(*) FROM OrderItems oi WHERE oi.OrderId = o.Id AND oi.IsDtf) AS DtfLineCount,
       (SELECT COALESCE(SUM(oi.Qty * (
                 COALESCE((SELECT z.CostPrice FROM ProductVariants z WHERE z.Id = dbo.fn_StockVariantId(oi.VariantId)), COALESCE(p2.CostPrice, 0))
                 + COALESCE(p2.Utilities, 0)
