@@ -178,7 +178,7 @@ export default function StoreHeader({
               {menuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
 
-            <nav className="hidden md:flex items-center gap-8 text-lg font-medium">
+            <nav className="hidden md:flex items-center gap-8 text-base font-medium">
               <button
                 type="button"
                 onMouseEnter={() => setOpenMenu("shop")}

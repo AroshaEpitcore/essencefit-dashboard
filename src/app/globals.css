@@ -2,13 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Bump the root font size a notch (16px → 17px). Every Tailwind text-* / rem
-   utility is relative to this, so all text across the whole site scales up a
-   little proportionally without touching individual components. */
-html {
-  font-size: 17px;
-}
-
 /* Light mode defaults */
 body {
   @apply bg-gray-50 text-gray-900;

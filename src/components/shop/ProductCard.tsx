@@ -109,12 +109,12 @@ export default function ProductCard({ p }: { p: StoreProduct }) {
       {/* Info */}
       <div className="pt-2 flex flex-col flex-1">
         <Link href={href} className="block">
-          <h3 className="text-base font-medium text-gray-900 line-clamp-1">{p.Name}</h3>
+          <h3 className="text-sm font-semibold text-gray-900 line-clamp-1">{p.Name}</h3>
         </Link>
 
         <div className="mt-0.5 flex items-baseline gap-2">
-          {pct > 0 && <span className="text-sm text-gray-400 line-through">{money(p.CompareAtPrice)}</span>}
-          <span className="text-lg font-bold text-gray-900">{money(p.SellingPrice)}</span>
+          {pct > 0 && <span className="text-sm text-gray-500 line-through">{money(p.CompareAtPrice)}</span>}
+          <span className="text-sm font-bold text-gray-900">{money(p.SellingPrice)}</span>
         </div>
 
         {/* Colour chips — click/hover changes the card image to that colour's photo */}
