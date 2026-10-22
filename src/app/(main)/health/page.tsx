@@ -245,12 +245,20 @@ export default function HealthPage() {
         </div>
 
         <div className="space-y-3 text-sm">
-          <div className="rounded-lg bg-red-500/10 border border-red-500/20 px-3 py-2.5 leading-relaxed">
-            <p className="flex items-center gap-2 font-semibold text-red-300"><Save className="w-4 h-4" /> No backups configured</p>
+          <div className="rounded-lg bg-green-500/10 border border-green-500/20 px-3 py-2.5 leading-relaxed">
+            <p className="flex items-center gap-2 font-semibold text-green-300"><Save className="w-4 h-4" /> Weekly automated backup (GitHub Action)</p>
             <p className="text-gray-300 mt-1">
-              The Free/nano tier takes <strong>no automatic backups</strong>. If data is lost there is nothing to
-              restore from. Set up a scheduled <code className="text-xs">pg_dump</code> (can be added to the existing
-              keep-alive GitHub Action) or upgrade to Pro for daily backups + point-in-time recovery.
+              The Free tier takes no automatic backups, so a GitHub Action
+              (<code className="text-xs">.github/workflows/backup.yml</code>) runs <code className="text-xs">pg_dump</code>
+              of the <code className="text-xs">public</code> schema every <strong>Sunday 03:00 UTC</strong> and stores a
+              compressed <code className="text-xs">.sql.gz</code> as a downloadable artifact (90-day retention). Download
+              from the repo&apos;s <strong>Actions → Supabase weekly backup → run → Artifacts</strong>, or trigger one on
+              demand with <strong>Run workflow</strong>.
+            </p>
+            <p className="text-gray-400 mt-2 text-xs">
+              Requires the same secret <code>SUPABASE_DB_URL</code> set to the <strong>Session pooler</strong> string
+              (port 5432). Restore with: <code className="text-xs">gunzip -c backup.sql.gz | psql &quot;&lt;connection&gt;&quot;</code>.
+              Contains customer data — keep the repo private.
             </p>
           </div>
 

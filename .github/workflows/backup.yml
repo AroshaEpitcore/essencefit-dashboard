@@ -1,0 +1,75 @@
+name: Supabase weekly backup
+
+# Takes a logical backup (pg_dump) of the production database's `public` schema
+# once a week and stores it as a compressed, downloadable GitHub artifact.
+# Supabase Free tier has NO automatic backups, so this is the safety net.
+#
+# Requires the repo secret SUPABASE_DB_URL to be the **Session pooler**
+# connection string (host ...pooler.supabase.com, port 5432) — NOT the
+# transaction pooler (6543), because pg_dump needs a real session. The session
+# pooler string also works for the keep-alive workflow, so one secret covers both.
+
+on:
+  schedule:
+    # 03:00 UTC every Sunday.
+    - cron: "0 3 * * 0"
+  # Lets you take a backup on demand from the Actions tab.
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install PostgreSQL 17 client
+        # The runner's bundled pg_dump may be older than the Supabase server,
+        # which makes pg_dump refuse to run. Install the current major (17) from
+        # the official PostgreSQL apt repo so it can dump any server up to v17.
+        run: |
+          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+          pg_dump --version
+
+      - name: Dump database
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          # Supabase's pooler requires TLS; `require` encrypts without CA verify.
+          PGSSLMODE: require
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "::error::SUPABASE_DB_URL secret is not set (use the Session pooler string, port 5432)."
+            exit 1
+          fi
+          # Strip any ?query string (e.g. ?pgbouncer=true) — libpq rejects it.
+          DB_URL="${SUPABASE_DB_URL%%\?*}"
+          STAMP=$(date -u +%Y%m%d-%H%M%S)
+          OUT="essencefit-backup-$STAMP.sql.gz"
+          echo "OUT=$OUT" >> "$GITHUB_ENV"
+
+          # --schema=public  : all app data (Supabase-managed schemas are skipped
+          #                    to avoid permission errors and keep restores simple).
+          # --clean --if-exists --no-owner --no-privileges : make the dump safely
+          #                    restorable into any Postgres with `psql`.
+          /usr/lib/postgresql/17/bin/pg_dump "$DB_URL" \
+            --schema=public \
+            --clean --if-exists \
+            --no-owner --no-privileges \
+            | gzip -9 > "$OUT"
+
+          ls -lh "$OUT"
+          # Guard against a silently-empty/failed dump.
+          size=$(stat -c%s "$OUT")
+          echo "Backup size: $size bytes"
+          if [ "$size" -lt 1024 ]; then
+            echo "::error::Backup looks too small ($size bytes) — treating as a failure."
+            exit 1
+          fi
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.OUT }}
+          path: ${{ env.OUT }}
+          # Keep ~3 months of weekly snapshots; GitHub prunes older ones.
+          retention-days: 90
