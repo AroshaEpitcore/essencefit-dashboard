@@ -254,15 +254,17 @@ export default function HealthPage() {
             </p>
           </div>
 
-          <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2.5 leading-relaxed">
-            <p className="flex items-center gap-2 font-semibold text-amber-300"><ShieldAlert className="w-4 h-4" /> 43 &ldquo;RLS disabled&rdquo; advisor warnings — low risk here</p>
+          <div className="rounded-lg bg-green-500/10 border border-green-500/20 px-3 py-2.5 leading-relaxed">
+            <p className="flex items-center gap-2 font-semibold text-green-300"><CheckCircle2 className="w-4 h-4" /> RLS advisor warnings — resolved (Data API disabled)</p>
             <p className="text-gray-300 mt-1">
-              These flag the public <strong>Data API (PostgREST)</strong>. This app connects <strong>directly to
-              Postgres</strong> (the <code className="text-xs">pg</code> driver via the connection string) using the
-              privileged <code className="text-xs">postgres</code> role — it never uses the REST API and no anon key is
-              shipped anywhere. Cleanest fix: <strong>disable the Data API</strong> (Project Settings → API → Data API →
-              remove <code className="text-xs">public</code> from exposed schemas). This clears all 43 warnings with no
-              impact on the site.
+              The 43 &ldquo;RLS disabled in public&rdquo; warnings came from the public <strong>Data API
+              (PostgREST)</strong>. This app connects <strong>directly to Postgres</strong> (the{" "}
+              <code className="text-xs">pg</code> driver via the connection string, privileged{" "}
+              <code className="text-xs">postgres</code> role) and only otherwise uses Supabase <strong>Storage</strong>
+              for uploads — it never uses the REST API and no anon key is shipped anywhere. The Data API was therefore
+              <strong> disabled on purpose</strong> (Integrations → Data API → Enable Data API = off), which cleared all
+              warnings. <strong>Do not re-enable it</strong> — it would reintroduce the warnings and expose tables with no
+              RLS, while giving the app nothing (uploads use Storage, not the Data API).
             </p>
           </div>
 
