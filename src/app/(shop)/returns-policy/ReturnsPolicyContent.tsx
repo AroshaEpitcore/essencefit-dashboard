@@ -63,15 +63,15 @@ function buildCopy(email: string): Record<Lang, Copy> {
         {
           heading: "How to return your order",
           items: [
-            `Submit a return request by contacting us on WhatsApp or calling ${PHONE_LABEL} within 48 hours of receiving the product.`,
-            "Returns are not eligible for cash/card refunds — store credit will be issued upon inspection, provided all return conditions are met.",
-            "If your item meets the return conditions, store credit will be issued to the email address on your order (shipping costs excluded). Store credit is valid for one year from the date of issue.",
+            `Submit a return request by contacting us on WhatsApp or calling ${PHONE_LABEL} within 3 days of receiving the product.`,
+            "Once the item has been inspected and all return conditions are met, a refund or store credit will be issued (shipping costs excluded).",
+            "If store credit is issued instead of a refund, it is sent to the email address on your order and is valid for one year from the date of issue.",
           ],
         },
         {
           heading: "How to exchange your order",
           items: [
-            `Exchanges are only valid for size changes, provided the required size is available. Submit an exchange request on WhatsApp or by calling ${PHONE_LABEL} within 48 hours of receiving the product. If the requested size isn't available, you may request a return instead.`,
+            `Exchanges are only valid for size changes, provided the required size is available. Submit an exchange request on WhatsApp or by calling ${PHONE_LABEL} within 3 days of receiving the product. If the requested size isn't available, you may request a return instead.`,
             "Only one exchange per item will be accepted.",
           ],
         },
@@ -79,7 +79,7 @@ function buildCopy(email: string): Record<Lang, Copy> {
           heading: "Missing, damaged or incorrect items",
           outro: [
             `If you've received an incorrect item, are missing an item from your order, or received a damaged item, please contact our support team on WhatsApp, call ${PHONE_LABEL}${emailEn}.`,
-            "This must be done within 48 hours of receiving the order.",
+            "This must be done within 3 days of receiving the order.",
           ],
         },
         {
@@ -91,7 +91,7 @@ function buildCopy(email: string): Record<Lang, Copy> {
             { title: "Used or damaged items", body: "Items damaged due to the customer's use, incorrect washing or negligence will not be exchanged." },
             { title: "Choosing your size", body: "Before placing an order, it is the customer's responsibility to check the size chart and select the correct size." },
             { title: "Getting a size exchange", body: "If the required size is out of stock, exchanging to a different size may be delayed; whether an alternative or a refund is provided will be handled by mutual agreement between both parties." },
-            { title: "Receiving a wrong item", body: "If you receive an item different from the one ordered, you must notify our customer support team within 24 hours of receiving the item." },
+            { title: "Receiving a wrong item", body: "If you receive an item different from the one ordered, you must notify our customer support team within 3 days of receiving the item." },
             { title: "Original packaging", body: "When sending an item for an exchange, the original packaging and the item's tags must be included wherever possible." },
             { title: "Discounted items", body: "Items purchased under special discounts, clearance sales or promotional offers are exchanged or returned according to the conditions of the relevant offer." },
             { title: "Custom printed items", body: "Items printed with a name, logo, image or special design at the customer's request cannot be exchanged or returned, unless there is a manufacturing defect or a fault on our part." },
@@ -133,15 +133,15 @@ function buildCopy(email: string): Record<Lang, Copy> {
         {
           heading: "ඔබේ ඇණවුම ආපසු භාර දෙන්නේ කෙසේද",
           items: [
-            `භාණ්ඩය ලැබී පැය 48ක් ඇතුළත WhatsApp හරහා අප හා සම්බන්ධ වී හෝ ${PHONE_LABEL} අමතා ආපසු භාර දීමේ ඉල්ලීමක් ඉදිරිපත් කරන්න.`,
-            "ආපසු භාර දීම් සඳහා මුදල්/කාඩ්පත් ආපසු ගෙවීම් සිදු නොකෙරේ — සියලුම කොන්දේසි සපුරා ඇත්නම්, පරීක්ෂා කිරීමෙන් පසු store credit (සාප්පු ණය) ලබා දෙනු ලැබේ.",
-            "ඔබේ භාණ්ඩය කොන්දේසි සපුරාලන්නේ නම්, ඔබේ ඇණවුමේ සඳහන් ඊමේල් ලිපිනයට store credit නිකුත් කෙරේ (ප්‍රවාහන ගාස්තු හැර). Store credit නිකුත් කළ දිනයේ සිට වසරක් දක්වා වලංගු වේ.",
+            `භාණ්ඩය ලැබී දින 3ක් ඇතුළත WhatsApp හරහා අප හා සම්බන්ධ වී හෝ ${PHONE_LABEL} අමතා ආපසු භාර දීමේ ඉල්ලීමක් ඉදිරිපත් කරන්න.`,
+            "භාණ්ඩය පරීක්ෂා කර සියලුම කොන්දේසි සපුරා ඇත්නම්, මුදල් ආපසු ගෙවීමක් හෝ store credit (සාප්පු ණය) ලබා දෙනු ලැබේ (ප්‍රවාහන ගාස්තු හැර).",
+            "මුදල් ආපසු ගෙවීම වෙනුවට store credit නිකුත් කරන්නේ නම්, එය ඔබේ ඇණවුමේ සඳහන් ඊමේල් ලිපිනයට එවනු ලබන අතර නිකුත් කළ දිනයේ සිට වසරක් දක්වා වලංගු වේ.",
           ],
         },
         {
           heading: "ඔබේ ඇණවුම හුවමාරු කරන්නේ කෙසේද",
           items: [
-            `හුවමාරු කිරීම් වලංගු වන්නේ ප්‍රමාණ (size) වෙනස් කිරීම් සඳහා පමණි, අවශ්‍ය ප්‍රමාණය තිබේ නම්. භාණ්ඩය ලැබී පැය 48ක් ඇතුළත WhatsApp හරහා හෝ ${PHONE_LABEL} අමතා හුවමාරු ඉල්ලීමක් ඉදිරිපත් කරන්න. අවශ්‍ය ප්‍රමාණය නොමැති නම්, ඒ වෙනුවට ආපසු භාර දීමක් ඉල්ලිය හැක.`,
+            `හුවමාරු කිරීම් වලංගු වන්නේ ප්‍රමාණ (size) වෙනස් කිරීම් සඳහා පමණි, අවශ්‍ය ප්‍රමාණය තිබේ නම්. භාණ්ඩය ලැබී දින 3ක් ඇතුළත WhatsApp හරහා හෝ ${PHONE_LABEL} අමතා හුවමාරු ඉල්ලීමක් ඉදිරිපත් කරන්න. අවශ්‍ය ප්‍රමාණය නොමැති නම්, ඒ වෙනුවට ආපසු භාර දීමක් ඉල්ලිය හැක.`,
             "එක් භාණ්ඩයකට එක් හුවමාරුවක් පමණක් පිළිගනු ලැබේ.",
           ],
         },
@@ -149,7 +149,7 @@ function buildCopy(email: string): Record<Lang, Copy> {
           heading: "නැතිවූ, හානිවූ හෝ වැරදි භාණ්ඩ",
           outro: [
             `ඔබට වැරදි භාණ්ඩයක් ලැබී ඇත්නම්, ඇණවුමෙන් භාණ්ඩයක් නොලැබී ඇත්නම්, හෝ හානිවූ භාණ්ඩයක් ලැබී ඇත්නම්, WhatsApp හරහා, ${PHONE_LABEL} අමතා${emailSi} අපගේ සහාය කණ්ඩායම හා සම්බන්ධ වන්න.`,
-            "මෙය ඇණවුම ලැබී පැය 48ක් ඇතුළත සිදු කළ යුතුය.",
+            "මෙය ඇණවුම ලැබී දින 3ක් ඇතුළත සිදු කළ යුතුය.",
           ],
         },
         {
@@ -161,7 +161,7 @@ function buildCopy(email: string): Record<Lang, Copy> {
             { title: "භාවිත කළ හෝ හානි වූ භාණ්ඩ", body: "පාරිභෝගිකයාගේ භාවිතය, වැරදි සේදීම හෝ නොසැලකිලිමත්කම නිසා හානි වූ භාණ්ඩ මාරු කරනු නොලැබේ." },
             { title: "ප්‍රමාණය (Size) තෝරා ගැනීම", body: "ඇණවුම ලබාදීමට පෙර Size Chart එක පරීක්ෂා කර නිවැරදි ප්‍රමාණය තෝරා ගැනීම පාරිභෝගිකයාගේ වගකීම වේ." },
             { title: "Size Exchange ලබාගැනීම", body: "අවශ්‍ය ප්‍රමාණය තොගයේ නොමැති නම්, වෙනත් ප්‍රමාණයකට මාරු කිරීම ප්‍රමාද විය හැකි අතර, විකල්පයක් ලබාදීම හෝ මුදල් ආපසු ලබාදීම පිළිබඳව දෙපාර්ශ්වයේ එකඟතාව අනුව කටයුතු කරනු ලැබේ." },
-            { title: "වැරදි භාණ්ඩයක් ලැබීම", body: "පාරිභෝගිකයා ඇණවුම් කළ භාණ්ඩයට වෙනස් භාණ්ඩයක් ලැබුණහොත්, භාණ්ඩය ලැබී පැය 24ක් ඇතුළත අපගේ පාරිභෝගික සහාය කණ්ඩායමට දැනුම් දිය යුතුය." },
+            { title: "වැරදි භාණ්ඩයක් ලැබීම", body: "පාරිභෝගිකයා ඇණවුම් කළ භාණ්ඩයට වෙනස් භාණ්ඩයක් ලැබුණහොත්, භාණ්ඩය ලැබී දින 3ක් ඇතුළත අපගේ පාරිභෝගික සහාය කණ්ඩායමට දැනුම් දිය යුතුය." },
             { title: "භාණ්ඩයේ මුල් ඇසුරුම", body: "භාණ්ඩය මාරු කිරීම සඳහා එවන විට, හැකි සෑම විටම මුල් ඇසුරුම සහ භාණ්ඩයට අදාළ ටැග් ඇතුළත් කළ යුතුය." },
             { title: "වට්ටම් සහිත භාණ්ඩ", body: "විශේෂ වට්ටම්, Clearance Sales හෝ Promotional Offers යටතේ මිලදී ගත් භාණ්ඩ මාරු කිරීම හෝ ආපසු භාරගැනීම අදාළ දීමනාවේ කොන්දේසි අනුව සිදු කෙරේ." },
             { title: "Custom Printed භාණ්ඩ", body: "පාරිභෝගිකයාගේ ඉල්ලීම පරිදි නම, ලාංඡනය, රූපය හෝ විශේෂ නිර්මාණයක් මුද්‍රණය කළ භාණ්ඩ, නිෂ්පාදන දෝෂයක් හෝ අපගේ වරදක් නොමැති නම්, මාරු කිරීම හෝ ආපසු භාරගැනීම සිදු නොකෙරේ." },
