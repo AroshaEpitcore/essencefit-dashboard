@@ -26,8 +26,8 @@ export default function StoreFooter({
   const brandLogo = settings.logoLight || settings.logo;
   const socialClass =
     "w-9 h-9 rounded-full border border-white/15 flex items-center justify-center text-gray-300 hover:bg-primary hover:border-primary hover:text-white transition-colors";
-  const linkClass = "text-gray-400 hover:text-white transition-colors";
-  const headingClass = "text-white text-sm font-semibold uppercase tracking-[0.15em] mb-4";
+  const linkClass = "text-gray-300 hover:text-white font-medium transition-colors";
+  const headingClass = "text-white text-base font-semibold uppercase tracking-[0.15em] mb-4";
 
   // WhatsApp deep link — prefer the dedicated WhatsApp number from settings,
   // fall back to the store phone.
@@ -51,7 +51,7 @@ export default function StoreFooter({
             ) : (
               <h3 className="text-white text-2xl font-bold tracking-wide mb-5">{settings.storeName}</h3>
             )}
-            <p className="text-sm text-gray-500 max-w-xs leading-relaxed">
+            <p className="text-base text-gray-300 max-w-xs leading-relaxed">
               Premium apparel and custom DTF prints, made in Sri Lanka.
               Island-wide delivery, cash on delivery.
             </p>
@@ -81,7 +81,7 @@ export default function StoreFooter({
           {/* Shop */}
           <div>
             <h4 className={headingClass}>Shop</h4>
-            <ul className="space-y-2.5 text-sm">
+            <ul className="space-y-2.5 text-base">
               <li><Link href="/shop" className={linkClass}>All products</Link></li>
               <li><Link href="/deals" className={linkClass}>Deals</Link></li>
               {categories.slice(0, 4).map((c) => (
@@ -93,7 +93,7 @@ export default function StoreFooter({
           {/* Explore */}
           <div>
             <h4 className={headingClass}>Explore</h4>
-            <ul className="space-y-2.5 text-sm">
+            <ul className="space-y-2.5 text-base">
               <li><Link href="/customize" className={linkClass}>Customize &amp; DTF print</Link></li>
               <li><Link href="/gallery" className={linkClass}>Custom orders gallery</Link></li>
               <li><Link href="/feedback" className={linkClass}>Customer feedback</Link></li>
@@ -105,7 +105,7 @@ export default function StoreFooter({
           {/* Account */}
           <div>
             <h4 className={headingClass}>Account</h4>
-            <ul className="space-y-2.5 text-sm">
+            <ul className="space-y-2.5 text-base">
               <li><Link href="/account" className={linkClass}>My account</Link></li>
               <li><Link href="/account/orders" className={linkClass}>Track orders</Link></li>
               <li><Link href="/wishlist" className={linkClass}>Wishlist</Link></li>
@@ -116,7 +116,7 @@ export default function StoreFooter({
           {/* Contact */}
           <div>
             <h4 className={headingClass}>Contact</h4>
-            <ul className="space-y-3 text-sm">
+            <ul className="space-y-3 text-base text-gray-300">
               {settings.contactPhone && (
                 <li className="flex items-center gap-2.5"><Phone className="w-4 h-4 text-primary shrink-0" /> {settings.contactPhone}</li>
               )}
@@ -128,33 +128,33 @@ export default function StoreFooter({
         </div>
 
         {/* Trust row */}
-        <div className="border-t border-white/10 mt-12 pt-8 grid grid-cols-1 sm:grid-cols-3 gap-5 text-sm">
+        <div className="border-t border-white/10 mt-12 pt-8 grid grid-cols-1 sm:grid-cols-3 gap-5 text-base">
           <div className="flex items-center gap-3">
             <span className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0"><Truck className="w-5 h-5 text-primary" /></span>
             <div>
               <p className="text-white font-semibold">Island-wide delivery</p>
-              <p className="text-xs text-gray-500">Anywhere in Sri Lanka</p>
+              <p className="text-sm text-gray-400">Anywhere in Sri Lanka</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <span className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0"><Banknote className="w-5 h-5 text-primary" /></span>
             <div>
               <p className="text-white font-semibold">Cash on delivery</p>
-              <p className="text-xs text-gray-500">Pay when it arrives</p>
+              <p className="text-sm text-gray-400">Pay when it arrives</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <span className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0"><ShieldCheck className="w-5 h-5 text-primary" /></span>
             <div>
               <p className="text-white font-semibold">Quality guaranteed</p>
-              <p className="text-xs text-gray-500">Premium fabrics &amp; prints</p>
+              <p className="text-sm text-gray-400">Premium fabrics &amp; prints</p>
             </div>
           </div>
         </div>
 
-        <div className="border-t border-white/10 mt-8 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500">
+        <div className="border-t border-white/10 mt-8 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-gray-300">
           <span>© {new Date().getFullYear()} {settings.storeName}. All rights reserved.</span>
-          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 font-medium">
             <Link href="/returns-policy" className="hover:text-white transition-colors">Exchange &amp; Returns</Link>
             <Link href="/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</Link>
             <Link href="/cookie-policy" className="hover:text-white transition-colors">Cookie Policy</Link>
