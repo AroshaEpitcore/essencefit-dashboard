@@ -1,7 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Activity, Database, RefreshCw, CheckCircle2, XCircle, Clock, CalendarClock } from "lucide-react";
+import { Activity, Database, RefreshCw, CheckCircle2, XCircle, Clock, CalendarClock, KeyRound, ShieldAlert, Save, Github, ExternalLink } from "lucide-react";
+
+// Production Supabase project facts (confirmed Oct 2026). Kept here as an
+// always-available runbook so whoever is on call can find and access the DB.
+const PROJECT = {
+  name: "Essencefit-live-site",
+  ref: "rmyiozcgmpzcrpegnyhl",
+  url: "https://rmyiozcgmpzcrpegnyhl.supabase.co",
+  dashboard: "https://supabase.com/dashboard/project/rmyiozcgmpzcrpegnyhl",
+  region: "ap-northeast-2 (Seoul)",
+  compute: "nano (Free plan)",
+};
 
 type HealthState = {
   ok: boolean;
@@ -146,6 +157,123 @@ export default function HealthPage() {
           <code className="text-xs">SUPABASE_DB_URL</code> is set (Settings → Secrets and variables → Actions),
           and if the schedule is actually running. Open the repo&apos;s <strong>Actions</strong> tab and confirm the
           &ldquo;Supabase keep-alive&rdquo; workflow has recent green runs.
+        </div>
+      </div>
+
+      {/* Database project identity */}
+      <div className={`${card} mt-5`}>
+        <div className="flex items-center gap-2 mb-3">
+          <Database className="w-5 h-5 text-gray-400" />
+          <p className="font-semibold">Production database project</p>
+        </div>
+        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+          <div className="flex justify-between gap-4 border-b border-gray-100 dark:border-gray-700/50 py-1">
+            <dt className="text-gray-500">Project name</dt>
+            <dd className="font-medium text-right">{PROJECT.name}</dd>
+          </div>
+          <div className="flex justify-between gap-4 border-b border-gray-100 dark:border-gray-700/50 py-1">
+            <dt className="text-gray-500">Reference ID</dt>
+            <dd className="font-mono text-xs text-right break-all">{PROJECT.ref}</dd>
+          </div>
+          <div className="flex justify-between gap-4 border-b border-gray-100 dark:border-gray-700/50 py-1">
+            <dt className="text-gray-500">Region</dt>
+            <dd className="font-medium text-right">{PROJECT.region}</dd>
+          </div>
+          <div className="flex justify-between gap-4 border-b border-gray-100 dark:border-gray-700/50 py-1">
+            <dt className="text-gray-500">Compute</dt>
+            <dd className="font-medium text-right">{PROJECT.compute}</dd>
+          </div>
+        </dl>
+        <a
+          href={PROJECT.dashboard}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary text-white text-sm font-semibold px-4 py-2 hover:bg-primary/90 transition-colors"
+        >
+          <ExternalLink className="w-4 h-4" /> Open in Supabase dashboard
+        </a>
+      </div>
+
+      {/* Which account + how to log in */}
+      <div className={`${card} mt-5`}>
+        <div className="flex items-center gap-2 mb-3">
+          <KeyRound className="w-5 h-5 text-gray-400" />
+          <p className="font-semibold">Which account owns it &amp; how to log in</p>
+        </div>
+
+        <dl className="mb-3 text-sm divide-y divide-gray-100 dark:divide-gray-700/50">
+          <div className="flex items-center justify-between gap-4 py-1.5">
+            <dt className="text-gray-500">Owner account (use this)</dt>
+            <dd className="font-medium text-right">
+              <span className="font-mono text-xs">mgaravishan@gmail.com</span>
+              <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-green-500/15 text-green-400 px-2 py-0.5 text-xs font-semibold"><Github className="w-3 h-3" /> GitHub login</span>
+            </dd>
+          </div>
+          <div className="flex items-center justify-between gap-4 py-1.5">
+            <dt className="text-gray-500">Office account (NOT the owner)</dt>
+            <dd className="font-medium text-right">
+              <span className="font-mono text-xs">epitcore@gmail.com</span>
+              <span className="ml-2 inline-flex items-center rounded-full bg-gray-500/15 text-gray-400 px-2 py-0.5 text-xs font-semibold">wrong project</span>
+            </dd>
+          </div>
+        </dl>
+
+        <p className="text-sm text-gray-400 leading-relaxed">
+          This project lives in the <strong>personal</strong> Supabase account, which signs in with{" "}
+          <strong className="inline-flex items-center gap-1"><Github className="w-3.5 h-3.5" /> GitHub</strong>{" "}
+          (the personal GitHub linked to <code className="text-xs">mgaravishan@gmail.com</code>). There is
+          <strong> no Google or email/password login</strong> — GitHub is the only way in.
+        </p>
+        <div className="mt-3 rounded-lg bg-blue-500/10 border border-blue-500/20 px-3 py-2 text-sm text-blue-200 leading-relaxed">
+          <p className="font-semibold mb-1">Important: not the office account</p>
+          The office account <code className="text-xs">epitcore@gmail.com</code> does <strong>not</strong> own this
+          database — it only holds an unused empty project (ref <code className="text-xs">uyysrjyhjhwfypxjxocy</code>,
+          Tokyo). Logging in there will show the wrong project.
+        </div>
+        <ol className="mt-3 list-decimal pl-5 space-y-1.5 text-sm text-gray-300">
+          <li>Go to <code className="text-xs">github.com</code> and sign in as the <strong>personal</strong> GitHub account (<code className="text-xs">mgaravishan@gmail.com</code>). A private/incognito window avoids the office session clashing.</li>
+          <li>Go to <code className="text-xs">supabase.com/dashboard</code> and click <strong>&ldquo;Continue with GitHub&rdquo;</strong>.</li>
+          <li>Open the project (button above) and confirm Reference ID = <code className="text-xs">{PROJECT.ref}</code>.</li>
+        </ol>
+      </div>
+
+      {/* Action items / known advisories */}
+      <div className={`${card} mt-5`}>
+        <div className="flex items-center gap-2 mb-3">
+          <ShieldAlert className="w-5 h-5 text-gray-400" />
+          <p className="font-semibold">Known action items</p>
+        </div>
+
+        <div className="space-y-3 text-sm">
+          <div className="rounded-lg bg-red-500/10 border border-red-500/20 px-3 py-2.5 leading-relaxed">
+            <p className="flex items-center gap-2 font-semibold text-red-300"><Save className="w-4 h-4" /> No backups configured</p>
+            <p className="text-gray-300 mt-1">
+              The Free/nano tier takes <strong>no automatic backups</strong>. If data is lost there is nothing to
+              restore from. Set up a scheduled <code className="text-xs">pg_dump</code> (can be added to the existing
+              keep-alive GitHub Action) or upgrade to Pro for daily backups + point-in-time recovery.
+            </p>
+          </div>
+
+          <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2.5 leading-relaxed">
+            <p className="flex items-center gap-2 font-semibold text-amber-300"><ShieldAlert className="w-4 h-4" /> 43 &ldquo;RLS disabled&rdquo; advisor warnings — low risk here</p>
+            <p className="text-gray-300 mt-1">
+              These flag the public <strong>Data API (PostgREST)</strong>. This app connects <strong>directly to
+              Postgres</strong> (the <code className="text-xs">pg</code> driver via the connection string) using the
+              privileged <code className="text-xs">postgres</code> role — it never uses the REST API and no anon key is
+              shipped anywhere. Cleanest fix: <strong>disable the Data API</strong> (Project Settings → API → Data API →
+              remove <code className="text-xs">public</code> from exposed schemas). This clears all 43 warnings with no
+              impact on the site.
+            </p>
+          </div>
+
+          <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2.5 leading-relaxed">
+            <p className="flex items-center gap-2 font-semibold text-amber-300"><KeyRound className="w-4 h-4" /> Confirm the keep-alive secret</p>
+            <p className="text-gray-300 mt-1">
+              Pause-prevention only runs if the GitHub repo secret <code className="text-xs">SUPABASE_DB_URL</code> is set
+              to the pooler connection string (Project Settings → Database → Connection string). With dashboard access
+              you can now also click <strong>Restore</strong> if the project ever pauses.
+            </p>
+          </div>
         </div>
       </div>
     </div>
