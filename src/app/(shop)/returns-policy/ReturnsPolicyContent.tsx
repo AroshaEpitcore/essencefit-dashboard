@@ -48,8 +48,6 @@ function buildCopy(email: string): Record<Lang, Copy> {
             "Items with pilling may be subject to denial",
             "Items with markings or stains will not be accepted",
             "Items with strong odours (e.g. smoke, cologne, detergent) will not be accepted",
-            "Accessories such as jewellery, shoes, slides, caps, bottles and bags cannot be returned or exchanged, for hygiene reasons",
-            "Bodysuits, socks and other undergarments cannot be returned or exchanged, for hygiene reasons",
           ],
         },
         {
@@ -95,6 +93,7 @@ function buildCopy(email: string): Record<Lang, Copy> {
             { title: "Original packaging", body: "When sending an item for an exchange, the original packaging and the item's tags must be included wherever possible." },
             { title: "Discounted items", body: "Items purchased under special discounts, clearance sales or promotional offers are exchanged or returned according to the conditions of the relevant offer." },
             { title: "Custom printed items", body: "Items printed with a name, logo, image or special design at the customer's request cannot be exchanged or returned, unless there is a manufacturing defect or a fault on our part." },
+            { title: "Custom / DTF order payment", body: "Custom and DTF printing orders require a 50% advance payment before production begins; the remaining balance is settled on delivery." },
             { title: "Order cancellation", body: "Once an order has been prepared or printing has begun, cancelling it may be restricted. Special conditions may apply to custom orders." },
             { title: "Inspection of the item", body: "The item is inspected before an exchange request is approved. If the applicable conditions are not met, the request may be rejected." },
           ],
@@ -118,8 +117,6 @@ function buildCopy(email: string): Record<Lang, Copy> {
             "රැළි (pilling) සහිත භාණ්ඩ ප්‍රතික්ෂේප විය හැක",
             "සලකුණු හෝ පැල්ලම් සහිත භාණ්ඩ භාර නොගනු ලැබේ",
             "තද ගන්ධයක් සහිත (උදා: දුම්, සුවඳ විලවුන්, රෙදි සෝදන කුඩු) භාණ්ඩ භාර නොගනු ලැබේ",
-            "සනීපාරක්ෂක හේතූන් මත ආභරණ, සපත්තු, පාවහන් (slides), තොප්පි, බෝතල් සහ බෑග් වැනි උපාංග ආපසු භාර ගැනීම හෝ හුවමාරු කිරීම කළ නොහැක",
-            "සනීපාරක්ෂක හේතූන් මත බොඩිසූට්, මේස් සහ අනෙකුත් යට ඇඳුම් ආපසු භාර ගැනීම හෝ හුවමාරු කිරීම කළ නොහැක",
           ],
         },
         {
@@ -165,6 +162,7 @@ function buildCopy(email: string): Record<Lang, Copy> {
             { title: "භාණ්ඩයේ මුල් ඇසුරුම", body: "භාණ්ඩය මාරු කිරීම සඳහා එවන විට, හැකි සෑම විටම මුල් ඇසුරුම සහ භාණ්ඩයට අදාළ ටැග් ඇතුළත් කළ යුතුය." },
             { title: "වට්ටම් සහිත භාණ්ඩ", body: "විශේෂ වට්ටම්, Clearance Sales හෝ Promotional Offers යටතේ මිලදී ගත් භාණ්ඩ මාරු කිරීම හෝ ආපසු භාරගැනීම අදාළ දීමනාවේ කොන්දේසි අනුව සිදු කෙරේ." },
             { title: "Custom Printed භාණ්ඩ", body: "පාරිභෝගිකයාගේ ඉල්ලීම පරිදි නම, ලාංඡනය, රූපය හෝ විශේෂ නිර්මාණයක් මුද්‍රණය කළ භාණ්ඩ, නිෂ්පාදන දෝෂයක් හෝ අපගේ වරදක් නොමැති නම්, මාරු කිරීම හෝ ආපසු භාරගැනීම සිදු නොකෙරේ." },
+            { title: "Custom / DTF ඇණවුම් ගෙවීම්", body: "Custom සහ DTF මුද්‍රණ ඇණවුම් සඳහා නිෂ්පාදනය ආරම්භ කිරීමට පෙර 50% ක අත්තිකාරම් ගෙවීමක් අවශ්‍ය වේ; ඉතිරි මුදල භාණ්ඩය බාරදීමේදී ගෙවිය යුතුය." },
             { title: "ඇණවුම් අවලංගු කිරීම", body: "ඇණවුම සකස් කිරීම හෝ මුද්‍රණ කටයුතු ආරම්භ කිරීමෙන් පසු එය අවලංගු කිරීම සීමා කළ හැකිය. Custom Orders සඳහා විශේෂ කොන්දේසි අදාළ විය හැකිය." },
             { title: "භාණ්ඩය පරීක්ෂා කිරීම", body: "මාරු කිරීමේ ඉල්ලීමක් අනුමත කිරීමට පෙර භාණ්ඩය පරීක්ෂා කරනු ලැබේ. අදාළ කොන්දේසි සපුරා නොමැති නම් ඉල්ලීම ප්‍රතික්ෂේප කළ හැකිය." },
           ],
