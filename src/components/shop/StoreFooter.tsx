@@ -154,7 +154,11 @@ export default function StoreFooter({
 
         <div className="border-t border-white/10 mt-8 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500">
           <span>© {new Date().getFullYear()} {settings.storeName}. All rights reserved.</span>
-          <Link href="/cookie-policy" className="hover:text-white transition-colors">Cookie Policy</Link>
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+            <Link href="/returns-policy" className="hover:text-white transition-colors">Exchange &amp; Returns</Link>
+            <Link href="/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</Link>
+            <Link href="/cookie-policy" className="hover:text-white transition-colors">Cookie Policy</Link>
+          </div>
         </div>
       </div>
 

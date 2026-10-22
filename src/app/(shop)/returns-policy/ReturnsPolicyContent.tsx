@@ -1,0 +1,223 @@
+"use client";
+
+import { useState } from "react";
+import { MessageCircle, Phone, Mail } from "lucide-react";
+import { waHref } from "@/lib/wa";
+
+type Lang = "en" | "si";
+
+type Section = {
+  heading: string;
+  intro?: string;
+  items?: string[];
+  outro?: string[];
+};
+
+type Copy = {
+  title: string;
+  intro: string;
+  updated: string;
+  sections: Section[];
+  contactHeading: string;
+};
+
+// The two support numbers live in one place so both languages stay in sync.
+const PHONES = ["0762946381", "0769689093"];
+const PHONE_LABEL = PHONES.join(" / ");
+
+function buildCopy(email: string): Record<Lang, Copy> {
+  const emailEn = email ? ` or email ${email}` : "";
+  const emailSi = email ? ` හෝ ${email} වෙත ඊමේල් කර` : "";
+
+  return {
+    en: {
+      title: "Exchange & Returns Policy",
+      updated: "Last updated",
+      intro: "We offer FREE returns and exchanges for domestic (island-wide) orders.",
+      contactHeading: "Need help?",
+      sections: [
+        {
+          heading: "Return conditions",
+          intro:
+            "All items being returned or exchanged must meet the following conditions, or the request may be denied:",
+          items: [
+            "Items must be unwashed",
+            "Items must be unworn",
+            "Items must be in original packaging",
+            "Items with pilling may be subject to denial",
+            "Items with markings or stains will not be accepted",
+            "Items with strong odours (e.g. smoke, cologne, detergent) will not be accepted",
+            "Accessories such as jewellery, shoes, slides, caps, bottles and bags cannot be returned or exchanged, for hygiene reasons",
+            "Bodysuits, socks and other undergarments cannot be returned or exchanged, for hygiene reasons",
+          ],
+        },
+        {
+          heading: "Please note",
+          items: [
+            "Items discounted 15% or more are not eligible for return or exchange",
+            "This policy excludes normal wear and tear, and damage caused by misuse or accidents",
+            "We reserve the right to deny returns or exchanges submitted after the applicable window has closed",
+          ],
+        },
+        {
+          heading: "How to return your order",
+          items: [
+            `Submit a return request by contacting us on WhatsApp or calling ${PHONE_LABEL} within 48 hours of receiving the product.`,
+            "Returns are not eligible for cash/card refunds — store credit will be issued upon inspection, provided all return conditions are met.",
+            "If your item meets the return conditions, store credit will be issued to the email address on your order (shipping costs excluded). Store credit is valid for one year from the date of issue.",
+          ],
+        },
+        {
+          heading: "How to exchange your order",
+          items: [
+            `Exchanges are only valid for size changes, provided the required size is available. Submit an exchange request on WhatsApp or by calling ${PHONE_LABEL} within 48 hours of receiving the product. If the requested size isn't available, you may request a return instead.`,
+            "Only one exchange per item will be accepted.",
+          ],
+        },
+        {
+          heading: "Missing, damaged or incorrect items",
+          outro: [
+            `If you've received an incorrect item, are missing an item from your order, or received a damaged item, please contact our support team on WhatsApp, call ${PHONE_LABEL}${emailEn}.`,
+            "This must be done within 48 hours of receiving the order.",
+          ],
+        },
+      ],
+    },
+    si: {
+      title: "හුවමාරු සහ ආපසු භාර දීමේ ප්‍රතිපත්තිය",
+      updated: "අවසන් වරට යාවත්කාලීන කළේ",
+      intro: "දේශීය (දිවයින පුරා) ඇණවුම් සඳහා අපි නොමිලේ ආපසු භාර ගැනීම් සහ හුවමාරු ලබා දෙමු.",
+      contactHeading: "උදව් අවශ්‍යද?",
+      sections: [
+        {
+          heading: "ආපසු භාර දීමේ කොන්දේසි",
+          intro:
+            "ආපසු භාර දෙන හෝ හුවමාරු කරන සියලුම භාණ්ඩ පහත කොන්දේසි සපුරාලිය යුතුය. නැතහොත් ඉල්ලීම ප්‍රතික්ෂේප විය හැක:",
+          items: [
+            "භාණ්ඩ සෝදා නොතිබිය යුතුය",
+            "භාණ්ඩ පැළඳ නොතිබිය යුතුය",
+            "භාණ්ඩ මුල් ඇසුරුමෙහි තිබිය යුතුය",
+            "රැළි (pilling) සහිත භාණ්ඩ ප්‍රතික්ෂේප විය හැක",
+            "සලකුණු හෝ පැල්ලම් සහිත භාණ්ඩ භාර නොගනු ලැබේ",
+            "තද ගන්ධයක් සහිත (උදා: දුම්, සුවඳ විලවුන්, රෙදි සෝදන කුඩු) භාණ්ඩ භාර නොගනු ලැබේ",
+            "සනීපාරක්ෂක හේතූන් මත ආභරණ, සපත්තු, පාවහන් (slides), තොප්පි, බෝතල් සහ බෑග් වැනි උපාංග ආපසු භාර ගැනීම හෝ හුවමාරු කිරීම කළ නොහැක",
+            "සනීපාරක්ෂක හේතූන් මත බොඩිසූට්, මේස් සහ අනෙකුත් යට ඇඳුම් ආපසු භාර ගැනීම හෝ හුවමාරු කිරීම කළ නොහැක",
+          ],
+        },
+        {
+          heading: "කරුණාකර සලකන්න",
+          items: [
+            "15% හෝ ඊට වැඩියෙන් වට්ටම් කරන ලද භාණ්ඩ ආපසු භාර ගැනීමට හෝ හුවමාරු කිරීමට සුදුසුකම් නොලබයි",
+            "සාමාන්‍ය භාවිතයෙන් සිදුවන ගෙවීයාම් සහ වැරදි භාවිතය හෝ අනතුරු නිසා සිදුවන හානි මෙම ප්‍රතිපත්තියට ඇතුළත් නොවේ",
+            "අදාළ කාලසීමාව අවසන් වූ පසු ඉදිරිපත් කරන ආපසු භාර දීම් හෝ හුවමාරු ප්‍රතික්ෂේප කිරීමේ අයිතිය අප සතුය",
+          ],
+        },
+        {
+          heading: "ඔබේ ඇණවුම ආපසු භාර දෙන්නේ කෙසේද",
+          items: [
+            `භාණ්ඩය ලැබී පැය 48ක් ඇතුළත WhatsApp හරහා අප හා සම්බන්ධ වී හෝ ${PHONE_LABEL} අමතා ආපසු භාර දීමේ ඉල්ලීමක් ඉදිරිපත් කරන්න.`,
+            "ආපසු භාර දීම් සඳහා මුදල්/කාඩ්පත් ආපසු ගෙවීම් සිදු නොකෙරේ — සියලුම කොන්දේසි සපුරා ඇත්නම්, පරීක්ෂා කිරීමෙන් පසු store credit (සාප්පු ණය) ලබා දෙනු ලැබේ.",
+            "ඔබේ භාණ්ඩය කොන්දේසි සපුරාලන්නේ නම්, ඔබේ ඇණවුමේ සඳහන් ඊමේල් ලිපිනයට store credit නිකුත් කෙරේ (ප්‍රවාහන ගාස්තු හැර). Store credit නිකුත් කළ දිනයේ සිට වසරක් දක්වා වලංගු වේ.",
+          ],
+        },
+        {
+          heading: "ඔබේ ඇණවුම හුවමාරු කරන්නේ කෙසේද",
+          items: [
+            `හුවමාරු කිරීම් වලංගු වන්නේ ප්‍රමාණ (size) වෙනස් කිරීම් සඳහා පමණි, අවශ්‍ය ප්‍රමාණය තිබේ නම්. භාණ්ඩය ලැබී පැය 48ක් ඇතුළත WhatsApp හරහා හෝ ${PHONE_LABEL} අමතා හුවමාරු ඉල්ලීමක් ඉදිරිපත් කරන්න. අවශ්‍ය ප්‍රමාණය නොමැති නම්, ඒ වෙනුවට ආපසු භාර දීමක් ඉල්ලිය හැක.`,
+            "එක් භාණ්ඩයකට එක් හුවමාරුවක් පමණක් පිළිගනු ලැබේ.",
+          ],
+        },
+        {
+          heading: "නැතිවූ, හානිවූ හෝ වැරදි භාණ්ඩ",
+          outro: [
+            `ඔබට වැරදි භාණ්ඩයක් ලැබී ඇත්නම්, ඇණවුමෙන් භාණ්ඩයක් නොලැබී ඇත්නම්, හෝ හානිවූ භාණ්ඩයක් ලැබී ඇත්නම්, WhatsApp හරහා, ${PHONE_LABEL} අමතා${emailSi} අපගේ සහාය කණ්ඩායම හා සම්බන්ධ වන්න.`,
+            "මෙය ඇණවුම ලැබී පැය 48ක් ඇතුළත සිදු කළ යුතුය.",
+          ],
+        },
+      ],
+    },
+  };
+}
+
+export default function ReturnsPolicyContent({ email }: { email: string }) {
+  const [lang, setLang] = useState<Lang>("en");
+  const copy = buildCopy(email)[lang];
+  const wa = waHref(PHONES[0]);
+  const telHref = `tel:${PHONES[0]}`;
+
+  const tabClass = (active: boolean) =>
+    `px-4 py-1.5 text-sm font-semibold rounded-md transition-colors ${
+      active ? "bg-primary text-white shadow-sm" : "text-gray-600 hover:text-gray-900"
+    }`;
+
+  return (
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12">
+      {/* Language toggle */}
+      <div className="flex justify-end mb-6">
+        <div className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1">
+          <button type="button" onClick={() => setLang("en")} className={tabClass(lang === "en")} aria-pressed={lang === "en"}>
+            English
+          </button>
+          <button type="button" onClick={() => setLang("si")} className={tabClass(lang === "si")} aria-pressed={lang === "si"}>
+            සිංහල
+          </button>
+        </div>
+      </div>
+
+      <h1 className="text-3xl font-bold text-gray-900 mb-2">{copy.title}</h1>
+      <p className="text-sm text-gray-500 mb-8">
+        {copy.updated}: {new Date().toLocaleDateString(lang === "si" ? "si-LK" : "en-GB", { day: "numeric", month: "long", year: "numeric" })}
+      </p>
+
+      <div className="space-y-8 text-gray-700 leading-relaxed">
+        <p className="text-lg text-gray-900 font-medium">{copy.intro}</p>
+
+        {copy.sections.map((s) => (
+          <section key={s.heading}>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">{s.heading}</h2>
+            {s.intro && <p className="mb-3">{s.intro}</p>}
+            {s.items && (
+              <ul className="list-disc pl-5 space-y-2">
+                {s.items.map((item, i) => (
+                  <li key={i}>{item}</li>
+                ))}
+              </ul>
+            )}
+            {s.outro && s.outro.map((p, i) => <p key={i} className={i > 0 ? "mt-3" : ""}>{p}</p>)}
+          </section>
+        ))}
+
+        {/* Contact card */}
+        <section className="rounded-xl border border-gray-200 bg-gray-50 p-5">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">{copy.contactHeading}</h2>
+          <div className="flex flex-wrap gap-3">
+            {wa && (
+              <a
+                href={wa}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-lg bg-primary text-white text-sm font-semibold px-4 py-2 hover:bg-primary/90 transition-colors"
+              >
+                <MessageCircle className="w-4 h-4" /> WhatsApp
+              </a>
+            )}
+            <a
+              href={telHref}
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white text-gray-800 text-sm font-semibold px-4 py-2 hover:bg-gray-100 transition-colors"
+            >
+              <Phone className="w-4 h-4 text-primary" /> {PHONE_LABEL}
+            </a>
+            {email && (
+              <a
+                href={`mailto:${email}`}
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white text-gray-800 text-sm font-semibold px-4 py-2 hover:bg-gray-100 transition-colors"
+              >
+                <Mail className="w-4 h-4 text-primary" /> {email}
+              </a>
+            )}
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
