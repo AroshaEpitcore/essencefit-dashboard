@@ -256,8 +256,9 @@ export default function HealthPage() {
               demand with <strong>Run workflow</strong>.
             </p>
             <p className="text-gray-400 mt-2 text-xs">
-              Requires the same secret <code>SUPABASE_DB_URL</code> set to the <strong>Session pooler</strong> string
-              (port 5432). Restore with: <code className="text-xs">gunzip -c backup.sql.gz | psql &quot;&lt;connection&gt;&quot;</code>.
+              <strong className="text-green-400">Active &amp; verified</strong> — uses the secret <code>SUPABASE_DB_URL</code>
+              (the <strong>Session pooler</strong> string, port 5432; the transaction pooler on 6543 will not work for
+              pg_dump). Restore with: <code className="text-xs">gunzip -c backup.sql.gz | psql &quot;&lt;connection&gt;&quot;</code>.
               Contains customer data — keep the repo private.
             </p>
           </div>
@@ -276,12 +277,12 @@ export default function HealthPage() {
             </p>
           </div>
 
-          <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2.5 leading-relaxed">
-            <p className="flex items-center gap-2 font-semibold text-amber-300"><KeyRound className="w-4 h-4" /> Confirm the keep-alive secret</p>
+          <div className="rounded-lg bg-green-500/10 border border-green-500/20 px-3 py-2.5 leading-relaxed">
+            <p className="flex items-center gap-2 font-semibold text-green-300"><KeyRound className="w-4 h-4" /> Keep-alive secret — confirmed working</p>
             <p className="text-gray-300 mt-1">
-              Pause-prevention only runs if the GitHub repo secret <code className="text-xs">SUPABASE_DB_URL</code> is set
-              to the pooler connection string (Project Settings → Database → Connection string). With dashboard access
-              you can now also click <strong>Restore</strong> if the project ever pauses.
+              The GitHub repo secret <code className="text-xs">SUPABASE_DB_URL</code> is set and the keep-alive workflow
+              has months of green runs, so pausing is being prevented. And now that account access is recovered, the
+              owner can click <strong>Restore</strong> from the dashboard if the project ever does pause.
             </p>
           </div>
         </div>
