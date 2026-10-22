@@ -21,6 +21,7 @@ const ADMIN_ONLY_ROUTES = [
   "/print-jobs",
   "/catalog",
   "/store-settings",
+  "/health",
 ];
 
 export function useAuth() {

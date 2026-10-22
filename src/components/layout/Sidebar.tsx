@@ -35,6 +35,7 @@ import {
   MessageSquareQuote,
   Radio,
   Megaphone,
+  Activity,
 } from "lucide-react";
 import { Tooltip } from "react-tooltip";
 
@@ -71,6 +72,7 @@ const navItems = [
   { href: "/dispatch", label: "Dispatch", icon: SendHorizonal },
   { href: "/whatsapp", label: "Whatsapp", icon: MessageCircle },
   { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/health", label: "System Health", icon: Activity },
 ];
 
 export default function Sidebar({ collapsed }: { collapsed: boolean }) {
