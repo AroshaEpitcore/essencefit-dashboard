@@ -12,6 +12,7 @@ export default function Topbar({
   onToggleSidebar: () => void;
 }) {
   const [darkMode, setDarkMode] = useState(true);
+  const [themeReady, setThemeReady] = useState(false);
   const [time, setTime] = useState<string>("");
   const [day, setDay] = useState<string>("");
   const router = useRouter();
@@ -39,11 +40,21 @@ export default function Topbar({
     return () => clearInterval(interval);
   }, []);
 
-  // Dark mode handler
+  // Load saved theme preference once on mount (defaults to dark).
   useEffect(() => {
+    const saved = localStorage.getItem("ef-admin-theme");
+    if (saved === "light") setDarkMode(false);
+    else if (saved === "dark") setDarkMode(true);
+    setThemeReady(true);
+  }, []);
+
+  // Dark mode handler — apply the class and persist the choice.
+  useEffect(() => {
+    if (!themeReady) return;
     if (darkMode) document.documentElement.classList.add("dark");
     else document.documentElement.classList.remove("dark");
-  }, [darkMode]);
+    localStorage.setItem("ef-admin-theme", darkMode ? "dark" : "light");
+  }, [darkMode, themeReady]);
 
   function handleLogout() {
     logout();

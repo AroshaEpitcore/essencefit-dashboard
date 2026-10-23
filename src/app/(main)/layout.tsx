@@ -11,6 +11,7 @@ import { usePageLoader } from "@/lib/hooks/usePageLoader";
 import { useAuth } from "@/lib/useAuth";
 import { ArrowUp } from "lucide-react";
 import FloatingCalculator from "@/components/ui/FloatingCalculator";
+import IdleLogout from "@/components/layout/IdleLogout";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -55,8 +56,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="dark flex h-screen relative bg-gray-900 text-gray-100">
+    <div className="flex h-screen relative bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100">
       {loading && <FullScreenLoader />}
+
+      <IdleLogout />
 
       <Sidebar collapsed={collapsed} />
       <div className="flex flex-col flex-1">
