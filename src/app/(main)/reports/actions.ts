@@ -118,7 +118,8 @@ export async function runSalesReport(filters: any) {
           P.Id AS ProductId,
           P.Name AS Product,
           SUM(S.Qty) AS Qty,
-          SUM(S.Qty * S.SellingPrice) AS GrossRevenue
+          SUM(S.Qty * S.SellingPrice) AS GrossRevenue,
+          SUM(S.Qty * S.CostPrice) AS Cost
         FROM Sales S
         JOIN ProductVariants V ON S.VariantId = V.Id
         JOIN Products P ON V.ProductId = P.Id
@@ -158,10 +159,11 @@ export async function runSalesReport(filters: any) {
         SELECT
           S.Product,
           S.Qty,
+          S.Cost,
           /* Allocate adjustment by gross share */
           CAST(
             S.GrossRevenue
-            + CASE 
+            + CASE
                 WHEN COALESCE(D.DayGrossRevenue,0) = 0 THEN 0
                 ELSE (S.GrossRevenue / D.DayGrossRevenue) * COALESCE(D.DayAdjustment,0)
               END
@@ -172,7 +174,9 @@ export async function runSalesReport(filters: any) {
       SELECT
         Product,
         SUM(Qty) AS Qty,
-        CAST(SUM(NetRevenue) AS DECIMAL(18,2)) AS Revenue
+        CAST(SUM(NetRevenue) AS DECIMAL(18,2)) AS Revenue,
+        CAST(SUM(Cost) AS DECIMAL(18,2)) AS Cost,
+        CAST(SUM(NetRevenue) - SUM(Cost) AS DECIMAL(18,2)) AS Profit
       FROM SalesNetAllocated
       GROUP BY Product
       ORDER BY Product
@@ -207,25 +211,48 @@ export async function runExpensesReport(filters: any) {
  * Revenue = SUM(GrossSales - Discount + DeliveryFee) (by day)
  * COGS = SUM(SalesQty * CostPrice)
  * GrossProfit = Revenue - COGS
+ *
+ * Now scopeable by Category/Product (so e.g. "Shorts" P&L works), and also
+ * returns Orders (distinct orders containing the scoped items) and Items (units
+ * sold). The order-level Discount/DeliveryFee adjustment only applies to the
+ * business-wide P&L (no category/product filter) because those amounts can't be
+ * attributed to a single category — a scoped P&L reports gross revenue.
  */
-export async function runPnLReport(from?: string, to?: string) {
+export async function runPnLReport(filters: {
+  category?: string;
+  product?: string;
+  from?: string;
+  to?: string;
+}) {
   await requireAdmin();
   const pool = await getDb();
   const result = await pool
     .request()
-    .input("From", from || null)
-    .input("To", to || null)
+    .input("CategoryId", filters?.category || null)
+    .input("ProductId", filters?.product || null)
+    .input("From", filters?.from || null)
+    .input("To", filters?.to || null)
     .query(`
 
-      WITH SalesAgg AS (
+      WITH ScopedSales AS (
         SELECT
           CAST(S.SaleDate AS DATE) AS D,
-          SUM(S.Qty * S.SellingPrice) AS GrossSales,
-          SUM(S.Qty * S.CostPrice) AS COGS
+          S.OrderId,
+          S.Qty,
+          S.Qty * S.SellingPrice AS Gross,
+          S.Qty * S.CostPrice AS Cost
         FROM Sales S
-        WHERE ((@From)::date IS NULL OR CAST(S.SaleDate AS DATE) >= (@From)::date)
+        JOIN ProductVariants V ON S.VariantId = V.Id
+        JOIN Products P ON V.ProductId = P.Id
+        WHERE (@CategoryId IS NULL OR P.CategoryId = @CategoryId)
+          AND (@ProductId IS NULL OR P.Id = @ProductId)
+          AND ((@From)::date IS NULL OR CAST(S.SaleDate AS DATE) >= (@From)::date)
           AND ((@To)::date IS NULL OR CAST(S.SaleDate AS DATE) <= (@To)::date)
-        GROUP BY CAST(S.SaleDate AS DATE)
+      ),
+      SalesAgg AS (
+        SELECT D, SUM(Gross) AS GrossSales, SUM(Cost) AS COGS
+        FROM ScopedSales
+        GROUP BY D
       ),
       OrdersAgg AS (
         SELECT
@@ -240,21 +267,28 @@ export async function runPnLReport(from?: string, to?: string) {
       ),
       DayJoin AS (
         SELECT
-          COALESCE(SA.D, OA.D) AS D,
           COALESCE(SA.GrossSales,0) AS GrossSales,
           COALESCE(SA.COGS,0) AS COGS,
-          COALESCE(OA.OrderDiscount,0) AS OrderDiscount,
-          COALESCE(OA.DeliveryFee,0) AS DeliveryFee
+          CASE WHEN @CategoryId IS NULL AND @ProductId IS NULL
+               THEN COALESCE(OA.OrderDiscount,0) ELSE 0 END AS OrderDiscount,
+          CASE WHEN @CategoryId IS NULL AND @ProductId IS NULL
+               THEN COALESCE(OA.DeliveryFee,0) ELSE 0 END AS DeliveryFee
         FROM SalesAgg SA
         FULL OUTER JOIN OrdersAgg OA ON SA.D = OA.D
+      ),
+      Totals AS (
+        SELECT
+          CAST(COALESCE(SUM(GrossSales - OrderDiscount + DeliveryFee),0) AS DECIMAL(18,2)) AS Revenue,
+          CAST(COALESCE(SUM(COGS),0) AS DECIMAL(18,2)) AS COGS
+        FROM DayJoin
       )
       SELECT
-        CAST(COALESCE(SUM(GrossSales - OrderDiscount + DeliveryFee),0) AS DECIMAL(18,2)) AS Revenue,
-        CAST(COALESCE(SUM(COGS),0) AS DECIMAL(18,2)) AS COGS,
-        CAST(
-          COALESCE(SUM(GrossSales - OrderDiscount + DeliveryFee),0) - COALESCE(SUM(COGS),0)
-        AS DECIMAL(18,2)) AS GrossProfit
-      FROM DayJoin
+        T.Revenue,
+        T.COGS,
+        CAST(T.Revenue - T.COGS AS DECIMAL(18,2)) AS GrossProfit,
+        (SELECT COALESCE(COUNT(DISTINCT OrderId),0) FROM ScopedSales WHERE OrderId IS NOT NULL) AS Orders,
+        (SELECT COALESCE(SUM(Qty),0) FROM ScopedSales) AS Items
+      FROM Totals T
     `);
 
   return result.recordset[0];

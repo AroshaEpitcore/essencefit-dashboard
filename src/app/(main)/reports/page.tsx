@@ -45,9 +45,9 @@ type InventoryRow = {
   Qty: number;
 };
 
-type SalesRow = { Product: string; Qty: number; Revenue: number };
+type SalesRow = { Product: string; Qty: number; Revenue: number; Cost: number; Profit: number };
 type ExpenseRow = { Category: string; Description: string; Amount: number; ExpenseDate: string | Date };
-type PnlRow = { Revenue: number; COGS: number; GrossProfit: number };
+type PnlRow = { Revenue: number; COGS: number; GrossProfit: number; Orders: number; Items: number };
 type DeadRow = { Product: string; Qty: number };
 type TopColorRow = { Color: string; Qty: number; Revenue: number };
 
@@ -154,7 +154,7 @@ export default function ReportPage() {
       if (activeTab === "inventory") setInventoryData(await runInventoryReport(filters));
       if (activeTab === "sales") setSalesData(await runSalesReport(filters));
       if (activeTab === "expenses") setExpensesData(await runExpensesReport(filters));
-      if (activeTab === "pnl") setPnlData(await runPnLReport(filters.from, filters.to));
+      if (activeTab === "pnl") setPnlData(await runPnLReport(filters));
       if (activeTab === "deadStock") setDeadStockData(await runDeadStockReport(filters));
       if (activeTab === "topColors") setTopColorsData(await runTopColorsReport(filters));
 
@@ -174,11 +174,13 @@ export default function ReportPage() {
   );
 
   const salesSummary = useMemo(() => {
-    if (!salesData) return { qty: 0, revenue: 0, rows: 0 };
+    if (!salesData) return { qty: 0, revenue: 0, cost: 0, profit: 0, rows: 0 };
     return {
       rows: salesData.length,
       qty: salesData.reduce((a, r) => a + Number(r.Qty || 0), 0),
       revenue: salesData.reduce((a, r) => a + Number(r.Revenue || 0), 0),
+      cost: salesData.reduce((a, r) => a + Number(r.Cost || 0), 0),
+      profit: salesData.reduce((a, r) => a + Number(r.Profit || 0), 0),
     };
   }, [salesData]);
 
@@ -371,9 +373,9 @@ export default function ReportPage() {
 
         {activeTab === "sales" && (
           <>
-            <Kpi title="Products" value={salesData ? num(salesSummary.rows) : "-"} />
             <Kpi title="Qty Sold" value={salesData ? num(salesSummary.qty) : "-"} />
             <Kpi title="Revenue" value={salesData ? money(salesSummary.revenue) : "-"} />
+            <Kpi title="Profit" value={salesData ? money(salesSummary.profit) : "-"} />
           </>
         )}
 
@@ -387,8 +389,8 @@ export default function ReportPage() {
 
         {activeTab === "pnl" && (
           <>
-            <Kpi title="Revenue" value={pnlData ? money(pnlData.Revenue) : "-"} />
-            <Kpi title="COGS" value={pnlData ? money(pnlData.COGS) : "-"} />
+            <Kpi title="Orders" value={pnlData ? num(pnlData.Orders) : "-"} />
+            <Kpi title="Items Sold" value={pnlData ? num(pnlData.Items) : "-"} />
             <Kpi title="Gross Profit" value={pnlData ? money(pnlData.GrossProfit) : "-"} />
           </>
         )}
@@ -466,6 +468,8 @@ export default function ReportPage() {
                     <Th>Product</Th>
                     <Th className="text-right">Qty</Th>
                     <Th className="text-right">Revenue</Th>
+                    <Th className="text-right">Cost</Th>
+                    <Th className="text-right">Profit</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -473,10 +477,21 @@ export default function ReportPage() {
                     <tr key={i} className="border-t border-gray-200 dark:border-gray-700 odd:bg-gray-50/60 dark:odd:bg-gray-900/20">
                       <Td className="font-medium">{r.Product}</Td>
                       <Td className="text-right">{num(r.Qty)}</Td>
-                      <Td className="text-right font-semibold text-green-600 dark:text-green-400">{money(r.Revenue)}</Td>
+                      <Td className="text-right text-green-600 dark:text-green-400">{money(r.Revenue)}</Td>
+                      <Td className="text-right text-red-600 dark:text-red-400">{money(r.Cost)}</Td>
+                      <Td className="text-right font-semibold">{money(r.Profit)}</Td>
                     </tr>
                   ))}
                 </tbody>
+                <tfoot className="sticky bottom-0 bg-gray-100 dark:bg-gray-700/50 border-t-2 border-gray-300 dark:border-gray-600">
+                  <tr className="font-bold">
+                    <Td>Total</Td>
+                    <Td className="text-right">{num(salesSummary.qty)}</Td>
+                    <Td className="text-right text-green-600 dark:text-green-400">{money(salesSummary.revenue)}</Td>
+                    <Td className="text-right text-red-600 dark:text-red-400">{money(salesSummary.cost)}</Td>
+                    <Td className="text-right">{money(salesSummary.profit)}</Td>
+                  </tr>
+                </tfoot>
               </table>
             </TableWrap>
           )
@@ -511,11 +526,22 @@ export default function ReportPage() {
 
         {activeTab === "pnl" && pnlData && (
           <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <KpiBig title="Orders" value={num(pnlData.Orders)} />
+              <KpiBig title="Items Sold" value={num(pnlData.Items)} />
               <KpiBig title="Revenue" value={money(pnlData.Revenue)} />
               <KpiBig title="COGS" value={money(pnlData.COGS)} />
               <KpiBig title="Gross Profit" value={money(pnlData.GrossProfit)} />
             </div>
+            {(filters.category || filters.product) && (
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-4">
+                Scoped P&L shows gross revenue for the selected{" "}
+                {filters.product ? "product" : "category"} — order-level discounts
+                and delivery fees are excluded (they can't be attributed to a single
+                category). Remove the Category/Product filter for the business-wide
+                net P&L.
+              </p>
+            )}
           </div>
         )}
 
