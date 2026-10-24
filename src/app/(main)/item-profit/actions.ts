@@ -81,9 +81,13 @@ export async function runItemProfit(filters: ItemProfitFilters) {
       JOIN Categories C ON P.CategoryId = C.Id
       LEFT JOIN Sizes Sz ON V.SizeId = Sz.Id
       LEFT JOIN Colors Cl ON V.ColorId = Cl.Id
-      WHERE (@CategoryId IS NULL OR P.CategoryId = @CategoryId)
-        AND (@ProductId IS NULL OR P.Id = @ProductId)
-        AND (@Channel IS NULL OR S.PaymentMethod = @Channel)
+      -- Casts are REQUIRED: these params are nullable and the mssql shim emits
+      -- untyped $n, so Postgres cannot infer a type in the "$n IS NULL" test and
+      -- throws 42P08 (could not determine data type) -- which surfaces in prod
+      -- as the masked Server Components render 500. CategoryId/Id are uuid.
+      WHERE ((@CategoryId)::uuid IS NULL OR P.CategoryId = (@CategoryId)::uuid)
+        AND ((@ProductId)::uuid IS NULL OR P.Id = (@ProductId)::uuid)
+        AND ((@Channel)::text IS NULL OR S.PaymentMethod = (@Channel)::text)
         AND ((@From)::date IS NULL OR CAST(S.SaleDate AS DATE) >= (@From)::date)
         AND ((@To)::date IS NULL OR CAST(S.SaleDate AS DATE) <= (@To)::date)
       GROUP BY C.Name, P.Name, Sz.Name, Cl.Name, COALESCE(S.PaymentMethod, 'Other')
