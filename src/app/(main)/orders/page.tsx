@@ -1647,7 +1647,7 @@ export default function OrdersPage() {
               ))}
 
               {/* Order summary — delivery always available (free needs Qty ≥ 3) */}
-              <div className="mt-4 w-full md:max-w-sm md:ml-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-900/30 p-4 flex flex-col gap-3 text-sm">
+              <div className="mt-4 w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-900/30 p-4 flex flex-col gap-3 text-sm">
                 <div className="flex items-center justify-between">
                   <span className="text-gray-500 dark:text-gray-400">Subtotal</span>
                   <b>Rs {subtotal.toFixed(2)}</b>
