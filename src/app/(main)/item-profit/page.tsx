@@ -2,14 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
-import {
-  getCategories,
-  getProducts,
-  getChannels,
-  runItemProfit,
-  type ItemProfitFilters,
-  type ItemProfitRow,
-} from "./actions";
+import { getCategories, getProducts, getChannels, runItemProfit } from "./actions";
+import type { ItemProfitFilters, ItemProfitRow } from "./types";
 import {
   Coins,
   Filter,
@@ -19,6 +13,7 @@ import {
   TrendingUp,
   Layers,
   ArrowUpDown,
+  CalendarDays,
 } from "lucide-react";
 
 type Option = { Id: string; Name: string };
@@ -36,6 +31,54 @@ const EMPTY_FILTERS: Filters = { category: "", product: "", channel: "", from: "
 type GroupMode = "variant" | "product";
 type SortKey = "profit" | "revenue" | "cost" | "qty" | "margin";
 type SortDir = "asc" | "desc";
+
+type RangeKey = "today" | "yesterday" | "thisWeek" | "thisMonth" | "lastMonth" | "all";
+const RANGE_PRESETS: { key: RangeKey; label: string }[] = [
+  { key: "today", label: "Today" },
+  { key: "yesterday", label: "Yesterday" },
+  { key: "thisWeek", label: "This Week" },
+  { key: "thisMonth", label: "This Month" },
+  { key: "lastMonth", label: "Last Month" },
+  { key: "all", label: "All Time" },
+];
+
+function ymd(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** Local-time from/to (inclusive) for a named range. "" means unbounded. */
+function rangeFor(key: RangeKey): { from: string; to: string } {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  switch (key) {
+    case "today":
+      return { from: ymd(today), to: ymd(today) };
+    case "yesterday": {
+      const y = new Date(today);
+      y.setDate(y.getDate() - 1);
+      return { from: ymd(y), to: ymd(y) };
+    }
+    case "thisWeek": {
+      const d = new Date(today);
+      const dow = (d.getDay() + 6) % 7; // Monday = 0
+      d.setDate(d.getDate() - dow);
+      return { from: ymd(d), to: ymd(today) };
+    }
+    case "thisMonth":
+      return { from: ymd(new Date(now.getFullYear(), now.getMonth(), 1)), to: ymd(today) };
+    case "lastMonth":
+      return {
+        from: ymd(new Date(now.getFullYear(), now.getMonth() - 1, 1)),
+        to: ymd(new Date(now.getFullYear(), now.getMonth(), 0)),
+      };
+    case "all":
+    default:
+      return { from: "", to: "" };
+  }
+}
 
 /** A display row after grouping (variant-level or rolled up to product). */
 type Line = {
@@ -71,6 +114,7 @@ export default function ItemProfitPage() {
   const [channels, setChannels] = useState<string[]>([]);
 
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
+  const [activeRange, setActiveRange] = useState<RangeKey | null>(null);
   const [rows, setRows] = useState<ItemProfitRow[] | null>(null);
 
   const [loading, setLoading] = useState(false);
@@ -82,7 +126,8 @@ export default function ItemProfitPage() {
   const [sortKey, setSortKey] = useState<SortKey>("profit");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
-  // Load filter dropdowns once.
+  // Load filter dropdowns once, then auto-load This Month so the tiles populate
+  // without a manual click.
   useEffect(() => {
     (async () => {
       try {
@@ -93,7 +138,13 @@ export default function ItemProfitPage() {
       } catch (e) {
         toast.error((e as Error)?.message || "Failed to load filters");
       }
+      const { from, to } = rangeFor("thisMonth");
+      const next = { ...EMPTY_FILTERS, from, to };
+      setFilters(next);
+      setActiveRange("thisMonth");
+      generate(next);
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Cascade products when category changes.
@@ -109,24 +160,32 @@ export default function ItemProfitPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.category]);
 
-  async function generate() {
+  async function generate(f: Filters = filters) {
     setLoading(true);
     try {
       const payload: ItemProfitFilters = {
-        category: filters.category || undefined,
-        product: filters.product || undefined,
-        channel: filters.channel || undefined,
-        from: filters.from || undefined,
-        to: filters.to || undefined,
+        category: f.category || undefined,
+        product: f.product || undefined,
+        channel: f.channel || undefined,
+        from: f.from || undefined,
+        to: f.to || undefined,
       };
       setRows(await runItemProfit(payload));
       setGeneratedAt(new Date().toLocaleString());
-      toast.success("Report generated");
     } catch (e) {
       toast.error((e as Error)?.message || "Failed to run report");
     } finally {
       setLoading(false);
     }
+  }
+
+  // Apply a named date range (keeps category/product/channel) and reload.
+  function applyPreset(key: RangeKey) {
+    const { from, to } = rangeFor(key);
+    const next = { ...filters, from, to };
+    setFilters(next);
+    setActiveRange(key);
+    generate(next);
   }
 
   // Group + filter + sort the raw rows into display lines.
@@ -175,6 +234,23 @@ export default function ItemProfitPage() {
     }
     return Array.from(map.values()).sort((a, b) => b.revenue - a.revenue);
   }, [lines]);
+
+  // Per-channel summary (DTF, cash/order, PrintJob, …) from the raw rows —
+  // ignores the text search so period totals stay stable.
+  const channelSummary = useMemo(() => {
+    if (!rows) return [];
+    const map = new Map<string, { channel: string; qty: number; revenue: number; cost: number; profit: number }>();
+    for (const r of rows) {
+      const ch = r.PaymentMethod || "Other";
+      const cur = map.get(ch) || { channel: ch, qty: 0, revenue: 0, cost: 0, profit: 0 };
+      cur.qty += Number(r.Qty || 0);
+      cur.revenue += Number(r.Revenue || 0);
+      cur.cost += Number(r.Cost || 0);
+      cur.profit += Number(r.Profit || 0);
+      map.set(ch, cur);
+    }
+    return Array.from(map.values()).sort((a, b) => b.revenue - a.revenue);
+  }, [rows]);
 
   // Grand totals.
   const totals = useMemo(() => {
@@ -294,12 +370,37 @@ export default function ItemProfitPage() {
             Filters
           </h2>
           <button
-            onClick={() => setFilters(EMPTY_FILTERS)}
+            onClick={() => {
+              setFilters(EMPTY_FILTERS);
+              setActiveRange(null);
+            }}
             className="text-sm px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors flex items-center gap-2"
           >
             <RefreshCcw className="w-4 h-4" />
             Reset
           </button>
+        </div>
+
+        {/* Quick date ranges — auto-loads cost & profit for the chosen period */}
+        <div className="flex flex-wrap items-center gap-2 mb-5">
+          <span className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1 mr-1">
+            <CalendarDays className="w-4 h-4" />
+            Period:
+          </span>
+          {RANGE_PRESETS.map((r) => (
+            <button
+              key={r.key}
+              onClick={() => applyPreset(r.key)}
+              disabled={loading}
+              className={`px-3 py-1.5 text-sm rounded-lg border transition-colors disabled:opacity-60 ${
+                activeRange === r.key
+                  ? "bg-primary text-white border-primary"
+                  : "bg-white dark:bg-gray-800/50 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700/50"
+              }`}
+            >
+              {r.label}
+            </button>
+          ))}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
@@ -346,7 +447,10 @@ export default function ItemProfitPage() {
             <input
               type="date"
               value={filters.from}
-              onChange={(e) => setFilters((f) => ({ ...f, from: e.target.value }))}
+              onChange={(e) => {
+                setFilters((f) => ({ ...f, from: e.target.value }));
+                setActiveRange(null);
+              }}
               className="w-full input"
             />
           </Field>
@@ -355,7 +459,10 @@ export default function ItemProfitPage() {
             <input
               type="date"
               value={filters.to}
-              onChange={(e) => setFilters((f) => ({ ...f, to: e.target.value }))}
+              onChange={(e) => {
+                setFilters((f) => ({ ...f, to: e.target.value }));
+                setActiveRange(null);
+              }}
               className="w-full input"
             />
           </Field>
@@ -363,7 +470,7 @@ export default function ItemProfitPage() {
 
         <div className="mt-6 flex justify-end">
           <button
-            onClick={generate}
+            onClick={() => generate()}
             disabled={loading}
             className="bg-primary hover:bg-primary/90 text-white font-semibold rounded-lg px-6 py-3 flex items-center gap-2 disabled:opacity-60 transition-colors"
           >
@@ -389,6 +496,45 @@ export default function ItemProfitPage() {
             <Kpi title="Units Sold" value={num(totals.qty)} />
             <Kpi title={groupMode === "variant" ? "Items" : "Products"} value={num(totals.items)} />
           </div>
+
+          {/* Per-channel summary — DTF, cash/order, PrintJob … each with its
+              own sales, item cost and profit. */}
+          {channelSummary.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+              {channelSummary.map((c) => (
+                <div
+                  key={c.channel}
+                  className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-xl p-5"
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="font-semibold">{c.channel}</span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                      {num(c.qty)} units
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-sm">
+                    <div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Sales</p>
+                      <p className="font-bold text-green-600 dark:text-green-400">{money(c.revenue)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Cost</p>
+                      <p className="font-bold text-red-600 dark:text-red-400">{money(c.cost)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Profit</p>
+                      <p className={`font-bold ${c.profit < 0 ? "text-red-600 dark:text-red-400" : ""}`}>
+                        {money(c.profit)}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                    Margin {pct(c.revenue ? c.profit / c.revenue : 0)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Per-category summary */}
           {categorySummary.length > 0 && (

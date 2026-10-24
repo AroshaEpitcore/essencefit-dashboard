@@ -2,26 +2,7 @@
 
 import { requireAdmin } from "@/lib/adminAuth";
 import { getDb } from "@/lib/db";
-
-export type ItemProfitFilters = {
-  category?: string;
-  product?: string;
-  channel?: string;
-  from?: string;
-  to?: string;
-};
-
-/** Variant-level sales row — cost, revenue and profit kept separate. */
-export type ItemProfitRow = {
-  Category: string;
-  Product: string;
-  Size: string;
-  Color: string;
-  Qty: number;
-  Revenue: number;
-  Cost: number;
-  Profit: number;
-};
+import type { ItemProfitFilters, ItemProfitRow } from "./types";
 
 /** Categories for the filter dropdown. */
 export async function getCategories() {
@@ -89,6 +70,7 @@ export async function runItemProfit(filters: ItemProfitFilters) {
         P.Name AS Product,
         COALESCE(Sz.Name, '') AS Size,
         COALESCE(Cl.Name, '') AS Color,
+        COALESCE(S.PaymentMethod, 'Other') AS PaymentMethod,
         SUM(S.Qty) AS Qty,
         CAST(SUM(S.Qty * S.SellingPrice) AS DECIMAL(18,2)) AS Revenue,
         CAST(SUM(S.Qty * S.CostPrice) AS DECIMAL(18,2)) AS Cost,
@@ -104,7 +86,7 @@ export async function runItemProfit(filters: ItemProfitFilters) {
         AND (@Channel IS NULL OR S.PaymentMethod = @Channel)
         AND ((@From)::date IS NULL OR CAST(S.SaleDate AS DATE) >= (@From)::date)
         AND ((@To)::date IS NULL OR CAST(S.SaleDate AS DATE) <= (@To)::date)
-      GROUP BY C.Name, P.Name, Sz.Name, Cl.Name
+      GROUP BY C.Name, P.Name, Sz.Name, Cl.Name, COALESCE(S.PaymentMethod, 'Other')
       ORDER BY C.Name, P.Name, Sz.Name, Cl.Name
     `);
 
