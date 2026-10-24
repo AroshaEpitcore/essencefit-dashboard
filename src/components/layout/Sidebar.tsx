@@ -36,6 +36,7 @@ import {
   Radio,
   Megaphone,
   Activity,
+  Coins,
 } from "lucide-react";
 import { Tooltip } from "react-tooltip";
 
@@ -65,6 +66,7 @@ const navItems = [
   { href: "/color-requests", label: "Color Requests", icon: Palette },
   { href: "/suppliers", label: "Suppliers", icon: Truck },
   { href: "/reports", label: "Reports", icon: FileText },
+  { href: "/item-profit", label: "Item Profit", icon: Coins },
   { href: "/analysis", label: "Analysis", icon: BarChart3 },
   { href: "/analytics", label: "Website Analytics", icon: Radio },
   { href: "/users", label: "Users", icon: Users },

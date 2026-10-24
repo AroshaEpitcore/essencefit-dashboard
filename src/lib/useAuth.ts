@@ -14,6 +14,7 @@ const ADMIN_ONLY_ROUTES = [
   "/finance",
   "/expenses",
   "/reports",
+  "/item-profit",
   "/users",
   "/settings",
   "/dtf",
