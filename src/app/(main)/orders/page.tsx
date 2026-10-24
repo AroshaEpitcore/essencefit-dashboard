@@ -103,8 +103,6 @@ const RANGE_OPTIONS: Array<{ key: OrderRange; label: string }> = [
   { key: "all", label: "All" },
 ];
 
-const DELIVERY_OPTIONS = [400, 450, 500] as const;
-
 // Max orders to load for the list/status chips. High enough that the status
 // filter chips and the list are never silently capped below the real total.
 const ORDERS_LIST_LIMIT = 2000;
@@ -1656,70 +1654,65 @@ export default function OrdersPage() {
                   />
                 </div>
 
-                {eligibleFreeDelivery && (
-                  <div className="flex flex-col gap-2 text-sm">
-                    <div className="flex items-center justify-between">
-                      <span>Total Qty:</span>
-                      <b>{totalQty}</b>
-                    </div>
+                {/* Delivery — always available (free delivery needs Qty ≥ 3). */}
+                <div className="flex flex-col gap-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span>Total Qty:</span>
+                    <b>{totalQty}</b>
+                  </div>
 
-                    <ToggleSwitch
-                      checked={isFreeDelivery}
-                      onChange={setIsFreeDelivery}
-                      label="Free Delivery — I pay courier (Qty ≥ 3)"
-                    />
+                  <ToggleSwitch
+                    checked={isFreeDelivery}
+                    onChange={setIsFreeDelivery}
+                    disabled={!eligibleFreeDelivery}
+                    label="Free Delivery — I pay courier (Qty ≥ 3)"
+                  />
 
-                    {isFreeDelivery ? (
-                      <>
-                        <div className="flex items-center gap-2">
-                          <span>Courier cost:</span>
-                          <select
-                            value={selectedDeliveryCharge}
-                            onChange={(e) =>
-                              setSelectedDeliveryCharge(Number(e.target.value))
-                            }
-                            className="bg-white dark:bg-gray-800 border rounded-lg px-2 py-1"
-                          >
-                            {DELIVERY_OPTIONS.map((x) => (
-                              <option key={x} value={x}>
-                                Rs {x}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="text-xs text-red-600">
-                          Delivery cost (you pay): Rs {deliverySaving.toFixed(2)} — reduces profit, not a discount
-                        </div>
-                      </>
-                    ) : (
+                  {isFreeDelivery ? (
+                    <>
                       <div className="flex items-center gap-2">
-                        <span>Delivery charge (customer pays):</span>
+                        <span>Courier cost I pay:</span>
                         <input
                           type="number"
                           min={0}
-                          value={customerDeliveryFee || ""}
-                          onChange={(e) => setCustomerDeliveryFee(parseFloat(e.target.value || "0"))}
+                          value={selectedDeliveryCharge || ""}
+                          onChange={(e) => setSelectedDeliveryCharge(parseFloat(e.target.value || "0"))}
                           placeholder="0"
                           className="bg-white dark:bg-gray-800 border rounded-lg px-2 py-1 w-24"
                         />
-                        <span className="text-xs text-gray-500">added to total · pass-through</span>
                       </div>
-                    )}
+                      <div className="text-xs text-red-600">
+                        Delivery cost (you pay): Rs {deliverySaving.toFixed(2)} — reduces profit, not a discount
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span>Delivery charge (customer pays):</span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={customerDeliveryFee || ""}
+                        onChange={(e) => setCustomerDeliveryFee(parseFloat(e.target.value || "0"))}
+                        placeholder="0"
+                        className="bg-white dark:bg-gray-800 border rounded-lg px-2 py-1 w-24"
+                      />
+                      <span className="text-xs text-gray-500">added to total · not profit</span>
+                    </div>
+                  )}
 
-                    {/* Delivery ETA */}
-                    {(() => {
-                      const charge = isFreeDelivery ? selectedDeliveryCharge : 300;
-                      const eta = getDeliveryETA(charge, orderDate);
-                      return (
-                        <div className="text-xs mt-1 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                          <span className="text-blue-600 dark:text-blue-400">
-                            📦 ETA: {eta.days} ({eta.date})
-                          </span>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                )}
+                  {/* Delivery ETA */}
+                  {(() => {
+                    const charge = isFreeDelivery ? selectedDeliveryCharge : (customerDeliveryFee || 300);
+                    const eta = getDeliveryETA(charge, orderDate);
+                    return (
+                      <div className="text-xs mt-1 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                        <span className="text-blue-600 dark:text-blue-400">
+                          📦 ETA: {eta.days} ({eta.date})
+                        </span>
+                      </div>
+                    );
+                  })()}
+                </div>
 
                 <div className="text-sm">
                   Total: <b className="text-primary">Rs {total.toFixed(2)}</b>
@@ -2636,20 +2629,15 @@ export default function OrdersPage() {
                 {editIsFreeDelivery ? (
                   <>
                     <div className="flex items-center gap-2">
-                      <span>Courier cost:</span>
-                      <select
-                        value={editSelectedDeliveryCharge}
-                        onChange={(e) =>
-                          setEditSelectedDeliveryCharge(Number(e.target.value))
-                        }
-                        className="bg-white dark:bg-gray-800 border rounded-lg px-2 py-1"
-                      >
-                        {DELIVERY_OPTIONS.map((x) => (
-                          <option key={x} value={x}>
-                            Rs {x}
-                          </option>
-                        ))}
-                      </select>
+                      <span>Courier cost I pay:</span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={editSelectedDeliveryCharge || ""}
+                        onChange={(e) => setEditSelectedDeliveryCharge(parseFloat(e.target.value || "0"))}
+                        placeholder="0"
+                        className="bg-white dark:bg-gray-800 border rounded-lg px-2 py-1 w-24"
+                      />
                     </div>
                     <div className="text-xs text-red-600">
                       Delivery cost (you pay): Rs {editDeliverySaving.toFixed(2)} — reduces profit
