@@ -91,7 +91,8 @@ export async function updateDtfOrderPricing(
   id: string,
   finalTotal: number | null,
   advanceAmount: number | null,
-  adminNote: string | null
+  adminNote: string | null,
+  extras?: { discount?: number; deliveryFee?: number; deliveryCost?: number }
 ): Promise<DtfResult> {
   await requireAdmin();
   const pool = await getDb();
@@ -101,7 +102,11 @@ export async function updateDtfOrderPricing(
     .input("FinalTotal", Decimal(10, 2), finalTotal ?? null)
     .input("AdvanceAmount", Decimal(10, 2), advanceAmount ?? null)
     .input("AdminNote", NVarChar(sql.MAX), adminNote || null)
-    .query(`UPDATE DtfOrders SET FinalTotal=@FinalTotal, AdvanceAmount=@AdvanceAmount, AdminNote=@AdminNote WHERE Id=@Id`);
+    .input("Discount", Decimal(18, 2), Number(extras?.discount ?? 0))
+    .input("DeliveryFee", Decimal(18, 2), Number(extras?.deliveryFee ?? 0))
+    .input("DeliveryCost", Decimal(18, 2), Number(extras?.deliveryCost ?? 0))
+    .query(`UPDATE DtfOrders SET FinalTotal=@FinalTotal, AdvanceAmount=@AdvanceAmount, AdminNote=@AdminNote,
+            Discount=@Discount, DeliveryFee=@DeliveryFee, DeliveryCost=@DeliveryCost WHERE Id=@Id`);
 
   await syncDtfOrderSales(() => pool.request(), id);
   return { ok: true };
@@ -182,7 +187,9 @@ export async function confirmDtfOrder(id: string): Promise<DtfResult> {
 async function syncDtfOrderSales(requestFactory: () => any, dtfOrderId: string) {
   const r = await requestFactory()
     .input("Id", UniqueIdentifier, dtfOrderId)
-    .query(`SELECT Status, VariantId, Qty, FinalTotal, EstimatedTotal, GarmentPrice, PrintCharges, BreakdownJson, CreatedAt FROM DtfOrders WHERE Id=@Id LIMIT 1`);
+    .query(`SELECT Status, VariantId, Qty, FinalTotal, EstimatedTotal, GarmentPrice, PrintCharges, BreakdownJson, CreatedAt,
+                   COALESCE(Discount,0) AS Discount, COALESCE(DeliveryCost,0) AS DeliveryCost
+            FROM DtfOrders WHERE Id=@Id LIMIT 1`);
   const o = r.recordset[0];
   if (!o) return;
 
@@ -193,7 +200,9 @@ async function syncDtfOrderSales(requestFactory: () => any, dtfOrderId: string) 
   if (o.Status === "Completed" && o.VariantId) {
     const qty = o.Qty || 1;
     const total = Number(o.FinalTotal ?? o.EstimatedTotal ?? 0);
-    const unitPrice = total / qty;
+    // Discount reduces revenue; delivery the customer pays is pass-through and
+    // is NOT part of FinalTotal here, so nothing to subtract for it.
+    const unitPrice = (total - Number(o.Discount ?? 0)) / qty;
 
     const garmentPrice = Number(o.GarmentPrice ?? 0);
     let unitCost = garmentPrice + Number(o.PrintCharges ?? 0); // conservative fallback
@@ -206,6 +215,9 @@ async function syncDtfOrderSales(requestFactory: () => any, dtfOrderId: string) 
     } catch {
       // keep the conservative fallback above
     }
+    // Free-delivery courier fee the owner paid is a cost → fold into COGS so
+    // profit (SellingPrice − CostPrice) drops by it, via the Sales-based readers.
+    unitCost += Number(o.DeliveryCost ?? 0) / qty;
 
     await requestFactory()
       .input("SaleId", UniqueIdentifier, crypto.randomUUID())

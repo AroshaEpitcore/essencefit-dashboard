@@ -334,6 +334,9 @@ CREATE TABLE IF NOT EXISTS dtforders (
   breakdownjson text,
   finaltotal numeric(10,2),
   advanceamount numeric(10,2),
+  discount numeric(18,2) NOT NULL DEFAULT 0,      -- real discount on the DTF job
+  deliveryfee numeric(18,2) NOT NULL DEFAULT 0,   -- customer-paid delivery (pass-through)
+  deliverycost numeric(18,2) NOT NULL DEFAULT 0,  -- owner-paid courier fee (free delivery; a cost)
   status text NOT NULL DEFAULT 'Pending',
   stockdeducted boolean NOT NULL DEFAULT false,
   adminnote text,

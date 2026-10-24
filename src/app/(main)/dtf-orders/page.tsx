@@ -186,6 +186,9 @@ function DetailModal({ id, onClose, onChanged }: { id: string; onClose: () => vo
   const [finalTotal, setFinalTotal] = useState("");
   const [advance, setAdvance] = useState("");
   const [adminNote, setAdminNote] = useState("");
+  const [discount, setDiscount] = useState("");
+  const [deliveryFee, setDeliveryFee] = useState("");   // customer pays (pass-through)
+  const [deliveryCost, setDeliveryCost] = useState(""); // free delivery — you pay courier
 
   async function load() {
     setLoading(true);
@@ -196,6 +199,9 @@ function DetailModal({ id, onClose, onChanged }: { id: string; onClose: () => vo
       setFinalTotal(order.FinalTotal != null ? String(order.FinalTotal) : "");
       setAdvance(order.AdvanceAmount != null ? String(order.AdvanceAmount) : "");
       setAdminNote(order.AdminNote || "");
+      setDiscount(Number(order.Discount) ? String(order.Discount) : "");
+      setDeliveryFee(Number(order.DeliveryFee) ? String(order.DeliveryFee) : "");
+      setDeliveryCost(Number(order.DeliveryCost) ? String(order.DeliveryCost) : "");
     } catch {
       toast.error("Failed to load order");
       onClose();
@@ -212,7 +218,12 @@ function DetailModal({ id, onClose, onChanged }: { id: string; onClose: () => vo
         id,
         finalTotal.trim() === "" ? null : Number(finalTotal),
         advance.trim() === "" ? null : Number(advance),
-        adminNote || null
+        adminNote || null,
+        {
+          discount: discount.trim() === "" ? 0 : Number(discount),
+          deliveryFee: deliveryFee.trim() === "" ? 0 : Number(deliveryFee),
+          deliveryCost: deliveryCost.trim() === "" ? 0 : Number(deliveryCost),
+        }
       );
       if (!res.ok) throw new Error(res.error);
       toast.success("Saved");
@@ -353,6 +364,27 @@ function DetailModal({ id, onClose, onChanged }: { id: string; onClose: () => vo
                   className="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2.5" />
               </div>
             </div>
+
+            {/* Delivery & discount — recorded separately; delivery the customer
+                pays is pass-through (not profit), free-delivery cost reduces profit. */}
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Discount (Rs)</label>
+                <input type="number" min={0} value={discount} onChange={(e) => setDiscount(e.target.value)}
+                  className="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2.5" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Delivery — customer pays (Rs)</label>
+                <input type="number" min={0} value={deliveryFee} onChange={(e) => setDeliveryFee(e.target.value)}
+                  className="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2.5" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Free delivery — courier cost I pay (Rs)</label>
+                <input type="number" min={0} value={deliveryCost} onChange={(e) => setDeliveryCost(e.target.value)}
+                  className="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2.5" />
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium mb-1">Admin note</label>
               <textarea value={adminNote} onChange={(e) => setAdminNote(e.target.value)} rows={2}
