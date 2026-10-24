@@ -1,8 +1,9 @@
-import { describe, it, expect } from "vitest";
-import { money } from "@/components/shop/format";
+// Smoke test — zero-dependency (Node's built-in runner). Verifies the money
+// formatter. (Was vitest, which isn't installed; converted to node:test.)
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { money } from "../../src/components/shop/format.ts";
 
-describe("unit smoke", () => {
-  it("runs and resolves the @ alias to src", () => {
-    expect(money(1890)).toBe("Rs. 1,890");
-  });
+test("money() formats rupees with thousands separators", () => {
+  assert.equal(money(1890), "Rs. 1,890");
 });

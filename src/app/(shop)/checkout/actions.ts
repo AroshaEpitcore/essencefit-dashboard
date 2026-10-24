@@ -150,7 +150,11 @@ export async function createWebOrder(
       !!config.freeDeliveryCategoryId &&
       config.freeDeliveryCategoryQty > 0 &&
       freeCategoryQty >= config.freeDeliveryCategoryQty;
-    const deliveryFee = freeByValue || freeByCategory ? 0 : baseFee;
+    const freeDelivery = freeByValue || freeByCategory;
+    const deliveryFee = freeDelivery ? 0 : baseFee;
+    // When we give free delivery, the customer pays no delivery but WE still pay
+    // the courier that baseFee — record it as a delivery cost (reduces profit).
+    const deliveryCost = freeDelivery ? baseFee : 0;
     const total = subtotal + deliveryFee;
 
     // 3) Upsert customer by phone (auto-creates the customer record / account)
@@ -230,14 +234,15 @@ export async function createWebOrder(
       .input("ManualDiscount", Decimal(18, 2), 0)
       .input("Discount", Decimal(18, 2), 0)
       .input("DeliveryFee", Decimal(18, 2), deliveryFee)
+      .input("DeliveryCost", Decimal(18, 2), deliveryCost)
       .input("Total", Decimal(18, 2), total)
       .query(`
         INSERT INTO Orders (Id, Customer, CustomerPhone, SecondaryPhone, Address, Province, CustomerEmail,
           Notes, CustomerId, Source, PaymentMethod, PaymentSlipUrl, PaymentStatus, OrderDate,
-          Subtotal, ManualDiscount, Discount, DeliveryFee, Total)
+          Subtotal, ManualDiscount, Discount, DeliveryFee, DeliveryCost, Total)
         VALUES (@Id, @Customer, @CustomerPhone, @SecondaryPhone, @Address, @Province, @CustomerEmail,
           @Notes, @CustomerId, @Source, @PaymentMethod, @PaymentSlipUrl, @PaymentStatus, @OrderDate,
-          @Subtotal, @ManualDiscount, @Discount, @DeliveryFee, @Total)
+          @Subtotal, @ManualDiscount, @Discount, @DeliveryFee, @DeliveryCost, @Total)
       `);
 
     // 5) Items + stock reduction

@@ -187,9 +187,10 @@ export type OrderPayload = {
 
   Subtotal: number;
   ManualDiscount: number;
-  DeliverySaving: number;
-  Discount: number;     // includes delivery-saving
-  DeliveryFee: number;  // always 0 by your rule
+  DeliverySaving: number;   // legacy mirror of DeliveryCost (free-delivery amount)
+  Discount: number;         // real discounts on goods only (NO delivery)
+  DeliveryFee: number;      // delivery the customer pays (pass-through; excluded from P&L)
+  DeliveryCost?: number;    // delivery the owner pays the courier on free delivery (a cost)
   Total: number;
 
   Items: OrderItemInput[];
@@ -273,7 +274,7 @@ export async function getOrderDetails(orderId: string) {
     .query(`
       SELECT Id, Customer, CustomerPhone, SecondaryPhone, Address, WaybillId, PackagePrintPrice, Notes,
         PaymentStatus, DeliveryStatus, OrderDate,
-        Subtotal, ManualDiscount, Discount, DeliveryFee, Total
+        Subtotal, ManualDiscount, Discount, DeliveryFee, DeliveryCost, Total
       FROM Orders
       WHERE Id=@Id LIMIT 1
     `);
@@ -588,10 +589,11 @@ export async function createOrder(payload: OrderPayload): Promise<ActionResult<{
       .input("ManualDiscount", Decimal(18, 2), payload.ManualDiscount)
       .input("Discount", Decimal(18, 2), payload.Discount)
       .input("DeliveryFee", Decimal(18, 2), payload.DeliveryFee)
+      .input("DeliveryCost", Decimal(18, 2), payload.DeliveryCost ?? 0)
       .input("Total", Decimal(18, 2), payload.Total)
       .query(`
-        INSERT INTO Orders (Id, Customer, CustomerPhone, SecondaryPhone, Address, WaybillId, PackagePrintPrice, Notes, CustomerId, PaymentStatus, OrderDate, CompletedAt, Subtotal, ManualDiscount, Discount, DeliveryFee, Total)
-        VALUES (@Id, @Customer, @CustomerPhone, @SecondaryPhone, @Address, @WaybillId, @PackagePrintPrice, @Notes, @CustomerId, @PaymentStatus, @OrderDate, @CompletedAt, @Subtotal, @ManualDiscount, @Discount, @DeliveryFee, @Total)
+        INSERT INTO Orders (Id, Customer, CustomerPhone, SecondaryPhone, Address, WaybillId, PackagePrintPrice, Notes, CustomerId, PaymentStatus, OrderDate, CompletedAt, Subtotal, ManualDiscount, Discount, DeliveryFee, DeliveryCost, Total)
+        VALUES (@Id, @Customer, @CustomerPhone, @SecondaryPhone, @Address, @WaybillId, @PackagePrintPrice, @Notes, @CustomerId, @PaymentStatus, @OrderDate, @CompletedAt, @Subtotal, @ManualDiscount, @Discount, @DeliveryFee, @DeliveryCost, @Total)
       `);
 
     await validateAndReduceStock(tx, payload.Items, "order-sale", orderId);
@@ -921,6 +923,7 @@ export async function updateOrder(orderId: string, payload: OrderPayload): Promi
       .input("ManualDiscount", Decimal(18, 2), payload.ManualDiscount)
       .input("Discount", Decimal(18, 2), payload.Discount)
       .input("DeliveryFee", Decimal(18, 2), payload.DeliveryFee)
+      .input("DeliveryCost", Decimal(18, 2), payload.DeliveryCost ?? 0)
       .input("Total", Decimal(18, 2), payload.Total)
       .query(`
         UPDATE Orders
@@ -938,6 +941,7 @@ export async function updateOrder(orderId: string, payload: OrderPayload): Promi
             ManualDiscount=@ManualDiscount,
             Discount=@Discount,
             DeliveryFee=@DeliveryFee,
+            DeliveryCost=@DeliveryCost,
             Total=@Total
         WHERE Id=@Id
       `);

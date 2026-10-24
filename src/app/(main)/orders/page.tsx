@@ -5,6 +5,7 @@ import toast, { Toaster } from "react-hot-toast";
 import { motion } from "framer-motion";
 import { generateInvoicePDF, getWhatsAppMessage } from "./invoiceActions";
 import { downloadPDF } from "@/lib/pdfGenerator";
+import { orderTotal } from "@/lib/orderMoney";
 import { getProductInfo } from "./actions";
 import { Search, X } from "lucide-react";
 import {
@@ -232,6 +233,8 @@ export default function OrdersPage() {
   const [isFreeDelivery, setIsFreeDelivery] = useState(false);
   const [selectedDeliveryCharge, setSelectedDeliveryCharge] =
     useState<number>(300);
+  // Delivery the customer pays on a normal order (pass-through; not profit).
+  const [customerDeliveryFee, setCustomerDeliveryFee] = useState<number>(0);
 
   const [lines, setLines] = useState<LineDraft[]>([]);
 
@@ -285,6 +288,7 @@ export default function OrdersPage() {
   const [editIsFreeDelivery, setEditIsFreeDelivery] = useState(false);
   const [editSelectedDeliveryCharge, setEditSelectedDeliveryCharge] =
     useState<number>(300);
+  const [editCustomerDeliveryFee, setEditCustomerDeliveryFee] = useState<number>(0);
 
   const [editLines, setEditLines] = useState<LineDraft[]>([]);
 
@@ -847,20 +851,25 @@ export default function OrdersPage() {
     if (!eligibleFreeDelivery) setIsFreeDelivery(false);
   }, [eligibleFreeDelivery]);
 
+  // Free delivery => the OWNER pays the courier; recorded as DeliveryCost (a
+  // cost that reduces profit), NOT a discount and NOT a reduction of the Total.
   const deliverySaving = useMemo(() => {
     if (!eligibleFreeDelivery) return 0;
     return isFreeDelivery ? Number(selectedDeliveryCharge || 0) : 0;
   }, [eligibleFreeDelivery, isFreeDelivery, selectedDeliveryCharge]);
 
-  const effectiveDeliveryFee = 0;
+  // Customer-paid delivery (normal orders): added to the Total the customer
+  // pays, but pass-through — excluded from profit/P&L. Only when NOT free.
+  const effectiveDeliveryFee = useMemo(() => {
+    return isFreeDelivery ? 0 : Number(customerDeliveryFee || 0);
+  }, [isFreeDelivery, customerDeliveryFee]);
 
-  const computedDiscount = useMemo(() => {
-    return Number(discount || 0) + Number(deliverySaving || 0);
-  }, [discount, deliverySaving]);
+  // Discount is real discounts on goods only now (delivery is handled separately).
+  const computedDiscount = useMemo(() => Number(discount || 0), [discount]);
 
   const total = useMemo(() => {
-    return Math.max(0, subtotal - computedDiscount + effectiveDeliveryFee);
-  }, [subtotal, computedDiscount]);
+    return orderTotal({ subtotal, discount: computedDiscount, deliveryFee: effectiveDeliveryFee });
+  }, [subtotal, computedDiscount, effectiveDeliveryFee]);
 
   // ✅ edit totals
   const editSubtotal = useMemo(
@@ -887,19 +896,17 @@ export default function OrdersPage() {
     editSelectedDeliveryCharge,
   ]);
 
-  // ✅ ALSO ALWAYS 0 in edit
-  const editEffectiveDeliveryFee = 0;
+  // Customer-paid delivery on a normal order (pass-through; not profit).
+  const editEffectiveDeliveryFee = useMemo(() => {
+    return editIsFreeDelivery ? 0 : Number(editCustomerDeliveryFee || 0);
+  }, [editIsFreeDelivery, editCustomerDeliveryFee]);
 
-  const editComputedDiscount = useMemo(() => {
-    return Number(editDiscount || 0) + Number(editDeliverySaving || 0);
-  }, [editDiscount, editDeliverySaving]);
+  // Real discounts on goods only.
+  const editComputedDiscount = useMemo(() => Number(editDiscount || 0), [editDiscount]);
 
   const editTotal = useMemo(() => {
-    return Math.max(
-      0,
-      editSubtotal - editComputedDiscount + editEffectiveDeliveryFee
-    );
-  }, [editSubtotal, editComputedDiscount]);
+    return orderTotal({ subtotal: editSubtotal, discount: editComputedDiscount, deliveryFee: editEffectiveDeliveryFee });
+  }, [editSubtotal, editComputedDiscount, editEffectiveDeliveryFee]);
 
   async function handleWhatsAppShare(orderId: string, customerPhone: string) {
     if (!customerPhone) {
@@ -976,7 +983,8 @@ export default function OrdersPage() {
       ManualDiscount: Number(discount.toFixed(2)),
       DeliverySaving: Number(deliverySaving.toFixed(2)),
       Discount: Number(computedDiscount.toFixed(2)),
-      DeliveryFee: 0,
+      DeliveryFee: Number(effectiveDeliveryFee.toFixed(2)),
+      DeliveryCost: Number(deliverySaving.toFixed(2)),
       Total: Number(total.toFixed(2)),
       Items: lines.map<OrderItemInput>((l) => ({
         VariantId: l.variant!.VariantId,
@@ -1002,6 +1010,7 @@ export default function OrdersPage() {
       setDiscount(0);
       setIsFreeDelivery(false);
       setSelectedDeliveryCharge(300);
+      setCustomerDeliveryFee(0);
       await loadRecent();
     } catch (e: any) {
       toast.error(e.message ?? "Failed to save order");
@@ -1107,22 +1116,16 @@ export default function OrdersPage() {
       setEditStatus(d.order.PaymentStatus as OrderStatus);
       setEditOrderDate(new Date(d.order.OrderDate).toISOString().slice(0, 10));
 
-      // Restore manual discount (the discount user typed manually, NOT including free delivery)
-      const manualDiscount = Number(d.order.ManualDiscount ?? 0);
-      const totalDiscount = Number(d.order.Discount ?? 0);
-
-      // Calculate if free delivery was used: DeliverySaving = TotalDiscount - ManualDiscount
-      const derivedDeliverySaving = totalDiscount - manualDiscount;
+      // Discount is now real discounts only; delivery is in its own columns:
+      // DeliveryCost (owner-paid, free delivery) and DeliveryFee (customer-paid).
+      const manualDiscount = Number(d.order.ManualDiscount ?? d.order.Discount ?? 0);
+      const deliveryCost = Number(d.order.DeliveryCost ?? 0);
+      const deliveryFee = Number(d.order.DeliveryFee ?? 0);
 
       setEditDiscount(manualDiscount);
-      setEditIsFreeDelivery(derivedDeliverySaving > 0);
-
-      // Try to match the delivery charge if possible, otherwise default to 300
-      if (derivedDeliverySaving > 0 && [300, 350, 400].includes(derivedDeliverySaving)) {
-        setEditSelectedDeliveryCharge(derivedDeliverySaving);
-      } else {
-        setEditSelectedDeliveryCharge(300);
-      }
+      setEditIsFreeDelivery(deliveryCost > 0);
+      setEditSelectedDeliveryCharge(deliveryCost > 0 ? deliveryCost : 300);
+      setEditCustomerDeliveryFee(deliveryFee);
 
       const mapped: LineDraft[] = d.items.map((it: any) => ({
         key: `${it.VariantId}-${crypto.randomUUID()}`,
@@ -1170,7 +1173,8 @@ export default function OrdersPage() {
       ManualDiscount: Number(editDiscount.toFixed(2)),
       DeliverySaving: Number(editDeliverySaving.toFixed(2)),
       Discount: Number(editComputedDiscount.toFixed(2)),
-      DeliveryFee: 0, // ✅ ALWAYS 0
+      DeliveryFee: Number(editEffectiveDeliveryFee.toFixed(2)),
+      DeliveryCost: Number(editDeliverySaving.toFixed(2)),
       Total: Number(editTotal.toFixed(2)),
       Items: editLines.map<OrderItemInput>((l) => ({
         VariantId: l.variant!.VariantId,
@@ -1223,7 +1227,9 @@ export default function OrdersPage() {
       `Subtotal: Rs ${subtotal.toFixed(2)}`,
       `Discount: Rs ${computedDiscount.toFixed(2)}`,
       ...(isFreeDelivery && eligibleFreeDelivery
-        ? [`Free Delivery Saving: Rs ${deliverySaving.toFixed(2)}`]
+        ? [`Free delivery — courier cost I paid: Rs ${deliverySaving.toFixed(2)}`]
+        : effectiveDeliveryFee > 0
+        ? [`Delivery (customer paid): Rs ${effectiveDeliveryFee.toFixed(2)}`]
         : []),
       `Total: Rs ${total.toFixed(2)}`,
       `Items:`,
@@ -1660,13 +1666,13 @@ export default function OrdersPage() {
                     <ToggleSwitch
                       checked={isFreeDelivery}
                       onChange={setIsFreeDelivery}
-                      label="Free Delivery (Qty ≥ 3)"
+                      label="Free Delivery — I pay courier (Qty ≥ 3)"
                     />
 
-                    {isFreeDelivery && (
+                    {isFreeDelivery ? (
                       <>
                         <div className="flex items-center gap-2">
-                          <span>Charge:</span>
+                          <span>Courier cost:</span>
                           <select
                             value={selectedDeliveryCharge}
                             onChange={(e) =>
@@ -1681,16 +1687,23 @@ export default function OrdersPage() {
                             ))}
                           </select>
                         </div>
-
-                        <div className="text-xs text-green-600">
-                          Saved Rs {deliverySaving.toFixed(2)}
-                        </div>
-
-                        <div className="text-xs">
-                          Final Discount:{" "}
-                          <b>Rs {computedDiscount.toFixed(2)}</b>
+                        <div className="text-xs text-red-600">
+                          Delivery cost (you pay): Rs {deliverySaving.toFixed(2)} — reduces profit, not a discount
                         </div>
                       </>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span>Delivery charge (customer pays):</span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={customerDeliveryFee || ""}
+                          onChange={(e) => setCustomerDeliveryFee(parseFloat(e.target.value || "0"))}
+                          placeholder="0"
+                          className="bg-white dark:bg-gray-800 border rounded-lg px-2 py-1 w-24"
+                        />
+                        <span className="text-xs text-gray-500">added to total · pass-through</span>
+                      </div>
                     )}
 
                     {/* Delivery ETA */}
@@ -2617,36 +2630,47 @@ export default function OrdersPage() {
                   checked={editIsFreeDelivery}
                   onChange={setEditIsFreeDelivery}
                   disabled={!editEligibleFreeDelivery}
-                  label="Free Delivery (Qty ≥ 3)"
+                  label="Free Delivery — I pay courier (Qty ≥ 3)"
                 />
 
-                {editEligibleFreeDelivery && editIsFreeDelivery && (
+                {editIsFreeDelivery ? (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <span>Courier cost:</span>
+                      <select
+                        value={editSelectedDeliveryCharge}
+                        onChange={(e) =>
+                          setEditSelectedDeliveryCharge(Number(e.target.value))
+                        }
+                        className="bg-white dark:bg-gray-800 border rounded-lg px-2 py-1"
+                      >
+                        {DELIVERY_OPTIONS.map((x) => (
+                          <option key={x} value={x}>
+                            Rs {x}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="text-xs text-red-600">
+                      Delivery cost (you pay): Rs {editDeliverySaving.toFixed(2)} — reduces profit
+                    </div>
+                  </>
+                ) : (
                   <div className="flex items-center gap-2">
-                    <span>Charge:</span>
-                    <select
-                      value={editSelectedDeliveryCharge}
-                      onChange={(e) =>
-                        setEditSelectedDeliveryCharge(Number(e.target.value))
-                      }
-                      className="bg-white dark:bg-gray-800 border rounded-lg px-2 py-1"
-                    >
-                      {DELIVERY_OPTIONS.map((x) => (
-                        <option key={x} value={x}>
-                          Rs {x}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {editEligibleFreeDelivery && editIsFreeDelivery && (
-                  <div className="text-xs text-green-600">
-                    Saved Rs {editDeliverySaving.toFixed(2)}
+                    <span>Delivery charge (customer pays):</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={editCustomerDeliveryFee || ""}
+                      onChange={(e) => setEditCustomerDeliveryFee(parseFloat(e.target.value || "0"))}
+                      placeholder="0"
+                      className="bg-white dark:bg-gray-800 border rounded-lg px-2 py-1 w-24"
+                    />
                   </div>
                 )}
 
                 <div className="text-xs">
-                  Final Discount: <b>Rs {editComputedDiscount.toFixed(2)}</b>
+                  Discount: <b>Rs {editComputedDiscount.toFixed(2)}</b>
                 </div>
               </div>
 
