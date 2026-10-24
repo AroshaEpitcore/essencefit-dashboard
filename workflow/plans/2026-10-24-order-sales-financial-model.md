@@ -1,7 +1,7 @@
 ---
 date: 2026-10-24
 slug: order-sales-financial-model
-status: approved
+status: implementing   # Phase 1 shipped (cf6a5bb), Phase 2 shipped (5c98bcd); Phases 3-4 pending
 surfaces: [orders, web-checkout, dtf-orders, print-jobs, returns, dashboard, finance, reports, item-profit, analysis, store-settings, db]
 research: workflow/research/2026-10-24-order-sales-financial-model.md
 estimated_manual_effort: 2h 30m
