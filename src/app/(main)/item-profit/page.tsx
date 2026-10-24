@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
-import { getCategories, getProducts, getChannels, runItemProfit, getOrderAdjustments } from "./actions";
-import type { ItemProfitFilters, ItemProfitRow, OrderAdjustments } from "./types";
+import { getCategories, getProducts, getChannels, runItemProfit, getOrderAdjustments, getPrintJobTotals } from "./actions";
+import type { ItemProfitFilters, ItemProfitRow, OrderAdjustments, PrintJobTotals } from "./types";
 import {
   Coins,
   Filter,
@@ -120,6 +120,8 @@ export default function ItemProfitPage() {
   // unfiltered, so Net Profit only shows when the numbers can actually tie out.
   const [adjust, setAdjust] = useState<OrderAdjustments | null>(null);
   const [adjustApplies, setAdjustApplies] = useState(false);
+  // Real print-job charge/cost (view-only) for the PrintJob channel card.
+  const [pjTotals, setPjTotals] = useState<PrintJobTotals | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [generatedAt, setGeneratedAt] = useState<string | null>(null);
@@ -175,13 +177,15 @@ export default function ItemProfitPage() {
         to: f.to || undefined,
       };
       const unfiltered = !payload.category && !payload.product && !payload.channel;
-      const [data, adj] = await Promise.all([
+      const [data, adj, pj] = await Promise.all([
         runItemProfit(payload),
         unfiltered ? getOrderAdjustments({ from: payload.from, to: payload.to }) : Promise.resolve(null),
+        getPrintJobTotals({ from: payload.from, to: payload.to }),
       ]);
       setRows(data);
       setAdjust(adj);
       setAdjustApplies(unfiltered);
+      setPjTotals(pj);
       setGeneratedAt(new Date().toLocaleString());
     } catch (e) {
       toast.error((e as Error)?.message || "Failed to run report");
@@ -260,8 +264,20 @@ export default function ItemProfitPage() {
       cur.profit += Number(r.Profit || 0);
       map.set(ch, cur);
     }
-    return Array.from(map.values()).sort((a, b) => b.revenue - a.revenue);
-  }, [rows]);
+    const out = Array.from(map.values());
+    // The PrintJob sale row carries only profit (so totals count just profit).
+    // For the card VIEW, swap in the real charge/cost from the printjobs table.
+    if (pjTotals) {
+      const pj = out.find((c) => c.channel === "PrintJob");
+      if (pj) {
+        pj.revenue = Number(pjTotals.Revenue || 0);
+        pj.cost = Number(pjTotals.Cost || 0);
+        pj.profit = Number(pjTotals.Profit || 0);
+        pj.qty = Number(pjTotals.Qty || 0);
+      }
+    }
+    return out.sort((a, b) => b.revenue - a.revenue);
+  }, [rows, pjTotals]);
 
   // Grand totals.
   const totals = useMemo(() => {
@@ -574,6 +590,9 @@ export default function ItemProfitPage() {
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                     Margin {pct(c.revenue ? c.profit / c.revenue : 0)}
+                    {c.channel === "PrintJob" && (
+                      <> · charge &amp; cost shown for reference — only the {money(c.profit)} profit counts toward the totals</>
+                    )}
                   </p>
                 </div>
               ))}

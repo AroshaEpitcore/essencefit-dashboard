@@ -15,6 +15,11 @@ export type ItemProfitFilters = {
  * a single item) — free-delivery/discounts given and delivery fees collected. */
 export type OrderAdjustments = { Discount: number; DeliveryFee: number };
 
+/** Real print-job figures for a period (from the printjobs table) — shown for
+ * reference on the PrintJob channel card. The synced sale row only carries the
+ * profit, so Revenue/Cost here are view-only and don't affect the totals. */
+export type PrintJobTotals = { Qty: number; Revenue: number; Cost: number; Profit: number };
+
 /** Variant-level sales row (per channel) — cost, revenue and profit separate. */
 export type ItemProfitRow = {
   Category: string;

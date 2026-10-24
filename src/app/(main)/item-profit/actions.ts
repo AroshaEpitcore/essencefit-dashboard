@@ -2,7 +2,7 @@
 
 import { requireAdmin } from "@/lib/adminAuth";
 import { getDb } from "@/lib/db";
-import type { ItemProfitFilters, ItemProfitRow, OrderAdjustments } from "./types";
+import type { ItemProfitFilters, ItemProfitRow, OrderAdjustments, PrintJobTotals } from "./types";
 
 /** Categories for the filter dropdown. */
 export async function getCategories() {
@@ -124,4 +124,33 @@ export async function getOrderAdjustments(filters: {
         AND ((@To)::date IS NULL OR CAST(OrderDate AS DATE) <= (@To)::date)
     `);
   return result.recordset[0] as OrderAdjustments;
+}
+
+/**
+ * Real print-job figures for a date range, straight from the printjobs table
+ * (charge/cost/profit), for display on the PrintJob channel card. The synced
+ * sale row carries only the profit, so these are view-only and never feed the
+ * page totals. Casts on the nullable date params per untyped-null-param-42p08.
+ */
+export async function getPrintJobTotals(filters: {
+  from?: string;
+  to?: string;
+}): Promise<PrintJobTotals> {
+  await requireAdmin();
+  const pool = await getDb();
+  const result = await pool
+    .request()
+    .input("From", filters.from || null)
+    .input("To", filters.to || null)
+    .query(`
+      SELECT
+        COALESCE(SUM(Qty), 0) AS Qty,
+        CAST(COALESCE(SUM(TotalCharge), 0) AS DECIMAL(18,2)) AS Revenue,
+        CAST(COALESCE(SUM(TotalCost), 0) AS DECIMAL(18,2)) AS Cost,
+        CAST(COALESCE(SUM(TotalProfit), 0) AS DECIMAL(18,2)) AS Profit
+      FROM PrintJobs
+      WHERE ((@From)::date IS NULL OR CAST(CreatedAt AS DATE) >= (@From)::date)
+        AND ((@To)::date IS NULL OR CAST(CreatedAt AS DATE) <= (@To)::date)
+    `);
+  return result.recordset[0] as PrintJobTotals;
 }
