@@ -352,7 +352,7 @@ export default function ItemProfitPage() {
       toast.error("Nothing to export");
       return;
     }
-    const header = ["Category", "Product", groupMode === "variant" ? "Variant" : "", "Qty", "Revenue", "Cost", "Profit", "Margin%"]
+    const header = ["Category", "Product", groupMode === "variant" ? "Variant" : "", "Qty", "Revenue", "Cost", "Profit", "Margin%", showNet ? "NetProfit(est)" : ""]
       .filter(Boolean)
       .join(",");
     const esc = (v: string) => `"${String(v).replace(/"/g, '""')}"`;
@@ -367,6 +367,7 @@ export default function ItemProfitPage() {
           l.cost.toFixed(2),
           l.profit.toFixed(2),
           (l.margin * 100).toFixed(1),
+          ...(showNet ? [netOf(l.revenue, l.profit).toFixed(2)] : []),
         ].join(",")
       )
     );
@@ -381,6 +382,12 @@ export default function ItemProfitPage() {
   }
 
   const maxCatRevenue = Math.max(1, ...categorySummary.map((c) => c.revenue));
+
+  // Per-product Net Profit (estimate): spread the period's delivery/discount
+  // adjustment across rows by sales share. Only on the unfiltered full period.
+  const showNet = net !== null;
+  const allocRate = showNet && totals.revenue ? (net!.deliveryFee - net!.discount) / totals.revenue : 0;
+  const netOf = (revenue: number, profit: number) => profit + revenue * allocRate;
 
   return (
     <div className="text-gray-900 dark:text-white">
@@ -683,11 +690,12 @@ export default function ItemProfitPage() {
                       <ThSort label="Cost" k="cost" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
                       <ThSort label="Profit" k="profit" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
                       <ThSort label="Margin" k="margin" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                      {showNet && <Th className="text-right">Net Profit*</Th>}
                     </tr>
                   </thead>
                   <tbody>
                     {grouped.map((g) => (
-                      <GroupBlock key={g.category} g={g} groupMode={groupMode} />
+                      <GroupBlock key={g.category} g={g} groupMode={groupMode} showNet={showNet} netOf={netOf} />
                     ))}
                   </tbody>
                   <tfoot className="sticky bottom-0 bg-gray-200 dark:bg-gray-700 border-t-2 border-gray-300 dark:border-gray-600">
@@ -699,12 +707,20 @@ export default function ItemProfitPage() {
                       <Td className="text-right text-red-700 dark:text-red-400">{money(totals.cost)}</Td>
                       <Td className="text-right">{money(totals.profit)}</Td>
                       <Td className="text-right">{pct(totals.margin)}</Td>
+                      {showNet && <Td className="text-right">{money(net!.profit)}</Td>}
                     </tr>
                   </tfoot>
                 </table>
               </div>
             )}
           </div>
+          {showNet && (
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+              *Net Profit is an estimate — the period&apos;s free delivery &amp; discounts are spread across
+              products in proportion to each one&apos;s sales (they&apos;re charged per order, not per product).
+              The column totals to the business-wide Net Profit above. Shown only for the full unfiltered period.
+            </p>
+          )}
         </>
       )}
 
@@ -734,9 +750,13 @@ export default function ItemProfitPage() {
 function GroupBlock({
   g,
   groupMode,
+  showNet,
+  netOf,
 }: {
   g: { category: string; items: Line[]; sub: { qty: number; revenue: number; cost: number; profit: number; margin: number } };
   groupMode: GroupMode;
+  showNet: boolean;
+  netOf: (revenue: number, profit: number) => number;
 }) {
   const span = groupMode === "variant" ? 2 : 1;
   return (
@@ -748,6 +768,7 @@ function GroupBlock({
         <Td className="text-right text-gray-500 dark:text-gray-400">{money(g.sub.cost)}</Td>
         <Td className="text-right text-gray-500 dark:text-gray-400">{money(g.sub.profit)}</Td>
         <Td className="text-right text-gray-500 dark:text-gray-400">{pct(g.sub.margin)}</Td>
+        {showNet && <Td className="text-right text-gray-500 dark:text-gray-400">{money(netOf(g.sub.revenue, g.sub.profit))}</Td>}
       </tr>
       {g.items.map((l, i) => (
         <tr key={i} className="border-t border-gray-100 dark:border-gray-700/60 odd:bg-gray-50/40 dark:odd:bg-gray-900/10">
@@ -758,6 +779,11 @@ function GroupBlock({
           <Td className="text-right text-red-600 dark:text-red-400">{money(l.cost)}</Td>
           <Td className={`text-right font-semibold ${l.profit < 0 ? "text-red-600 dark:text-red-400" : ""}`}>{money(l.profit)}</Td>
           <Td className="text-right">{pct(l.margin)}</Td>
+          {showNet && (
+            <Td className={`text-right font-semibold ${netOf(l.revenue, l.profit) < 0 ? "text-red-600 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}>
+              {money(netOf(l.revenue, l.profit))}
+            </Td>
+          )}
         </tr>
       ))}
     </>
