@@ -114,30 +114,29 @@ export async function getDashboardStats() {
       (SELECT COALESCE(SUM(S.Qty * (S.SellingPrice - S.CostPrice)),0)
        FROM Sales S WHERE S.PaymentMethod = 'DTF') AS DtfProfitAllTime,
 
-      /* ---------------- Print-job aggregates (Sales.PaymentMethod = 'PrintJob') ---------------- */
-      (SELECT COALESCE(SUM(S.Qty * S.SellingPrice),0)
-       FROM Sales S
-       WHERE S.PaymentMethod = 'PrintJob'
-         AND CAST(S.SaleDate AS DATE) >= date_trunc('month', current_date)::date) AS PrintJobChargeMonth,
+      /* ---------------- Print-job aggregates ----------------
+         Read the authoritative PrintJobs table, NOT the synced Sales row: that
+         row intentionally carries only the profit (so print jobs add just their
+         profit to the general Sales/Cost/Profit totals above), whereas these
+         print-job-specific tiles still need the real charge/cost/profit. */
+      (SELECT COALESCE(SUM(TotalCharge),0)
+       FROM PrintJobs
+       WHERE CAST(CreatedAt AS DATE) >= date_trunc('month', current_date)::date) AS PrintJobChargeMonth,
 
-      (SELECT COALESCE(SUM(S.Qty * (S.SellingPrice - S.CostPrice)),0)
-       FROM Sales S
-       WHERE S.PaymentMethod = 'PrintJob'
-         AND CAST(S.SaleDate AS DATE) >= date_trunc('month', current_date)::date) AS PrintJobProfitMonth,
+      (SELECT COALESCE(SUM(TotalProfit),0)
+       FROM PrintJobs
+       WHERE CAST(CreatedAt AS DATE) >= date_trunc('month', current_date)::date) AS PrintJobProfitMonth,
 
-      (SELECT COALESCE(SUM(S.Qty),0)
-       FROM Sales S
-       WHERE S.PaymentMethod = 'PrintJob'
-         AND CAST(S.SaleDate AS DATE) >= date_trunc('month', current_date)::date) AS PrintJobUnitsMonth,
+      (SELECT COALESCE(SUM(Qty),0)
+       FROM PrintJobs
+       WHERE CAST(CreatedAt AS DATE) >= date_trunc('month', current_date)::date) AS PrintJobUnitsMonth,
 
       (SELECT COUNT(*) FROM PrintJobs
        WHERE CAST(CreatedAt AS DATE) >= date_trunc('month', current_date)::date) AS PrintJobsMonth,
 
-      (SELECT COALESCE(SUM(S.Qty * S.SellingPrice),0)
-       FROM Sales S WHERE S.PaymentMethod = 'PrintJob') AS PrintJobChargeAllTime,
+      (SELECT COALESCE(SUM(TotalCharge),0) FROM PrintJobs) AS PrintJobChargeAllTime,
 
-      (SELECT COALESCE(SUM(S.Qty * (S.SellingPrice - S.CostPrice)),0)
-       FROM Sales S WHERE S.PaymentMethod = 'PrintJob') AS PrintJobProfitAllTime
+      (SELECT COALESCE(SUM(TotalProfit),0) FROM PrintJobs) AS PrintJobProfitAllTime
   `);
 
   return result.recordset[0];

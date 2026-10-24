@@ -182,34 +182,23 @@ export async function createPrintJob(input: PrintJobInput): Promise<PjResult> {
            @TotalCost, @TotalCharge, @TotalProfit, 'Pending', @Note, now())
       `);
 
-    // Synced Sales row (per-unit figures) so profit flows to Dashboard/Finance/Reports.
+    // Synced Sales row carries ONLY the profit so print jobs contribute just
+    // their profit to all other pages (Dashboard/Finance/Reports/Item Profit) —
+    // never the charge or the DTF cost. The garments aren't ours and the DTF
+    // cost is a pass-through, so SellingPrice = profit/unit and CostPrice = 0.
+    // The full charge/cost live only on the Print Jobs page (printjobs table).
     const variantId = await ensurePrintJobVariantId(req);
     await req()
       .input("SaleId", UniqueIdentifier, crypto.randomUUID())
       .input("PrintJobId", UniqueIdentifier, jobId)
       .input("VariantId", UniqueIdentifier, variantId)
       .input("Qty", Int, qty)
-      .input("SellingPrice", Decimal(18, 2), chargePerUnit)
-      .input("CostPrice", Decimal(18, 2), dtfCost)
+      .input("SellingPrice", Decimal(18, 2), profit)
+      .input("CostPrice", Decimal(18, 2), 0)
       .query(`
         INSERT INTO Sales (Id, PrintJobId, VariantId, Qty, SellingPrice, CostPrice, PaymentMethod, PaymentStatus, SaleDate)
         VALUES (@SaleId, @PrintJobId, @VariantId, @Qty, @SellingPrice, @CostPrice, 'PrintJob', 'Completed', now())
       `);
-
-    // The DTF cost is paid out of pocket to the DTF shop — record it as Cash
-    // Usage (linked to the job, ON DELETE CASCADE) so the Finance balance drops
-    // by it. The synced Sales row already carries it as CostPrice for the profit
-    // reports; this is the separate cash-out so Finance's till reconciles.
-    if (totalCost > 0) {
-      await req()
-        .input("Desc", NVarChar(sql.MAX), `Print job ${ref} — DTF cost (${qty} × Rs ${dtfCost})`)
-        .input("Amount", Decimal(18, 2), totalCost)
-        .input("PrintJobId", UniqueIdentifier, jobId)
-        .query(`
-          INSERT INTO CashUsage (Description, Amount, PrintJobId)
-          VALUES (@Desc, @Amount, @PrintJobId)
-        `);
-    }
 
     await tx.commit();
     return { ok: true, ref };
