@@ -85,10 +85,10 @@ export async function runInventoryReport(filters: any) {
       JOIN Categories C ON P.CategoryId = C.Id
       LEFT JOIN Sizes S ON V.SizeId = S.Id
       LEFT JOIN Colors Cl ON V.ColorId = Cl.Id
-      WHERE (@CategoryId IS NULL OR P.CategoryId = @CategoryId)
-        AND (@ProductId IS NULL OR P.Id = @ProductId)
-        AND (@SizeId IS NULL OR V.SizeId = @SizeId)
-        AND (@ColorId IS NULL OR V.ColorId = @ColorId)
+      WHERE ((@CategoryId)::uuid IS NULL OR P.CategoryId = (@CategoryId)::uuid)
+        AND ((@ProductId)::uuid IS NULL OR P.Id = (@ProductId)::uuid)
+        AND ((@SizeId)::uuid IS NULL OR V.SizeId = (@SizeId)::uuid)
+        AND ((@ColorId)::uuid IS NULL OR V.ColorId = (@ColorId)::uuid)
     `);
   return result.recordset;
 }
@@ -123,8 +123,8 @@ export async function runSalesReport(filters: any) {
         FROM Sales S
         JOIN ProductVariants V ON S.VariantId = V.Id
         JOIN Products P ON V.ProductId = P.Id
-        WHERE (@CategoryId IS NULL OR P.CategoryId = @CategoryId)
-          AND (@ProductId IS NULL OR P.Id = @ProductId)
+        WHERE ((@CategoryId)::uuid IS NULL OR P.CategoryId = (@CategoryId)::uuid)
+          AND ((@ProductId)::uuid IS NULL OR P.Id = (@ProductId)::uuid)
           AND ((@From)::date IS NULL OR CAST(S.SaleDate AS DATE) >= (@From)::date)
           AND ((@To)::date IS NULL OR CAST(S.SaleDate AS DATE) <= (@To)::date)
         GROUP BY CAST(S.SaleDate AS DATE), P.Id, P.Name
@@ -244,8 +244,8 @@ export async function runPnLReport(filters: {
         FROM Sales S
         JOIN ProductVariants V ON S.VariantId = V.Id
         JOIN Products P ON V.ProductId = P.Id
-        WHERE (@CategoryId IS NULL OR P.CategoryId = @CategoryId)
-          AND (@ProductId IS NULL OR P.Id = @ProductId)
+        WHERE ((@CategoryId)::uuid IS NULL OR P.CategoryId = (@CategoryId)::uuid)
+          AND ((@ProductId)::uuid IS NULL OR P.Id = (@ProductId)::uuid)
           AND ((@From)::date IS NULL OR CAST(S.SaleDate AS DATE) >= (@From)::date)
           AND ((@To)::date IS NULL OR CAST(S.SaleDate AS DATE) <= (@To)::date)
       ),
@@ -269,9 +269,9 @@ export async function runPnLReport(filters: {
         SELECT
           COALESCE(SA.GrossSales,0) AS GrossSales,
           COALESCE(SA.COGS,0) AS COGS,
-          CASE WHEN @CategoryId IS NULL AND @ProductId IS NULL
+          CASE WHEN (@CategoryId)::uuid IS NULL AND (@ProductId)::uuid IS NULL
                THEN COALESCE(OA.OrderDiscount,0) ELSE 0 END AS OrderDiscount,
-          CASE WHEN @CategoryId IS NULL AND @ProductId IS NULL
+          CASE WHEN (@CategoryId)::uuid IS NULL AND (@ProductId)::uuid IS NULL
                THEN COALESCE(OA.DeliveryFee,0) ELSE 0 END AS DeliveryFee
         FROM SalesAgg SA
         FULL OUTER JOIN OrdersAgg OA ON SA.D = OA.D
@@ -307,8 +307,8 @@ export async function runDeadStockReport(filters: any) {
       FROM ProductVariants V
       JOIN Products P ON V.ProductId = P.Id
       WHERE V.Qty = 0
-        AND (@CategoryId IS NULL OR P.CategoryId = @CategoryId)
-        AND (@ProductId IS NULL OR P.Id = @ProductId)
+        AND ((@CategoryId)::uuid IS NULL OR P.CategoryId = (@CategoryId)::uuid)
+        AND ((@ProductId)::uuid IS NULL OR P.Id = (@ProductId)::uuid)
       ORDER BY P.Name
     `);
   return result.recordset;
@@ -339,8 +339,8 @@ export async function runTopColorsReport(filters: any) {
         JOIN ProductVariants V ON S.VariantId = V.Id
         JOIN Products P ON V.ProductId = P.Id
         LEFT JOIN Colors Cl ON V.ColorId = Cl.Id
-        WHERE (@CategoryId IS NULL OR P.CategoryId = @CategoryId)
-          AND (@ProductId IS NULL OR P.Id = @ProductId)
+        WHERE ((@CategoryId)::uuid IS NULL OR P.CategoryId = (@CategoryId)::uuid)
+          AND ((@ProductId)::uuid IS NULL OR P.Id = (@ProductId)::uuid)
           AND ((@From)::date IS NULL OR CAST(S.SaleDate AS DATE) >= (@From)::date)
           AND ((@To)::date IS NULL OR CAST(S.SaleDate AS DATE) <= (@To)::date)
         GROUP BY CAST(S.SaleDate AS DATE), COALESCE(Cl.Name, 'No Color')
