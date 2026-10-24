@@ -138,7 +138,7 @@ export async function runSalesReport(filters: any) {
         SELECT
           CAST(O.OrderDate AS DATE) AS D,
           SUM(COALESCE(O.Discount,0)) AS DayDiscount,
-          SUM(COALESCE(O.DeliveryFee,0)) AS DayDeliveryFee
+          SUM(COALESCE(O.DeliveryCost,0)) AS DayDeliveryCost
         FROM Orders O
         WHERE O.PaymentStatus IN ('Paid', 'Completed')
           AND ((@From)::date IS NULL OR CAST(O.OrderDate AS DATE) >= (@From)::date)
@@ -150,8 +150,7 @@ export async function runSalesReport(filters: any) {
           COALESCE(G.D, O.D) AS D,
           COALESCE(G.DayGrossRevenue,0) AS DayGrossRevenue,
           COALESCE(O.DayDiscount,0) AS DayDiscount,
-          COALESCE(O.DayDeliveryFee,0) AS DayDeliveryFee,
-          (0 - COALESCE(O.DayDiscount,0) + COALESCE(O.DayDeliveryFee,0)) AS DayAdjustment
+          COALESCE(O.DayDeliveryCost,0) AS DayDeliveryCost
         FROM DayGross G
         FULL OUTER JOIN OrdersByDay O ON G.D = O.D
       ),
@@ -159,15 +158,18 @@ export async function runSalesReport(filters: any) {
         SELECT
           S.Product,
           S.Qty,
-          S.Cost,
-          /* Allocate adjustment by gross share */
+          /* Discount reduces revenue; delivery cost adds to cost — both
+             allocated across products by that day's gross share. */
           CAST(
             S.GrossRevenue
-            + CASE
-                WHEN COALESCE(D.DayGrossRevenue,0) = 0 THEN 0
-                ELSE (S.GrossRevenue / D.DayGrossRevenue) * COALESCE(D.DayAdjustment,0)
-              END
-          AS DECIMAL(18,2)) AS NetRevenue
+            - CASE WHEN COALESCE(D.DayGrossRevenue,0) = 0 THEN 0
+                   ELSE (S.GrossRevenue / D.DayGrossRevenue) * COALESCE(D.DayDiscount,0) END
+          AS DECIMAL(18,2)) AS NetRevenue,
+          CAST(
+            S.Cost
+            + CASE WHEN COALESCE(D.DayGrossRevenue,0) = 0 THEN 0
+                   ELSE (S.GrossRevenue / D.DayGrossRevenue) * COALESCE(D.DayDeliveryCost,0) END
+          AS DECIMAL(18,2)) AS AllocCost
         FROM SalesByProdDay S
         JOIN DayAdjust D ON D.D = S.D
       )
@@ -175,8 +177,8 @@ export async function runSalesReport(filters: any) {
         Product,
         SUM(Qty) AS Qty,
         CAST(SUM(NetRevenue) AS DECIMAL(18,2)) AS Revenue,
-        CAST(SUM(Cost) AS DECIMAL(18,2)) AS Cost,
-        CAST(SUM(NetRevenue) - SUM(Cost) AS DECIMAL(18,2)) AS Profit
+        CAST(SUM(AllocCost) AS DECIMAL(18,2)) AS Cost,
+        CAST(SUM(NetRevenue) - SUM(AllocCost) AS DECIMAL(18,2)) AS Profit
       FROM SalesNetAllocated
       GROUP BY Product
       ORDER BY Product
@@ -258,7 +260,7 @@ export async function runPnLReport(filters: {
         SELECT
           CAST(O.OrderDate AS DATE) AS D,
           SUM(COALESCE(O.Discount,0)) AS OrderDiscount,
-          SUM(COALESCE(O.DeliveryFee,0)) AS DeliveryFee
+          SUM(COALESCE(O.DeliveryCost,0)) AS DeliveryCost
         FROM Orders O
         WHERE O.PaymentStatus IN ('Paid', 'Completed')
           AND ((@From)::date IS NULL OR CAST(O.OrderDate AS DATE) >= (@From)::date)
@@ -272,20 +274,21 @@ export async function runPnLReport(filters: {
           CASE WHEN (@CategoryId)::uuid IS NULL AND (@ProductId)::uuid IS NULL
                THEN COALESCE(OA.OrderDiscount,0) ELSE 0 END AS OrderDiscount,
           CASE WHEN (@CategoryId)::uuid IS NULL AND (@ProductId)::uuid IS NULL
-               THEN COALESCE(OA.DeliveryFee,0) ELSE 0 END AS DeliveryFee
+               THEN COALESCE(OA.DeliveryCost,0) ELSE 0 END AS DeliveryCost
         FROM SalesAgg SA
         FULL OUTER JOIN OrdersAgg OA ON SA.D = OA.D
       ),
       Totals AS (
         SELECT
-          CAST(COALESCE(SUM(GrossSales - OrderDiscount + DeliveryFee),0) AS DECIMAL(18,2)) AS Revenue,
-          CAST(COALESCE(SUM(COGS),0) AS DECIMAL(18,2)) AS COGS
+          CAST(COALESCE(SUM(GrossSales - OrderDiscount),0) AS DECIMAL(18,2)) AS Revenue,
+          CAST(COALESCE(SUM(COGS),0) AS DECIMAL(18,2)) AS COGS,
+          CAST(COALESCE(SUM(DeliveryCost),0) AS DECIMAL(18,2)) AS DeliveryCost
         FROM DayJoin
       )
       SELECT
         T.Revenue,
         T.COGS,
-        CAST(T.Revenue - T.COGS AS DECIMAL(18,2)) AS GrossProfit,
+        CAST(T.Revenue - T.COGS - T.DeliveryCost AS DECIMAL(18,2)) AS GrossProfit,
         (SELECT COALESCE(COUNT(DISTINCT OrderId),0) FROM ScopedSales WHERE OrderId IS NOT NULL) AS Orders,
         (SELECT COALESCE(SUM(Qty),0) FROM ScopedSales) AS Items
       FROM Totals T
@@ -353,8 +356,7 @@ export async function runTopColorsReport(filters: any) {
       OrdersByDay AS (
         SELECT
           CAST(O.OrderDate AS DATE) AS D,
-          SUM(COALESCE(O.Discount,0)) AS DayDiscount,
-          SUM(COALESCE(O.DeliveryFee,0)) AS DayDeliveryFee
+          SUM(COALESCE(O.Discount,0)) AS DayDiscount
         FROM Orders O
         WHERE O.PaymentStatus IN ('Paid', 'Completed')
           AND ((@From)::date IS NULL OR CAST(O.OrderDate AS DATE) >= (@From)::date)
@@ -365,9 +367,7 @@ export async function runTopColorsReport(filters: any) {
         SELECT
           COALESCE(G.D, O.D) AS D,
           COALESCE(G.DayGrossRevenue,0) AS DayGrossRevenue,
-          COALESCE(O.DayDiscount,0) AS DayDiscount,
-          COALESCE(O.DayDeliveryFee,0) AS DayDeliveryFee,
-          (0 - COALESCE(O.DayDiscount,0) + COALESCE(O.DayDeliveryFee,0)) AS DayAdjustment
+          COALESCE(O.DayDiscount,0) AS DayDiscount
         FROM DayGross G
         FULL OUTER JOIN OrdersByDay O ON G.D = O.D
       ),
@@ -375,11 +375,13 @@ export async function runTopColorsReport(filters: any) {
         SELECT
           S.Color,
           S.Qty,
+          /* Revenue net of discount only (delivery cost is a cost, not a
+             revenue reduction), allocated by that day's gross share. */
           CAST(
             S.GrossRevenue
-            + CASE 
+            - CASE
                 WHEN COALESCE(D.DayGrossRevenue,0) = 0 THEN 0
-                ELSE (S.GrossRevenue / D.DayGrossRevenue) * COALESCE(D.DayAdjustment,0)
+                ELSE (S.GrossRevenue / D.DayGrossRevenue) * COALESCE(D.DayDiscount,0)
               END
           AS DECIMAL(18,2)) AS NetRevenue
         FROM SalesByColorDay S

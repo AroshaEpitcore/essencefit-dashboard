@@ -25,7 +25,7 @@ export async function getFinanceSummary() {
       SELECT
         CAST(O.OrderDate AS DATE) AS D,
         SUM(COALESCE(O.Discount,0)) AS OrderDiscount,
-        SUM(COALESCE(O.DeliveryFee,0)) AS DeliveryFee
+        SUM(COALESCE(O.DeliveryCost,0)) AS DeliveryCost
       FROM Orders O
       GROUP BY CAST(O.OrderDate AS DATE)
     ),
@@ -34,13 +34,14 @@ export async function getFinanceSummary() {
         COALESCE(SA.D, OA.D) AS D,
         COALESCE(SA.GrossSales,0) AS GrossSales,
         COALESCE(OA.OrderDiscount,0) AS OrderDiscount,
-        COALESCE(OA.DeliveryFee,0) AS DeliveryFee
+        COALESCE(OA.DeliveryCost,0) AS DeliveryCost
       FROM SalesAgg SA
       FULL OUTER JOIN OrdersAgg OA ON SA.D = OA.D
     )
     SELECT
-      /* ✅ Same as dashboard AllTimeSales */
-      CAST(COALESCE(SUM(GrossSales - OrderDiscount + DeliveryFee), 0) AS DECIMAL(18,2)) AS TotalSales,
+      /* Net cash from sales: goods − discount − delivery the owner paid the
+         courier (customer-paid delivery is pass-through, never in the till). */
+      CAST(COALESCE(SUM(GrossSales - OrderDiscount - DeliveryCost), 0) AS DECIMAL(18,2)) AS TotalSales,
 
       /* Handovers & Cash Usage */
       CAST(COALESCE((SELECT SUM(Amount) FROM Handovers), 0) AS DECIMAL(18,2)) AS HandedOver,
@@ -48,7 +49,7 @@ export async function getFinanceSummary() {
 
       /* ✅ Remaining Balance */
       CAST(
-        COALESCE(SUM(GrossSales - OrderDiscount + DeliveryFee), 0)
+        COALESCE(SUM(GrossSales - OrderDiscount - DeliveryCost), 0)
         - COALESCE((SELECT SUM(Amount) FROM Handovers), 0)
         - COALESCE((SELECT SUM(Amount) FROM CashUsage), 0)
       AS DECIMAL(18,2)) AS Remaining

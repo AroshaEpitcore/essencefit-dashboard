@@ -60,6 +60,7 @@ export const COLUMN_CASE: Record<string, string> = {
   "daygrossrevenue": "DayGrossRevenue",
   "decimal": "DECIMAL",
   "deliveryamt": "DeliveryAmt",
+  "deliverycost": "DeliveryCost",
   "deliveryfee": "DeliveryFee",
   "deliverystatus": "DeliveryStatus",
   "description": "Description",

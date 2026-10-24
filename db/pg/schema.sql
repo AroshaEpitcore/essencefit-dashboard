@@ -113,8 +113,9 @@ CREATE TABLE IF NOT EXISTS orders (
   paymentstatus text NOT NULL,
   orderdate timestamp NOT NULL DEFAULT now(),
   subtotal numeric(18,2),
-  discount numeric(18,2),
-  deliveryfee numeric(18,2),
+  discount numeric(18,2),             -- real discounts on goods only (contra-revenue)
+  deliveryfee numeric(18,2),          -- delivery charged to the customer (pass-through; NOT income)
+  deliverycost numeric(18,2) NOT NULL DEFAULT 0,  -- delivery the owner pays the courier (free delivery); an expense
   total numeric(18,2),
   customerid uuid,
   customerphone text,

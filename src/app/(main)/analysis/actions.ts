@@ -139,7 +139,8 @@ export async function getMonthlySalesTrend(range: DateRange) {
     OrdersMonth AS (
       SELECT
         to_char(o.OrderDate, 'YYYY-MM') AS M,
-        SUM(COALESCE(o.Discount,0)) AS DiscountAmt
+        SUM(COALESCE(o.Discount,0)) AS DiscountAmt,
+        SUM(COALESCE(o.DeliveryCost,0)) AS DeliveryCostAmt
       FROM Orders o
       WHERE o.PaymentStatus IN ('Paid','Completed')
         AND ${dateClause("o", "OrderDate", range)}
@@ -149,7 +150,7 @@ export async function getMonthlySalesTrend(range: DateRange) {
       sm.Label AS month,
       COALESCE(sm.GrossSales,0) AS grossSales,
       COALESCE(sm.GrossSales,0) - COALESCE(om.DiscountAmt,0) AS netSales,
-      (COALESCE(sm.GrossSales,0) - COALESCE(sm.Cogs,0)) - COALESCE(om.DiscountAmt,0) AS profit
+      (COALESCE(sm.GrossSales,0) - COALESCE(sm.Cogs,0)) - COALESCE(om.DiscountAmt,0) - COALESCE(om.DeliveryCostAmt,0) AS profit
     FROM SalesMonth sm
     LEFT JOIN OrdersMonth om ON sm.M = om.M
     ORDER BY sm.MinD

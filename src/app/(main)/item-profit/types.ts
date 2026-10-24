@@ -11,9 +11,10 @@ export type ItemProfitFilters = {
   to?: string;
 };
 
-/** Order-level adjustments for a period (business-wide; can't be attributed to
- * a single item) — free-delivery/discounts given and delivery fees collected. */
-export type OrderAdjustments = { Discount: number; DeliveryFee: number };
+/** Order-level amounts for a period (business-wide; can't be attributed to a
+ * single item) — real discounts given and delivery cost the owner paid couriers
+ * on free-delivery orders. Both reduce net profit. */
+export type OrderAdjustments = { Discount: number; DeliveryCost: number };
 
 /** Real print-job figures for a period (from the printjobs table) — shown for
  * reference on the PrintJob channel card. The synced sale row only carries the

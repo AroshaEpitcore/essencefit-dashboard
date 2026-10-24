@@ -23,7 +23,7 @@ export async function getDashboardStats() {
       SELECT
         CAST(O.OrderDate AS DATE) AS D,
         SUM(COALESCE(O.Discount,0)) AS OrderDiscount,
-        SUM(COALESCE(O.DeliveryFee,0)) AS DeliveryFee
+        SUM(COALESCE(O.DeliveryCost,0)) AS DeliveryCost
       FROM Orders O
       WHERE O.PaymentStatus IN ('Paid', 'Completed')
       GROUP BY CAST(O.OrderDate AS DATE)
@@ -35,22 +35,22 @@ export async function getDashboardStats() {
         COALESCE(SA.UnitsSold,0) AS UnitsSold,
         COALESCE(SA.Cogs,0) AS Cogs,
         COALESCE(OA.OrderDiscount,0) AS OrderDiscount,
-        COALESCE(OA.DeliveryFee,0) AS DeliveryFee
+        COALESCE(OA.DeliveryCost,0) AS DeliveryCost
       FROM SalesAgg SA
       FULL OUTER JOIN OrdersAgg OA ON SA.D = OA.D
     )
     SELECT
       (SELECT COALESCE(SUM(Qty),0) FROM ProductVariants) AS TotalStock,
 
-      (SELECT COALESCE(SUM(GrossSales - OrderDiscount + DeliveryFee),0)
+      (SELECT COALESCE(SUM(GrossSales - OrderDiscount),0)
        FROM DayJoin
        WHERE D = current_date) AS TodaysSales,
 
-      (SELECT COALESCE(SUM(GrossSales - OrderDiscount + DeliveryFee),0)
+      (SELECT COALESCE(SUM(GrossSales - OrderDiscount),0)
        FROM DayJoin
        WHERE D >= date_trunc('month', current_date)::date) AS ThisMonthSales,
 
-      (SELECT COALESCE(SUM((GrossSales - Cogs) - OrderDiscount + DeliveryFee),0)
+      (SELECT COALESCE(SUM((GrossSales - Cogs) - OrderDiscount - DeliveryCost),0)
        FROM DayJoin
        WHERE D >= date_trunc('month', current_date)::date) AS ThisMonthProfit,
 
@@ -70,15 +70,15 @@ export async function getDashboardStats() {
        WHERE E.ExpenseDate >= date_trunc('month', current_date)::date) AS ExpensesMonth,
 
       (
-        (SELECT COALESCE(SUM((GrossSales - Cogs) - OrderDiscount + DeliveryFee),0)
+        (SELECT COALESCE(SUM((GrossSales - Cogs) - OrderDiscount - DeliveryCost),0)
          FROM DayJoin
          WHERE D >= date_trunc('month', current_date)::date)
         - COALESCE((SELECT SUM(E.Amount) FROM Expenses E WHERE E.ExpenseDate >= date_trunc('month', current_date)::date),0)
       ) AS ThisMonthNet,
 
-      (SELECT COALESCE(SUM(GrossSales - OrderDiscount + DeliveryFee),0) FROM DayJoin) AS AllTimeSales,
+      (SELECT COALESCE(SUM(GrossSales - OrderDiscount),0) FROM DayJoin) AS AllTimeSales,
 
-      (SELECT COALESCE(SUM((GrossSales - Cogs) - OrderDiscount + DeliveryFee),0) FROM DayJoin) AS AllTimeProfit,
+      (SELECT COALESCE(SUM((GrossSales - Cogs) - OrderDiscount - DeliveryCost),0) FROM DayJoin) AS AllTimeProfit,
 
       (SELECT COUNT(*) FROM Products) AS Products,
       (SELECT COUNT(*) FROM ProductVariants) AS Variants,

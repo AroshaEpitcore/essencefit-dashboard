@@ -300,9 +300,9 @@ export default function ItemProfitPage() {
   const net = useMemo(() => {
     if (!adjust || !adjustApplies || search.trim()) return null;
     const discount = Number(adjust.Discount || 0);
-    const deliveryFee = Number(adjust.DeliveryFee || 0);
-    const profit = totals.profit - discount + deliveryFee;
-    return { discount, deliveryFee, profit };
+    const deliveryCost = Number(adjust.DeliveryCost || 0);
+    const profit = totals.profit - discount - deliveryCost;
+    return { discount, deliveryCost, profit };
   }, [adjust, adjustApplies, search, totals.profit]);
 
   // Lines grouped by category and sorted within each group — the detail table.
@@ -386,7 +386,7 @@ export default function ItemProfitPage() {
   // Per-product Net Profit (estimate): spread the period's delivery/discount
   // adjustment across rows by sales share. Only on the unfiltered full period.
   const showNet = net !== null;
-  const allocRate = showNet && totals.revenue ? (net!.deliveryFee - net!.discount) / totals.revenue : 0;
+  const allocRate = showNet && totals.revenue ? -(net!.discount + net!.deliveryCost) / totals.revenue : 0;
   const netOf = (revenue: number, profit: number) => profit + revenue * allocRate;
 
   return (
@@ -549,17 +549,17 @@ export default function ItemProfitPage() {
               <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-sm">
                 <Recon label="Gross item profit" value={money(totals.profit)} />
                 <span className="text-gray-400">−</span>
-                <Recon label="Discounts / free delivery" value={money(net.discount)} tone="red" />
-                <span className="text-gray-400">+</span>
-                <Recon label="Delivery fees collected" value={money(net.deliveryFee)} tone="green" />
+                <Recon label="Discounts" value={money(net.discount)} tone="red" />
+                <span className="text-gray-400">−</span>
+                <Recon label="Delivery cost (free delivery)" value={money(net.deliveryCost)} tone="red" />
                 <span className="text-gray-400">=</span>
                 <Recon label="Net profit" value={money(net.profit)} big tone={net.profit >= 0 ? "green" : "red"} />
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
-                Net profit applies order-level discounts and delivery fees (which can&apos;t be tied to a
-                single item) — this matches the Reports → P&amp;L total. It shows only for the full,
-                unfiltered period; adding a category, product, channel or search filter hides it since
-                those adjustments can&apos;t be attributed.
+                Net profit subtracts order-level discounts and the delivery cost you paid couriers on
+                free-delivery orders (neither can be tied to a single item) — this matches the Reports →
+                P&amp;L total. It shows only for the full, unfiltered period; adding a category, product,
+                channel or search filter hides it since those amounts can&apos;t be attributed.
               </p>
             </div>
           )}

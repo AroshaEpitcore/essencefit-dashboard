@@ -98,11 +98,11 @@ export async function runItemProfit(filters: ItemProfitFilters) {
 }
 
 /**
- * Order-level adjustments for a date range (Paid/Completed orders): total
- * Discount given (incl. free delivery) and DeliveryFee collected. These are
- * per-ORDER amounts that can't be attributed to an individual item, so the page
- * only applies them to the business-wide (unfiltered) net profit — matching the
- * Reports P&L. Casts on the nullable date params per untyped-null-param-42p08.
+ * Order-level amounts for a date range (Paid/Completed orders): total real
+ * Discount given and DeliveryCost paid to couriers on free-delivery orders. Both
+ * reduce net profit but are per-ORDER (can't be attributed to a single item), so
+ * the page applies them only to the business-wide (unfiltered) net profit —
+ * matching the Reports P&L. Casts on nullable date params per untyped-null-param-42p08.
  */
 export async function getOrderAdjustments(filters: {
   from?: string;
@@ -117,7 +117,7 @@ export async function getOrderAdjustments(filters: {
     .query(`
       SELECT
         CAST(COALESCE(SUM(COALESCE(Discount, 0)), 0) AS DECIMAL(18,2)) AS Discount,
-        CAST(COALESCE(SUM(COALESCE(DeliveryFee, 0)), 0) AS DECIMAL(18,2)) AS DeliveryFee
+        CAST(COALESCE(SUM(COALESCE(DeliveryCost, 0)), 0) AS DECIMAL(18,2)) AS DeliveryCost
       FROM Orders
       WHERE PaymentStatus IN ('Paid', 'Completed')
         AND ((@From)::date IS NULL OR CAST(OrderDate AS DATE) >= (@From)::date)
