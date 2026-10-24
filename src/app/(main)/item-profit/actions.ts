@@ -2,7 +2,7 @@
 
 import { requireAdmin } from "@/lib/adminAuth";
 import { getDb } from "@/lib/db";
-import type { ItemProfitFilters, ItemProfitRow } from "./types";
+import type { ItemProfitFilters, ItemProfitRow, OrderAdjustments } from "./types";
 
 /** Categories for the filter dropdown. */
 export async function getCategories() {
@@ -95,4 +95,33 @@ export async function runItemProfit(filters: ItemProfitFilters) {
     `);
 
   return result.recordset as ItemProfitRow[];
+}
+
+/**
+ * Order-level adjustments for a date range (Paid/Completed orders): total
+ * Discount given (incl. free delivery) and DeliveryFee collected. These are
+ * per-ORDER amounts that can't be attributed to an individual item, so the page
+ * only applies them to the business-wide (unfiltered) net profit — matching the
+ * Reports P&L. Casts on the nullable date params per untyped-null-param-42p08.
+ */
+export async function getOrderAdjustments(filters: {
+  from?: string;
+  to?: string;
+}): Promise<OrderAdjustments> {
+  await requireAdmin();
+  const pool = await getDb();
+  const result = await pool
+    .request()
+    .input("From", filters.from || null)
+    .input("To", filters.to || null)
+    .query(`
+      SELECT
+        CAST(COALESCE(SUM(COALESCE(Discount, 0)), 0) AS DECIMAL(18,2)) AS Discount,
+        CAST(COALESCE(SUM(COALESCE(DeliveryFee, 0)), 0) AS DECIMAL(18,2)) AS DeliveryFee
+      FROM Orders
+      WHERE PaymentStatus IN ('Paid', 'Completed')
+        AND ((@From)::date IS NULL OR CAST(OrderDate AS DATE) >= (@From)::date)
+        AND ((@To)::date IS NULL OR CAST(OrderDate AS DATE) <= (@To)::date)
+    `);
+  return result.recordset[0] as OrderAdjustments;
 }

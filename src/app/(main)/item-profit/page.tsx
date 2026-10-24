@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
-import { getCategories, getProducts, getChannels, runItemProfit } from "./actions";
-import type { ItemProfitFilters, ItemProfitRow } from "./types";
+import { getCategories, getProducts, getChannels, runItemProfit, getOrderAdjustments } from "./actions";
+import type { ItemProfitFilters, ItemProfitRow, OrderAdjustments } from "./types";
 import {
   Coins,
   Filter,
@@ -116,6 +116,10 @@ export default function ItemProfitPage() {
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [activeRange, setActiveRange] = useState<RangeKey | null>(null);
   const [rows, setRows] = useState<ItemProfitRow[] | null>(null);
+  // Order-level adjustments (business-wide) + whether the generated view was
+  // unfiltered, so Net Profit only shows when the numbers can actually tie out.
+  const [adjust, setAdjust] = useState<OrderAdjustments | null>(null);
+  const [adjustApplies, setAdjustApplies] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [generatedAt, setGeneratedAt] = useState<string | null>(null);
@@ -170,7 +174,14 @@ export default function ItemProfitPage() {
         from: f.from || undefined,
         to: f.to || undefined,
       };
-      setRows(await runItemProfit(payload));
+      const unfiltered = !payload.category && !payload.product && !payload.channel;
+      const [data, adj] = await Promise.all([
+        runItemProfit(payload),
+        unfiltered ? getOrderAdjustments({ from: payload.from, to: payload.to }) : Promise.resolve(null),
+      ]);
+      setRows(data);
+      setAdjust(adj);
+      setAdjustApplies(unfiltered);
       setGeneratedAt(new Date().toLocaleString());
     } catch (e) {
       toast.error((e as Error)?.message || "Failed to run report");
@@ -266,6 +277,17 @@ export default function ItemProfitPage() {
     );
     return { ...t, items: lines.length, margin: t.revenue ? t.profit / t.revenue : 0 };
   }, [lines]);
+
+  // Net profit = gross item profit − order-level discounts/free delivery
+  // + delivery fees collected. Only meaningful business-wide (unfiltered), and
+  // only when the whole dataset is shown (no text search excluding rows).
+  const net = useMemo(() => {
+    if (!adjust || !adjustApplies || search.trim()) return null;
+    const discount = Number(adjust.Discount || 0);
+    const deliveryFee = Number(adjust.DeliveryFee || 0);
+    const profit = totals.profit - discount + deliveryFee;
+    return { discount, deliveryFee, profit };
+  }, [adjust, adjustApplies, search, totals.profit]);
 
   // Lines grouped by category and sorted within each group — the detail table.
   const grouped = useMemo(() => {
@@ -497,6 +519,28 @@ export default function ItemProfitPage() {
             <Kpi title={groupMode === "variant" ? "Items" : "Products"} value={num(totals.items)} />
           </div>
 
+          {/* Net profit reconciliation — ties the page's gross item profit to
+              the business-wide net P&L for the same period. */}
+          {net && (
+            <div className="bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-xl p-5 mb-6">
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-sm">
+                <Recon label="Gross item profit" value={money(totals.profit)} />
+                <span className="text-gray-400">−</span>
+                <Recon label="Discounts / free delivery" value={money(net.discount)} tone="red" />
+                <span className="text-gray-400">+</span>
+                <Recon label="Delivery fees collected" value={money(net.deliveryFee)} tone="green" />
+                <span className="text-gray-400">=</span>
+                <Recon label="Net profit" value={money(net.profit)} big tone={net.profit >= 0 ? "green" : "red"} />
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
+                Net profit applies order-level discounts and delivery fees (which can&apos;t be tied to a
+                single item) — this matches the Reports → P&amp;L total. It shows only for the full,
+                unfiltered period; adding a category, product, channel or search filter hides it since
+                those adjustments can&apos;t be attributed.
+              </p>
+            </div>
+          )}
+
           {/* Per-channel summary — DTF, cash/order, PrintJob … each with its
               own sales, item cost and profit. */}
           {channelSummary.length > 0 && (
@@ -698,6 +742,17 @@ function GroupBlock({
         </tr>
       ))}
     </>
+  );
+}
+
+function Recon({ label, value, tone, big }: { label: string; value: string; tone?: "green" | "red"; big?: boolean }) {
+  const toneClass =
+    tone === "green" ? "text-green-600 dark:text-green-400" : tone === "red" ? "text-red-600 dark:text-red-400" : "";
+  return (
+    <div>
+      <p className="text-xs text-gray-500 dark:text-gray-400">{label}</p>
+      <p className={`font-bold ${big ? "text-xl" : "text-base"} ${toneClass}`}>{value}</p>
+    </div>
   );
 }
 

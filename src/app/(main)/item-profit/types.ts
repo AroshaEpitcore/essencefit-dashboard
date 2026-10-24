@@ -11,6 +11,10 @@ export type ItemProfitFilters = {
   to?: string;
 };
 
+/** Order-level adjustments for a period (business-wide; can't be attributed to
+ * a single item) — free-delivery/discounts given and delivery fees collected. */
+export type OrderAdjustments = { Discount: number; DeliveryFee: number };
+
 /** Variant-level sales row (per channel) — cost, revenue and profit separate. */
 export type ItemProfitRow = {
   Category: string;
