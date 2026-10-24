@@ -7,7 +7,22 @@ import sql, { NVarChar, UniqueIdentifier, Int, Decimal, Transaction } from "@/li
 import { sendOrderNotification, sendCustomerStatusUpdate, sendCustomerDeliveryUpdate } from "@/lib/orderNotify";
 import { sortBySize } from "@/lib/sizeOrder";
 import { UserFacingError, userErrorMessage } from "@/lib/userError";
+import { getPublicStoreSettings } from "@/lib/storeSettings";
 import { DELIVERY_STATUSES, type DeliveryStatus } from "./deliveryStatus";
+
+/** Delivery-charge amounts for the order-entry dropdown — the base delivery fee
+ *  plus each province's fee from Store Settings (values only, no province
+ *  names), deduped and sorted, with 0 ("no delivery charge") first. */
+export async function getDeliveryFeeOptions(): Promise<number[]> {
+  await requireAdmin();
+  const s = await getPublicStoreSettings();
+  const vals = new Set<number>([0]);
+  if (Number(s.deliveryFee)) vals.add(Number(s.deliveryFee));
+  for (const p of s.deliveryProvinces ?? []) {
+    if (Number(p?.fee)) vals.add(Number(p.fee));
+  }
+  return Array.from(vals).sort((a, b) => a - b);
+}
 
 /* Money-path mutations RETURN { ok, error } instead of throwing, because
    Next.js strips thrown Error messages from server actions in production —

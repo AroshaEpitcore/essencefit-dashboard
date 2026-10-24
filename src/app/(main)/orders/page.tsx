@@ -7,7 +7,8 @@ import { generateInvoicePDF, getWhatsAppMessage } from "./invoiceActions";
 import { downloadPDF } from "@/lib/pdfGenerator";
 import { orderTotal } from "@/lib/orderMoney";
 // Preset delivery charges (customer pays). 0 = no delivery charge.
-const DELIVERY_FEE_OPTIONS = [0, 300, 350, 400, 450, 500] as const;
+// Fallback delivery-charge options if Store Settings hasn't loaded yet.
+const DELIVERY_FEE_FALLBACK = [0, 300, 350, 400, 450, 500];
 import { getProductInfo } from "./actions";
 import { Search, X } from "lucide-react";
 import {
@@ -25,6 +26,7 @@ import {
   updateDeliveryStatus,
   deleteOrder,
   getVariantStockByProductAndSize,
+  getDeliveryFeeOptions,
   type OrderItemInput,
   type OrderPayload,
   type OrderRange,
@@ -235,6 +237,13 @@ export default function OrdersPage() {
     useState<number>(300);
   // Delivery the customer pays on a normal order (pass-through; not profit).
   const [customerDeliveryFee, setCustomerDeliveryFee] = useState<number>(0);
+  // Delivery-charge dropdown options — from Store Settings (base + province fees).
+  const [deliveryFeeOptions, setDeliveryFeeOptions] = useState<number[]>(DELIVERY_FEE_FALLBACK);
+  useEffect(() => {
+    getDeliveryFeeOptions()
+      .then((opts) => { if (opts?.length) setDeliveryFeeOptions(opts); })
+      .catch(() => {});
+  }, []);
 
   const [lines, setLines] = useState<LineDraft[]>([]);
 
@@ -1637,88 +1646,82 @@ export default function OrdersPage() {
                 </div>
               ))}
 
-              {/* ✅ totals + free delivery UI */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-3">
-                <div className="text-sm">
-                  Subtotal: <b>Rs {subtotal.toFixed(2)}</b>
+              {/* Order summary — delivery always available (free needs Qty ≥ 3) */}
+              <div className="mt-4 w-full md:max-w-sm md:ml-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-900/30 p-4 flex flex-col gap-3 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500 dark:text-gray-400">Subtotal</span>
+                  <b>Rs {subtotal.toFixed(2)}</b>
                 </div>
 
-                <div className="flex items-center gap-2 text-sm">
-                  Discount:
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-gray-500 dark:text-gray-400">Discount (Rs)</span>
                   <input
-                    className="w-24 bg-white dark:bg-gray-800 border rounded-lg px-2 py-1"
+                    className="w-28 text-right bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1"
                     type="number"
                     step="0.01"
                     value={discount}
-                    onChange={(e) =>
-                      setDiscount(parseFloat(e.target.value || "0"))
-                    }
+                    onChange={(e) => setDiscount(parseFloat(e.target.value || "0"))}
                   />
                 </div>
 
-                {/* Delivery — always available (free delivery needs Qty ≥ 3). */}
-                <div className="flex flex-col gap-2 text-sm">
-                  <div className="flex items-center justify-between">
-                    <span>Total Qty:</span>
-                    <b>{totalQty}</b>
-                  </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500 dark:text-gray-400">Total Qty</span>
+                  <b>{totalQty}</b>
+                </div>
 
+                <div className="flex items-center justify-between gap-2 border-t border-gray-200 dark:border-gray-700 pt-3">
                   <ToggleSwitch
                     checked={isFreeDelivery}
                     onChange={setIsFreeDelivery}
                     disabled={!eligibleFreeDelivery}
-                    label="Free Delivery — I pay courier (Qty ≥ 3)"
+                    label="Free delivery — I pay courier (Qty ≥ 3)"
                   />
+                </div>
 
-                  {isFreeDelivery ? (
-                    <>
-                      <div className="flex items-center gap-2">
-                        <span>Courier cost I pay:</span>
-                        <input
-                          type="number"
-                          min={0}
-                          value={selectedDeliveryCharge || ""}
-                          onChange={(e) => setSelectedDeliveryCharge(parseFloat(e.target.value || "0"))}
-                          placeholder="0"
-                          className="bg-white dark:bg-gray-800 border rounded-lg px-2 py-1 w-24"
-                        />
-                      </div>
-                      <div className="text-xs text-red-600">
-                        Delivery cost (you pay): Rs {deliverySaving.toFixed(2)} — reduces profit, not a discount
-                      </div>
-                    </>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <span>Delivery charge (customer pays):</span>
+                {isFreeDelivery ? (
+                  <>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-gray-500 dark:text-gray-400">Courier cost I pay (Rs)</span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={selectedDeliveryCharge || ""}
+                        onChange={(e) => setSelectedDeliveryCharge(parseFloat(e.target.value || "0"))}
+                        placeholder="0"
+                        className="w-28 text-right bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1"
+                      />
+                    </div>
+                    <p className="text-xs text-red-600 -mt-1">Reduces profit — not a discount.</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-gray-500 dark:text-gray-400">Delivery (customer pays)</span>
                       <select
                         value={customerDeliveryFee}
                         onChange={(e) => setCustomerDeliveryFee(Number(e.target.value))}
-                        className="bg-white dark:bg-gray-800 border rounded-lg px-2 py-1"
+                        className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1"
                       >
-                        {DELIVERY_FEE_OPTIONS.map((x) => (
+                        {deliveryFeeOptions.map((x) => (
                           <option key={x} value={x}>{x === 0 ? "No delivery charge" : `Rs ${x}`}</option>
                         ))}
                       </select>
-                      <span className="text-xs text-gray-500">added to total · not profit</span>
                     </div>
-                  )}
+                    <p className="text-xs text-gray-500 -mt-1">Added to total · pass-through, not profit.</p>
+                  </>
+                )}
 
-                  {/* Delivery ETA */}
-                  {(() => {
-                    const charge = isFreeDelivery ? selectedDeliveryCharge : (customerDeliveryFee || 300);
-                    const eta = getDeliveryETA(charge, orderDate);
-                    return (
-                      <div className="text-xs mt-1 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                        <span className="text-blue-600 dark:text-blue-400">
-                          📦 ETA: {eta.days} ({eta.date})
-                        </span>
-                      </div>
-                    );
-                  })()}
-                </div>
+                {(() => {
+                  const charge = isFreeDelivery ? selectedDeliveryCharge : (customerDeliveryFee || 300);
+                  const eta = getDeliveryETA(charge, orderDate);
+                  return (
+                    <p className="text-xs text-blue-600 dark:text-blue-400">📦 ETA: {eta.days} ({eta.date})</p>
+                  );
+                })()}
 
-                <div className="text-sm">
-                  Total: <b className="text-primary">Rs {total.toFixed(2)}</b>
+                <div className="flex items-center justify-between border-t border-gray-200 dark:border-gray-700 pt-3">
+                  <span className="font-semibold">Total</span>
+                  <b className="text-primary text-base">Rs {total.toFixed(2)}</b>
                 </div>
               </div>
 
@@ -2011,11 +2014,31 @@ export default function OrdersPage() {
 
       {/* Recent Orders */}
       <section>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold flex items-center gap-2">
+        <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+          <h2 className="text-xl font-semibold flex items-center gap-2 shrink-0">
             <Calendar className="w-5 h-5 text-primary" />
             Recent Orders ({filteredOrders.length})
           </h2>
+
+          {/* Quick search (same filter as the main search box) */}
+          <div className="relative flex-1 min-w-[180px] max-w-xs">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search customer, phone, address, ID…"
+              className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg pl-9 pr-8 py-2 text-sm"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
 
           {/* Bulk Actions */}
           <div className="flex items-center gap-2">
@@ -2654,7 +2677,7 @@ export default function OrdersPage() {
                       onChange={(e) => setEditCustomerDeliveryFee(Number(e.target.value))}
                       className="bg-white dark:bg-gray-800 border rounded-lg px-2 py-1"
                     >
-                      {Array.from(new Set([...DELIVERY_FEE_OPTIONS, editCustomerDeliveryFee]))
+                      {Array.from(new Set([...deliveryFeeOptions, editCustomerDeliveryFee]))
                         .sort((a, b) => a - b)
                         .map((x) => (
                           <option key={x} value={x}>{x === 0 ? "No delivery charge" : `Rs ${x}`}</option>
