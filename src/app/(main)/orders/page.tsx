@@ -1681,15 +1681,18 @@ export default function OrdersPage() {
                 {isFreeDelivery ? (
                   <>
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-gray-500 dark:text-gray-400">Courier cost I pay (Rs)</span>
-                      <input
-                        type="number"
-                        min={0}
-                        value={selectedDeliveryCharge || ""}
-                        onChange={(e) => setSelectedDeliveryCharge(parseFloat(e.target.value || "0"))}
-                        placeholder="0"
-                        className="w-28 text-right bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1"
-                      />
+                      <span className="text-gray-500 dark:text-gray-400">Courier cost I pay</span>
+                      <select
+                        value={selectedDeliveryCharge}
+                        onChange={(e) => setSelectedDeliveryCharge(Number(e.target.value))}
+                        className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1"
+                      >
+                        {Array.from(new Set([...deliveryFeeOptions, selectedDeliveryCharge]))
+                          .sort((a, b) => a - b)
+                          .map((x) => (
+                            <option key={x} value={x}>{x === 0 ? "None" : `Rs ${x}`}</option>
+                          ))}
+                      </select>
                     </div>
                     <p className="text-xs text-red-600 -mt-1">Reduces profit — not a discount.</p>
                   </>
@@ -2656,14 +2659,17 @@ export default function OrdersPage() {
                   <>
                     <div className="flex items-center gap-2">
                       <span>Courier cost I pay:</span>
-                      <input
-                        type="number"
-                        min={0}
-                        value={editSelectedDeliveryCharge || ""}
-                        onChange={(e) => setEditSelectedDeliveryCharge(parseFloat(e.target.value || "0"))}
-                        placeholder="0"
-                        className="bg-white dark:bg-gray-800 border rounded-lg px-2 py-1 w-24"
-                      />
+                      <select
+                        value={editSelectedDeliveryCharge}
+                        onChange={(e) => setEditSelectedDeliveryCharge(Number(e.target.value))}
+                        className="bg-white dark:bg-gray-800 border rounded-lg px-2 py-1"
+                      >
+                        {Array.from(new Set([...deliveryFeeOptions, editSelectedDeliveryCharge]))
+                          .sort((a, b) => a - b)
+                          .map((x) => (
+                            <option key={x} value={x}>{x === 0 ? "None" : `Rs ${x}`}</option>
+                          ))}
+                      </select>
                     </div>
                     <div className="text-xs text-red-600">
                       Delivery cost (you pay): Rs {editDeliverySaving.toFixed(2)} — reduces profit
