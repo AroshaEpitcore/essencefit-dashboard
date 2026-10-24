@@ -623,3 +623,15 @@ DO $$ BEGIN
       FOREIGN KEY (printjobid) REFERENCES printjobs(id) ON DELETE CASCADE;
   END IF;
 END $$;
+
+-- A print job's DTF cost is money paid out of pocket; record it as Cash Usage
+-- so Finance's Remaining balance reflects it. Linked ON DELETE CASCADE so the
+-- entry is removed with the job. See patch 2026-10-24-printjob-cash-usage.sql.
+ALTER TABLE cashusage ADD COLUMN IF NOT EXISTS printjobid uuid;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_cashusage_printjobs') THEN
+    ALTER TABLE cashusage ADD CONSTRAINT fk_cashusage_printjobs
+      FOREIGN KEY (printjobid) REFERENCES printjobs(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+CREATE INDEX IF NOT EXISTS ix_cashusage_printjobid ON cashusage (printjobid);

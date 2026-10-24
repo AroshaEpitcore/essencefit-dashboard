@@ -196,6 +196,21 @@ export async function createPrintJob(input: PrintJobInput): Promise<PjResult> {
         VALUES (@SaleId, @PrintJobId, @VariantId, @Qty, @SellingPrice, @CostPrice, 'PrintJob', 'Completed', now())
       `);
 
+    // The DTF cost is paid out of pocket to the DTF shop — record it as Cash
+    // Usage (linked to the job, ON DELETE CASCADE) so the Finance balance drops
+    // by it. The synced Sales row already carries it as CostPrice for the profit
+    // reports; this is the separate cash-out so Finance's till reconciles.
+    if (totalCost > 0) {
+      await req()
+        .input("Desc", NVarChar(sql.MAX), `Print job ${ref} — DTF cost (${qty} × Rs ${dtfCost})`)
+        .input("Amount", Decimal(18, 2), totalCost)
+        .input("PrintJobId", UniqueIdentifier, jobId)
+        .query(`
+          INSERT INTO CashUsage (Description, Amount, PrintJobId)
+          VALUES (@Desc, @Amount, @PrintJobId)
+        `);
+    }
+
     await tx.commit();
     return { ok: true, ref };
   } catch (err) {
