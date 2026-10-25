@@ -256,6 +256,7 @@ export async function getRecentOrders(limit: number = 20, range: OrderRange = "a
       o.Subtotal,
       o.Discount,
       o.DeliveryFee,
+      o.DeliveryCost,
       o.Total,
       (SELECT COUNT(*) FROM OrderItems oi WHERE oi.OrderId = o.Id) AS LineCount,
       (SELECT COUNT(*) FROM OrderItems oi WHERE oi.OrderId = o.Id AND oi.IsDtf) AS DtfLineCount,

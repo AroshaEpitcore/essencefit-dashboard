@@ -9,6 +9,18 @@ import { orderTotal } from "@/lib/orderMoney";
 // Preset delivery charges (customer pays). 0 = no delivery charge.
 // Fallback delivery-charge options if Store Settings hasn't loaded yet.
 const DELIVERY_FEE_FALLBACK = [0, 300, 350, 400, 450, 500];
+
+// Order profit for a list row: goods revenue − COGS − delivery cost we paid.
+// EXCLUDES the customer-paid DeliveryFee (pass-through, not profit).
+// Total = Subtotal − Discount + DeliveryFee, so (Total − DeliveryFee) is net goods revenue.
+function orderNetProfitRow(o: any): number {
+  return (
+    Number(o.Total || 0) -
+    Number(o.DeliveryFee || 0) -
+    Number(o.DeliveryCost || 0) -
+    Number(o.TotalCost || 0)
+  );
+}
 import { getProductInfo } from "./actions";
 import { Search, X } from "lucide-react";
 import {
@@ -416,7 +428,7 @@ export default function OrdersPage() {
       const statusOrders = filtered.filter((o) => o.PaymentStatus === status);
       const total = statusOrders.reduce((sum, o) => sum + Number(o.Total || 0), 0);
       const profit = statusOrders.reduce(
-        (sum, o) => sum + (Number(o.Total || 0) - Number(o.TotalCost || 0)),
+        (sum, o) => sum + orderNetProfitRow(o),
         0
       );
       totals[status] = { count: statusOrders.length, total, profit };
@@ -2173,13 +2185,22 @@ export default function OrdersPage() {
                     </div>
                     <div
                       className={`text-xs font-semibold mt-1 ${
-                        Number(o.Total || 0) - Number(o.TotalCost || 0) >= 0
+                        orderNetProfitRow(o) >= 0
                           ? "text-green-600 dark:text-green-400"
                           : "text-red-600 dark:text-red-400"
                       }`}
                     >
-                      Profit: Rs{" "}
-                      {(Number(o.Total || 0) - Number(o.TotalCost || 0)).toFixed(2)}
+                      Profit: Rs {orderNetProfitRow(o).toFixed(2)}
+                    </div>
+                    {/* Profit breakdown — delivery the customer pays is never profit */}
+                    <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+                      Goods Rs {(Number(o.Subtotal || 0) - Number(o.Discount || 0)).toFixed(2)}
+                      {" − Cost Rs "}{Number(o.TotalCost || 0).toFixed(2)}
+                      {Number(o.DeliveryCost || 0) > 0 && <> − Delivery cost Rs {Number(o.DeliveryCost).toFixed(2)}</>}
+                      {" = Rs "}{orderNetProfitRow(o).toFixed(2)}
+                      {Number(o.DeliveryFee || 0) > 0 && (
+                        <div className="text-gray-400">+ Delivery Rs {Number(o.DeliveryFee).toFixed(2)} (customer pays · not profit)</div>
+                      )}
                     </div>
                   </div>
 
