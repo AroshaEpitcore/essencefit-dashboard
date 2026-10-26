@@ -158,16 +158,25 @@ export async function createSalesReturn(
 
       // Reverse the sale: reduce the order's Sales row qty for this variant so
       // its revenue (Qty×SellingPrice) and COGS (Qty×CostPrice) drop — returned
-      // units stop counting as sold/profit everywhere. Clamped at 0; a no-op if
-      // the order was never Paid/Completed (no Sales rows exist).
+      // units stop counting as sold/profit everywhere. A no-op if the order was
+      // never Paid/Completed (no Sales rows). NOTE: Sales has CHECK (qty > 0),
+      // so a fully-returned line must be DELETED, not set to 0.
+      await new sql.Request(tx)
+        .input("OrderId", sql.UniqueIdentifier, orderId)
+        .input("VariantId", sql.UniqueIdentifier, it.VariantId)
+        .input("Qty", sql.Int, it.Qty)
+        .query(`
+          DELETE FROM Sales
+          WHERE OrderId=@OrderId AND VariantId=@VariantId AND Qty <= @Qty
+        `);
       await new sql.Request(tx)
         .input("OrderId", sql.UniqueIdentifier, orderId)
         .input("VariantId", sql.UniqueIdentifier, it.VariantId)
         .input("Qty", sql.Int, it.Qty)
         .query(`
           UPDATE Sales
-          SET Qty = GREATEST(Qty - @Qty, 0)
-          WHERE OrderId=@OrderId AND VariantId=@VariantId
+          SET Qty = Qty - @Qty
+          WHERE OrderId=@OrderId AND VariantId=@VariantId AND Qty > @Qty
         `);
     }
 
