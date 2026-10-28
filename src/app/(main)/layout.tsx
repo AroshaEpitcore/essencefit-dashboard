@@ -17,6 +17,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
   const loading = usePageLoader();
@@ -43,6 +44,21 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     setAuthorized(true);
   }, [authLoading, user, pathname]);
 
+  // Close the mobile sidebar drawer whenever the route changes.
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  // The hamburger toggles the off-canvas drawer on mobile and the
+  // icon-only rail collapse on desktop.
+  const handleToggleSidebar = () => {
+    if (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches) {
+      setMobileOpen((o) => !o);
+    } else {
+      setCollapsed((c) => !c);
+    }
+  };
+
   useEffect(() => {
     const el = mainRef.current;
     if (!el) return;
@@ -61,10 +77,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       <IdleLogout />
 
-      <Sidebar collapsed={collapsed} />
-      <div className="flex flex-col flex-1">
-        <Topbar onToggleSidebar={() => setCollapsed((c) => !c)} />
-        <main ref={mainRef} className="flex-1 overflow-y-auto p-6 transition-opacity duration-300">
+      {/* Mobile backdrop — tap to dismiss the drawer */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={() => setMobileOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      <Sidebar collapsed={collapsed} mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
+      <div className="flex flex-col flex-1 min-w-0">
+        <Topbar onToggleSidebar={handleToggleSidebar} />
+        <main ref={mainRef} className="flex-1 overflow-y-auto p-3 sm:p-6 transition-opacity duration-300">
           {children}
           <FloatingCalculator />
           {showBackToTop && (

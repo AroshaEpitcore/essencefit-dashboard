@@ -77,9 +77,29 @@ const navItems = [
   { href: "/health", label: "System Health", icon: Activity },
 ];
 
-export default function Sidebar({ collapsed }: { collapsed: boolean }) {
+export default function Sidebar({
+  collapsed,
+  mobileOpen = false,
+  onClose,
+}: {
+  collapsed: boolean;
+  mobileOpen?: boolean;
+  onClose?: () => void;
+}) {
   const pathname = usePathname();
   const { isAdmin } = useAuth();
+
+  // On mobile the sidebar is an off-canvas drawer and always shows full labels;
+  // the collapsed (icon-only) rail is a desktop-only affordance.
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  const effectiveCollapsed = !isMobile && collapsed;
 
   // Pending website-orders count → red dot on the "Website Orders" item.
   const [pendingWeb, setPendingWeb] = useState(0);
@@ -103,13 +123,15 @@ export default function Sidebar({ collapsed }: { collapsed: boolean }) {
 
   return (
     <aside
-      className={`${
-        collapsed ? "w-16" : "w-64"
-      } bg-[#0b1220] text-gray-100 flex flex-col transition-all duration-300 ease-in-out h-screen`}
+      className={`fixed md:static inset-y-0 left-0 z-50 w-64 ${
+        collapsed ? "md:w-16" : "md:w-64"
+      } bg-[#0b1220] text-gray-100 flex flex-col transition-all duration-300 ease-in-out h-screen transform ${
+        mobileOpen ? "translate-x-0" : "-translate-x-full"
+      } md:translate-x-0`}
     >
       {/* --- Fixed Top Logo --- */}
       <div className="px-4 py-5 text-gray-100 font-bold text-xl flex items-center justify-center border-b border-gray-800 shrink-0">
-        {collapsed ? <LeafyGreen className="h-6 w-6 text-green-400" /> : "EssenceFit"}
+        {effectiveCollapsed ? <LeafyGreen className="h-6 w-6 text-green-400" /> : "EssenceFit"}
       </div>
 
       {/* --- Scrollable Middle Navigation --- */}
@@ -131,10 +153,11 @@ export default function Sidebar({ collapsed }: { collapsed: boolean }) {
 
             return (
               <li key={item.href}>
-                {collapsed ? (
+                {effectiveCollapsed ? (
                   <>
                     <Link
                       href={item.href}
+                      onClick={onClose}
                       className={`${linkClasses} justify-center relative`}
                       data-tooltip-id={`tooltip-${item.href}`}
                       data-tooltip-content={showDot ? `${item.label} — ${pendingWeb} pending` : item.label}
@@ -151,7 +174,7 @@ export default function Sidebar({ collapsed }: { collapsed: boolean }) {
                     />
                   </>
                 ) : (
-                  <Link href={item.href} className={linkClasses}>
+                  <Link href={item.href} onClick={onClose} className={linkClasses}>
                     <Icon className="h-5 w-5" />
                     {item.label}
                     {showDot && (
@@ -169,7 +192,7 @@ export default function Sidebar({ collapsed }: { collapsed: boolean }) {
 
       {/* --- Fixed Footer --- */}
       <div className="p-3 border-t border-gray-800 text-center text-xs text-gray-500">
-        {collapsed ? "EF" : "EssenceFit © 2026"}
+        {effectiveCollapsed ? "EF" : "EssenceFit © 2026"}
       </div>
 
       {/* --- Hidden Scrollbar CSS --- */}

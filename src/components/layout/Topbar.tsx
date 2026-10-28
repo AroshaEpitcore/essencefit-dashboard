@@ -62,9 +62,9 @@ export default function Topbar({
   }
 
   return (
-    <header className="h-14 flex items-center justify-between bg-white/70 dark:bg-gray-900/70 backdrop-blur border-b px-4">
+    <header className="h-14 flex items-center justify-between bg-white/70 dark:bg-gray-900/70 backdrop-blur border-b px-2 sm:px-4 gap-2">
       {/* Left: Sidebar + Brand */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 shrink-0">
         <button
           onClick={onToggleSidebar}
           className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -76,19 +76,19 @@ export default function Topbar({
         </h1>
       </div>
 
-      {/* Middle: Marquee Announcement */}
-      <div className="flex-1 mx-4 overflow-hidden">
+      {/* Middle: Marquee Announcement (hidden on small screens) */}
+      <div className="flex-1 mx-4 overflow-hidden hidden md:block">
         <div className="whitespace-nowrap animate-marquee text-sm text-gray-700 dark:text-gray-300">
           ⚡ Welcome to EssenceFit! Manage all your inventory and finances with ease. Check out the latest updates and reports.
         </div>
       </div>
 
       {/* Right: Clock + User + Dark Mode + Logout */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-4 shrink-0">
         {user && (
-          <div className="flex items-center gap-4">
-            {/* Clock + Day */}
-            <div className="flex flex-col items-center text-gray-600 dark:text-gray-300 leading-tight">
+          <div className="flex items-center gap-2 sm:gap-4">
+            {/* Clock + Day (hidden on small screens) */}
+            <div className="hidden sm:flex flex-col items-center text-gray-600 dark:text-gray-300 leading-tight">
               <span className="text-sm font-mono">{time}</span>
               <span className="text-xs text-gray-500 dark:text-gray-400">{day}</span>
             </div>
