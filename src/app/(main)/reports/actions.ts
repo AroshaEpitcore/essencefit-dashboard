@@ -209,16 +209,21 @@ export async function runExpensesReport(filters: any) {
 }
 
 /**
- * ✅ P&L (NET Revenue) — matches Dashboard/Finance totals:
- * Revenue = SUM(GrossSales - Discount + DeliveryFee) (by day)
- * COGS = SUM(SalesQty * CostPrice)
- * GrossProfit = Revenue - COGS
+ * ✅ P&L — follows the canonical order money model (src/lib/orderMoney.ts) and
+ * matches the Item Profit page:
+ *   Revenue (net)  = SUM(GrossSales - Discount)   — customer-paid DeliveryFee is
+ *                    a pass-through, NOT business income, so it's NOT added.
+ *   COGS           = SUM(SalesQty * CostPrice)
+ *   GrossProfit    = Revenue - COGS
+ *   NetProfit      = GrossProfit - DeliveryCost    — courier fee the owner pays on
+ *                    free-delivery orders is a real expense, so it's subtracted.
  *
- * Now scopeable by Category/Product (so e.g. "Shorts" P&L works), and also
- * returns Orders (distinct orders containing the scoped items) and Items (units
- * sold). The order-level Discount/DeliveryFee adjustment only applies to the
+ * Scopeable by Category/Product (so e.g. "Shorts" P&L works), and also returns
+ * Orders (distinct orders containing the scoped items) and Items (units sold).
+ * The order-level Discount/DeliveryCost adjustments only apply to the
  * business-wide P&L (no category/product filter) because those amounts can't be
- * attributed to a single category — a scoped P&L reports gross revenue.
+ * attributed to a single category — a scoped P&L reports gross revenue and its
+ * NetProfit equals its GrossProfit.
  */
 export async function runPnLReport(filters: {
   category?: string;
@@ -288,7 +293,9 @@ export async function runPnLReport(filters: {
       SELECT
         T.Revenue,
         T.COGS,
-        CAST(T.Revenue - T.COGS - T.DeliveryCost AS DECIMAL(18,2)) AS GrossProfit,
+        T.DeliveryCost,
+        CAST(T.Revenue - T.COGS AS DECIMAL(18,2)) AS GrossProfit,
+        CAST(T.Revenue - T.COGS - T.DeliveryCost AS DECIMAL(18,2)) AS NetProfit,
         (SELECT COALESCE(COUNT(DISTINCT OrderId),0) FROM ScopedSales WHERE OrderId IS NOT NULL) AS Orders,
         (SELECT COALESCE(SUM(Qty),0) FROM ScopedSales) AS Items
       FROM Totals T

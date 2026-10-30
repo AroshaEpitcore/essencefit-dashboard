@@ -47,7 +47,7 @@ type InventoryRow = {
 
 type SalesRow = { Product: string; Qty: number; Revenue: number; Cost: number; Profit: number };
 type ExpenseRow = { Category: string; Description: string; Amount: number; ExpenseDate: string | Date };
-type PnlRow = { Revenue: number; COGS: number; GrossProfit: number; Orders: number; Items: number };
+type PnlRow = { Revenue: number; COGS: number; DeliveryCost: number; GrossProfit: number; NetProfit: number; Orders: number; Items: number };
 type DeadRow = { Product: string; Qty: number };
 type TopColorRow = { Color: string; Qty: number; Revenue: number };
 
@@ -391,7 +391,7 @@ export default function ReportPage() {
           <>
             <Kpi title="Orders" value={pnlData ? num(pnlData.Orders) : "-"} />
             <Kpi title="Items Sold" value={pnlData ? num(pnlData.Items) : "-"} />
-            <Kpi title="Gross Profit" value={pnlData ? money(pnlData.GrossProfit) : "-"} />
+            <Kpi title="Net Profit" value={pnlData ? money(pnlData.NetProfit) : "-"} />
           </>
         )}
 
@@ -526,20 +526,41 @@ export default function ReportPage() {
 
         {activeTab === "pnl" && pnlData && (
           <div className="p-6">
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <KpiBig title="Orders" value={num(pnlData.Orders)} />
               <KpiBig title="Items Sold" value={num(pnlData.Items)} />
-              <KpiBig title="Revenue" value={money(pnlData.Revenue)} />
+              <KpiBig title="Revenue (net)" value={money(pnlData.Revenue)} />
               <KpiBig title="COGS" value={money(pnlData.COGS)} />
-              <KpiBig title="Gross Profit" value={money(pnlData.GrossProfit)} />
             </div>
-            {(filters.category || filters.product) && (
+
+            {/* Profit waterfall — reconciles on screen: Revenue − COGS = Gross
+                Profit; − Delivery cost = Net Profit. */}
+            <div className="mt-6 max-w-md bg-gray-50 dark:bg-gray-900/30 border border-gray-200 dark:border-gray-700 rounded-xl p-6 space-y-2 text-sm">
+              <Line label="Revenue (net)" value={money(pnlData.Revenue)} />
+              <Line label="− COGS (cost of goods)" value={money(pnlData.COGS)} />
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-2">
+                <Line label="= Gross Profit" value={money(pnlData.GrossProfit)} strong />
+              </div>
+              <Line label="− Delivery cost (free delivery)" value={money(pnlData.DeliveryCost)} />
+              <div className="border-t-2 border-gray-300 dark:border-gray-600 pt-2">
+                <Line label="= Net Profit" value={money(pnlData.NetProfit)} strong big />
+              </div>
+            </div>
+
+            {(filters.category || filters.product) ? (
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-4">
                 Scoped P&L shows gross revenue for the selected{" "}
                 {filters.product ? "product" : "category"} — order-level discounts
-                and delivery fees are excluded (they can't be attributed to a single
-                category). Remove the Category/Product filter for the business-wide
-                net P&L.
+                and the free-delivery courier cost are excluded (they can't be
+                attributed to a single category), so Net Profit equals Gross Profit
+                here. Remove the Category/Product filter for the business-wide net
+                P&L.
+              </p>
+            ) : (
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-4">
+                Revenue is net of discounts and excludes customer-paid delivery
+                (a pass-through, not income). Net Profit subtracts the courier fee
+                paid on free-delivery orders. Matches Item Profit → Net profit.
               </p>
             )}
           </div>
@@ -636,6 +657,27 @@ function Kpi({ title, value }: { title: string; value: string }) {
     <div className="bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
       <p className="text-xs text-gray-500 dark:text-gray-400">{title}</p>
       <p className="text-lg font-bold mt-1">{value}</p>
+    </div>
+  );
+}
+
+function Line({
+  label,
+  value,
+  strong = false,
+  big = false,
+}: {
+  label: string;
+  value: string;
+  strong?: boolean;
+  big?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <span className={strong ? "font-semibold" : "text-gray-600 dark:text-gray-400"}>{label}</span>
+      <span className={`${strong ? "font-bold" : ""} ${big ? "text-xl text-green-600 dark:text-green-400" : ""}`}>
+        {value}
+      </span>
     </div>
   );
 }
