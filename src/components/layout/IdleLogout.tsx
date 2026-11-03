@@ -10,7 +10,7 @@ import { useAuth } from "@/lib/useAuth";
    does NOT track activity. This component adds the missing idle timeout: after
    IDLE_LIMIT_MS with no user activity it warns, then logs the admin out. */
 
-const IDLE_LIMIT_MS = 30 * 60 * 1000; // 30 min of inactivity → logout
+const IDLE_LIMIT_MS = 2 * 60 * 60 * 1000; // 2 hours of inactivity → logout
 const WARN_BEFORE_MS = 60 * 1000; // show the "still there?" prompt 60s before
 
 export default function IdleLogout() {
