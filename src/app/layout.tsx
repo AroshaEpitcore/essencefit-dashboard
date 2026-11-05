@@ -7,6 +7,9 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
+  verification: {
+    google: "y9JA2OOmzBCC3LwZ7D8pIQTmSMFJ10wl5AR7OZ5NgtU",
+  },
   title: {
     default: `${SITE_NAME} — Men's Sportswear, T-Shirts & Custom DTF Printing | Sri Lanka`,
     template: `%s | ${SITE_NAME} Sri Lanka`,
