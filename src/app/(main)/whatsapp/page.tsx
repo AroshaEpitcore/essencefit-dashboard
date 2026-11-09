@@ -74,6 +74,19 @@ Size කොහොමද dear (M,L,XL,XXL)?
           updatedAt: new Date().toISOString(),
         },
         {
+          id: "12",
+          title: "Welcome Message (Sizes 30–36)",
+          content: `Thank you so much for choosing EssenceFit 🙌
+
+Size කොහොමද dear 30 32 34 36?
+
+✅ Any 3 items — Free Delivery !
+`,
+          category: "Product Info",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        {
   id: "2",
   title: "Size & Color Inquiry",
   content: `Size කොහොමද sir / miss?
