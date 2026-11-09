@@ -81,6 +81,15 @@ Size කොහොමද dear (M,L,XL,XXL)?
 Size කොහොමද dear 30 32 34 36?
 
 ✅ Any 3 items — Free Delivery !
+
+මේක සාමාන්‍ය Baby Corduroy නෙවෙයි. උසස් තත්ත්වයේ Imported Corduroy Material එකකින් නිෂ්පාදනය කරලා තියෙන විශේෂ Collection එකක්.
+
+Casual outings, trips සහ everyday outfits වලට perfect match වෙන stylish look එකක් වගේම, හොඳ durability එකකුත් මේ material එකේ තියෙනවා.
+
+Imported material එකක් නිසා කල්පැවැත්ම ගැනත් විශ්වාසයෙන් යුතුව අවුරුදු ගණනාවක් භාවිතා කරන්න පුළුවන්.
+
+👖 එකක් රු. 1,500යි.
+🚚 Shorts 3ක් ගත්තොත් Free Delivery!
 `,
           category: "Product Info",
           createdAt: new Date().toISOString(),
