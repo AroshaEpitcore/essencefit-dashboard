@@ -1,4 +1,7 @@
 import { getDb } from "@/lib/db";
+import { computeDtfTotals } from "@/lib/dtfTotals";
+
+export { computeDtfTotals };
 
 /* DTF estimate engine. Single source of truth = the DtfPriceItems table
    (the same prices the admin edits in /dtf → Price Setup). The customer's
@@ -80,7 +83,6 @@ export async function computeDtfEstimate(input: {
 
   const garmentCost = Math.max(0, Number(input.garmentCost) || 0);
   const profit = input.profitOverride != null ? Math.max(0, Number(input.profitOverride) || 0) : globalProfit;
-  const qty = Math.max(1, Math.floor(Number(input.qty) || 1));
 
   const printRows = items.filter((i) => i.Category === "Print");
   const selected = (input.printNames || [])
@@ -88,10 +90,14 @@ export async function computeDtfEstimate(input: {
     .filter((p): p is PriceRow => !!p)
     .map((p) => ({ name: p.Name, amount: Number(p.Amount) }));
 
-  const printSum = selected.reduce((s, p) => s + p.amount, 0);
-  const printCharges = printSum + overheadTotal + profit;
-  const perPiece = garmentCost + printCharges;
-  const total = perPiece * qty + orderExtra;
+  const { printCharges, perPiece, qty, total } = computeDtfTotals({
+    garmentCost,
+    printAmounts: selected.map((p) => p.amount),
+    overheadTotal,
+    profit,
+    orderExtra,
+    qty: input.qty,
+  });
 
   return {
     garmentPrice: garmentCost, // garment base used (cost, not retail)
