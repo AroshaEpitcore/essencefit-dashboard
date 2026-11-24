@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
+import { getStockBySize } from "@/lib/waStock";
+import { parseSize, formatStockReply } from "@/lib/waReply";
 
 /* WhatsApp Cloud API webhook (Phase 1).
  *
@@ -60,6 +62,11 @@ export async function POST(req: NextRequest) {
         const value = change.value;
         // Delivery/read statuses arrive with `statuses`, not `messages` — ignore.
         for (const msg of value?.messages ?? []) {
+          // Meta re-delivers a webhook if it doesn't get a prompt 200 (and
+          // occasionally even when it does). Each delivery carries the same
+          // message id, so skip ones we've already handled to avoid double
+          // replies. Best-effort (per warm instance); see note on seen set.
+          if (msg.id && alreadySeen(msg.id)) continue;
           await handleInboundMessage(msg);
         }
       }
@@ -72,17 +79,30 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true });
 }
 
-/* ---- Phase 1 logic: reply to a text message ---- */
+/* ---- Phase 2a logic: reply to a text message ---- */
 async function handleInboundMessage(msg: WaMessage): Promise<void> {
   const from = msg.from; // customer's wa_id (phone)
   if (!from) return;
 
+  // Blue-tick the customer's message so they know it was received (standard UX).
+  if (msg.id) void markRead(msg.id);
+
   if (msg.type === "text" && msg.text?.body) {
-    // Minimal proof-of-life reply. Phase 2 replaces this with Claude + live stock.
+    const text = msg.text.body;
+
+    // If the message is JUST a size (e.g. "32", "L"), answer with live stock.
+    const size = parseSize(text);
+    if (size) {
+      const reply = await buildStockReply(size);
+      await sendText(from, reply);
+      return;
+    }
+
+    // Anything else — canned greeting for now (Claude lands in Phase 2b).
     const reply =
-      "Thank you for choosing EssenceFit 🙌\n" +
-      "(This is an automated test reply — the bot is now live on this number.)\n\n" +
-      `You said: "${msg.text.body}"`;
+      "Thank you for choosing EssenceFit 🙌\n\n" +
+      "ඔයාගේ size එක එවන්න (30 / 32 / 34 / 36 or M / L / XL) — " +
+      "available colours එක්ක මම එකෙලටම බලලා කියන්නම් 👖";
     await sendText(from, reply);
     return;
   }
@@ -92,6 +112,20 @@ async function handleInboundMessage(msg: WaMessage): Promise<void> {
     from,
     "Thanks! 🙏 We received your message. A team member will assist you shortly."
   );
+}
+
+/** Fetches live stock for a size and formats the reply (graceful on DB error). */
+async function buildStockReply(size: string): Promise<string> {
+  try {
+    const stock = await getStockBySize(size);
+    return formatStockReply(size, stock);
+  } catch (err) {
+    console.error("[wa/webhook] getStockBySize failed:", err);
+    return (
+      `Size ${size} ගැන බලන්න පොඩි issue එකක් 🙏 ` +
+      `පොඩ්ඩක් ඉඳලා ආයෙ try කරන්න, නැත්නම් අපි manually බලලා කියන්නම්.`
+    );
+  }
 }
 
 /* ---- Send a plain text message back via the Graph API ---- */
@@ -142,8 +176,56 @@ function verifySignature(req: NextRequest, raw: string): boolean {
   }
 }
 
+/* ---- Mark an inbound message as read (blue ticks) ---- */
+async function markRead(messageId: string): Promise<void> {
+  const token = process.env.WHATSAPP_TOKEN;
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  if (!token || !phoneNumberId) return;
+
+  try {
+    await fetch(
+      `https://graph.facebook.com/${GRAPH_VERSION}/${phoneNumberId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          status: "read",
+          message_id: messageId,
+        }),
+      }
+    );
+  } catch (err) {
+    // Non-critical — never block the reply on a read receipt.
+    console.error("[wa/webhook] markRead failed:", err);
+  }
+}
+
+/* ---- Best-effort webhook de-duplication ----
+ * Meta may deliver the same message id more than once. We remember recently
+ * seen ids in-process to drop duplicates. This survives only within a warm
+ * serverless instance (Fluid Compute reuses instances, so it catches the common
+ * rapid-retry case); a cold start forgets. For hard idempotency across instances,
+ * promote this to a DB/Redis check keyed on message id — tracked for Phase 2b. */
+const SEEN_MAX = 500;
+const seen = new Set<string>();
+function alreadySeen(id: string): boolean {
+  if (seen.has(id)) return true;
+  seen.add(id);
+  if (seen.size > SEEN_MAX) {
+    // Drop the oldest entry (insertion order) to cap memory.
+    const oldest = seen.values().next().value;
+    if (oldest !== undefined) seen.delete(oldest);
+  }
+  return false;
+}
+
 /* ---- Minimal payload types (only the fields we read) ---- */
 type WaMessage = {
+  id?: string;
   from?: string;
   type?: string;
   text?: { body?: string };

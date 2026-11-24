@@ -3,6 +3,7 @@
 import { requireAdmin } from "@/lib/adminAuth";
 
 import { getDb } from "@/lib/db";
+import { getSizesWithColorsForCategory } from "@/lib/waStock";
 
 /**
  * Get all product categories
@@ -23,44 +24,7 @@ export async function getProductCategories() {
  */
 export async function getSizesWithColors(categoryId: string) {
   await requireAdmin();
-  if (!categoryId) return [];
-  const pool = await getDb();
-
-  const res = await pool
-    .request()
-    .input("catId", categoryId)
-    .query(`
-      SELECT
-        s.Id   AS SizeId,
-        s.Name AS Size,
-        c.Name AS Color,
-        SUM(v.Qty) AS Qty
-      FROM ProductVariants v
-      INNER JOIN Products p ON p.Id = v.ProductId
-      INNER JOIN Sizes  s ON s.Id = v.SizeId
-      INNER JOIN Colors c ON c.Id = v.ColorId
-      WHERE p.CategoryId = @catId
-        AND v.Qty > 0
-      GROUP BY s.Id, s.Name, c.Name
-      HAVING SUM(v.Qty) > 0
-      ORDER BY s.Name, c.Name
-    `);
-
-  const sizeMap = new Map<
-    string,
-    { size: string; colors: { name: string; qty: number }[] }
-  >();
-
-  for (const row of res.recordset ?? []) {
-    const sizeId = row.SizeId;
-    if (!sizeMap.has(sizeId)) {
-      sizeMap.set(sizeId, { size: row.Size, colors: [] });
-    }
-    sizeMap.get(sizeId)!.colors.push({
-      name: row.Color,
-      qty: Number(row.Qty ?? 0),
-    });
-  }
-
-  return Array.from(sizeMap.values());
+  // Shared query lives in @/lib/waStock so the WhatsApp bot webhook can reuse it
+  // without an admin session.
+  return getSizesWithColorsForCategory(categoryId);
 }
