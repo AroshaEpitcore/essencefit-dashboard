@@ -14,18 +14,5 @@
       "PowerShell(Set-Location *)",
       "Read"
     ]
-  },
-  "hooks": {
-    "Stop": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File C:/Projects/Epitcore/maraebiz-platform/.claude/hooks/verify.ps1"
-          }
-        ]
-      }
-    ]
   }
 }
