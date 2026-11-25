@@ -63,6 +63,8 @@ export function parseSize(body: string): string | null {
 export const WA_IMAGE_PATHS: Record<string, string> = {
   "size-chart": "/wa/size-chart.png",
   colours: "/wa/colours.jpg",
+  "corduroy-1": "/wa/corduroy-1.jpg", // Corduroy Shorts product photos
+  "corduroy-2": "/wa/corduroy-2.jpg",
 };
 
 /**
