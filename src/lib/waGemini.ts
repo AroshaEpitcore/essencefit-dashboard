@@ -9,12 +9,14 @@
  *
  * Env:
  *   GEMINI_API_KEY  — free key from https://aistudio.google.com/api-keys
- *   GEMINI_MODEL    — (optional) defaults to gemini-2.0-flash
+ *   GEMINI_MODEL    — (optional) override the model name
  */
 
 export type ChatTurn = { role: "user" | "model"; text: string };
 
-const MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+// gemini-2.0-flash was retired; 3.8-flash is current. Override via GEMINI_MODEL
+// without a redeploy if Google rotates it again.
+const MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
 
 /**
  * Returns the model's reply text, or null if the AI is unavailable (no key, API
