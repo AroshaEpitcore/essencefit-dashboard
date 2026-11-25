@@ -1,10 +1,15 @@
 import { generateReply } from "@/lib/waAi";
 import { getConvo, saveConvo, type WaConvo } from "@/lib/waConvo";
-import { getStockBySize, getCatalogSummary, type CatalogItem } from "@/lib/waStock";
+import {
+  getStockBySize,
+  getCatalogSummary,
+  getProductStockText,
+  type CatalogItem,
+} from "@/lib/waStock";
 import {
   parseSize,
   parseImageTags,
-  formatStockReply,
+  detectImageRequest,
   WA_IMAGE_PATHS,
   type ProductStock,
 } from "@/lib/waReply";
@@ -52,12 +57,26 @@ export async function runAgent(input: AgentInput): Promise<AgentResult | null> {
     }
   }
 
-  const system = buildSystemPrompt(convo, catalog, input.referral ?? null, size, sizeStock);
+  // Always load the resolved product's full live stock so the AI has real
+  // numbers every turn and never walks back figures it already gave.
+  let productStock = "";
+  if (convo.productName) {
+    try {
+      productStock = await getProductStockText(convo.productName);
+    } catch (err) {
+      console.error("[wa/agent] product stock lookup failed:", err);
+    }
+  }
+
+  const system = buildSystemPrompt(convo, catalog, input.referral ?? null, size, sizeStock, productStock);
   const raw = await generateReply(system, convo.history, input.text);
   if (!raw) return null; // AI unavailable → caller falls back to 2a
 
   const { text, imageKeys } = parseImageTags(raw);
-  const images = imageKeys.map((k) => `${BASE_URL}${WA_IMAGE_PATHS[k]}`);
+  // Union the AI's requested images with a deterministic keyword match, so a
+  // chart/colours request still attaches the image if the AI omits the tag.
+  const allKeys = [...new Set([...imageKeys, ...detectImageRequest(input.text)])];
+  const images = allKeys.map((k) => `${BASE_URL}${WA_IMAGE_PATHS[k]}`);
 
   // Persist memory (append this exchange).
   convo.history = [
@@ -81,31 +100,36 @@ function buildSystemPrompt(
   catalog: CatalogItem[],
   referral: WaReferral | null,
   size: string | null,
-  sizeStock: ProductStock[] | null
+  sizeStock: ProductStock[] | null,
+  productStock: string
 ): string {
   const catalogLines = catalog
     .map((c) => `- ${c.product} (${c.category}) — sizes: ${c.sizes}`)
     .join("\n");
 
-  const stockBlock =
-    size && sizeStock
-      ? `\nLIVE STOCK for size "${size}" (use ONLY these numbers, never invent):\n` +
-        (sizeStock.length
-          ? sizeStock
-              .map(
-                (p) =>
-                  `- ${p.product}: ` +
-                  p.colors.map((c) => `${c.name} (${c.qty})`).join(", ")
-              )
-              .join("\n")
-          : `(nothing in stock for size ${size})`)
+  // The resolved product's full live stock — present every turn once we know
+  // the product, so the AI always has real numbers.
+  const productBlock =
+    convo.productName && productStock
+      ? `\nLIVE STOCK for ${convo.productName} (size: colour(qty) — these are current and correct):\n${productStock}`
+      : "";
+
+  // Cross-product stock for a size the customer just asked about.
+  const sizeBlock =
+    size && sizeStock && sizeStock.length
+      ? `\nLIVE STOCK across products for size "${size}":\n` +
+        sizeStock
+          .map(
+            (p) => `- ${p.product}: ` + p.colors.map((c) => `${c.name}(${c.qty})`).join(", ")
+          )
+          .join("\n")
       : "";
 
   const productCtx = convo.productName
-    ? `The customer came from an ad for: "${convo.productName}". When they ask about a size/colour, answer for THIS product first. If they ask about other options, offer the other products below.`
+    ? `The customer is interested in: "${convo.productName}". Answer for THIS product first. If they ask about other items, offer the other products below.`
     : referral
-    ? `The customer arrived from a Meta ad (headline: "${referral.headline ?? ""}"). Infer which product below it matches; if unsure, ask them which item they're interested in.`
-    : `You don't yet know which product the customer wants. If they send a size, ask which item they mean (list a few options) unless it's obvious.`;
+    ? `The customer arrived from a Meta ad (headline: "${referral.headline ?? ""}"). Infer which product below it matches; if unsure, ask them which item they want.`
+    : `You don't yet know which product the customer wants. If they send a bare size, ask which item they mean (name 2-3 options) unless it's obvious.`;
 
   const nameCtx = convo.profileName
     ? `The customer's WhatsApp name is "${convo.profileName}".`
@@ -114,22 +138,24 @@ function buildSystemPrompt(
   return `You are the EssenceFit WhatsApp shop assistant for a Sri Lankan clothing store. You reply to real customers on WhatsApp.
 
 STYLE:
-- Match the customer's language. Most write "Singlish" (romanized Sinhala mixed with English) — reply the same friendly way. Keep it short, warm, emoji-light.
-- HONORIFIC: address the customer as "sir" if they appear to be a man, "miss" if a woman, and "dear" if you are NOT sure. ${nameCtx} Default to "dear" whenever unsure — never guess wrongly.
+- Match the customer's language. Most write "Singlish" (romanized Sinhala + English). Reply in natural, correct Singlish the way a friendly Sri Lankan shop assistant would. Keep the Sinhala SIMPLE and correct — use everyday words, not literary ones. If you are not confident how to phrase something in Sinhala, say that part in plain English instead of writing awkward or broken Sinhala. Never output garbled words, stray characters, or non-Sinhala/non-English letters. Short, warm, light on emoji.
+- HONORIFIC: "sir" for a man, "miss" for a woman, "dear" when unsure. ${nameCtx} Default to "dear" — never guess wrongly.
+- Be concise and confident. Do NOT apologise for or second-guess numbers you have. Do NOT add disclaimers like "I'm not sure, I'll check with the team" when the stock data below already has the answer.
 
 PRODUCT CONTEXT:
 ${productCtx}
 
 RULES:
-- Only state stock/sizes/colours from the LIVE data given below. Never invent availability. If you don't have the number, say you'll check.
-- Each short is around Rs. 1,500 (Corduroy) / Rs. 990 (Dry-Fit) — only quote price if asked; don't overwhelm.
+- State stock/sizes/colours from the LIVE data below, or from what you already told the customer earlier in this chat. Those numbers are correct — never invent new ones and never walk back numbers you already gave. Only offer to "check with the team" if the data genuinely doesn't contain what they asked.
+- Each short is around Rs. 1,500 (Corduroy) / Rs. 990 (Dry-Fit) — quote price only if asked.
 - Offer: buy any 3 items = FREE delivery.
-- To show the size chart add the tag [[IMG:size-chart]] on its own line; to show the colour options add [[IMG:colours]]. Use them when the customer asks about sizes/fit or colours, or when offering other products. Only these two image tags exist.
-- When the customer is ready, collect: full name, address, phone. Do NOT confirm an order yet (ordering comes later) — tell them a team member will finalise it.
+- IMAGES: to send the size chart put [[IMG:size-chart]] on its own line; for colour options put [[IMG:colours]]. The image is attached automatically — when you send a tag, don't also claim "here's the chart" in a way that implies you pasted it in text. Only these two tags exist.
+- When the customer is ready to buy, collect full name, address, and phone. Do NOT confirm the order yourself — say a team member will finalise it.
 
 IN-STOCK PRODUCTS:
 ${catalogLines}
-${stockBlock}`;
+${productBlock}
+${sizeBlock}`;
 }
 
 /* ---- Ad referral → product guessing (best-effort, no AI) ---- */

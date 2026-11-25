@@ -65,6 +65,23 @@ export const WA_IMAGE_PATHS: Record<string, string> = {
   colours: "/wa/colours.jpg",
 };
 
+/**
+ * Deterministic image-request detection from the customer's message, so a chart
+ * / colours request sends the image even if the AI doesn't emit the tag.
+ * Conservative keyword match (English + common Singlish).
+ */
+export function detectImageRequest(text: string): string[] {
+  const t = text.toLowerCase();
+  const keys: string[] = [];
+  if (/size\s*chart|sizechart|\bchart\b|size\s*eka|sizes\s*(chart|eka)/.test(t)) {
+    keys.push("size-chart");
+  }
+  if (/colou?rs?\b|\bcolour|\bcolor/.test(t)) {
+    keys.push("colours");
+  }
+  return keys;
+}
+
 /** Splits an AI reply into clean text + the image keys it asked to attach. */
 export function parseImageTags(reply: string): { text: string; imageKeys: string[] } {
   const keys: string[] = [];

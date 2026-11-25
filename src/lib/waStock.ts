@@ -61,6 +61,43 @@ export async function getSizesWithColorsForCategory(
   return Array.from(sizeMap.values());
 }
 
+/**
+ * Full live stock for one product (all sizes × colours), as promptable lines
+ * like "30: Beige(1), Black(3), Navy(1)". Fed to the AI whenever we know which
+ * product the customer is on, so it always has real numbers and never has to
+ * guess or walk back figures it already gave. Empty string if none/unknown.
+ */
+export async function getProductStockText(productName: string): Promise<string> {
+  const name = productName.trim();
+  if (!name) return "";
+  const pool = await getDb();
+  const res = await pool
+    .request()
+    .input("product", name)
+    .query(`
+      SELECT s.Name AS Size, c.Name AS Color, SUM(v.Qty) AS Qty
+      FROM ProductVariants v
+      INNER JOIN Products p ON p.Id = v.ProductId
+      INNER JOIN Sizes  s ON s.Id = v.SizeId
+      INNER JOIN Colors c ON c.Id = v.ColorId
+      WHERE LOWER(p.Name) = LOWER(@product)
+        AND v.Qty > 0
+      GROUP BY s.Name, c.Name
+      HAVING SUM(v.Qty) > 0
+      ORDER BY s.Name, c.Name
+    `);
+
+  const bySize = new Map<string, string[]>();
+  for (const row of res.recordset ?? []) {
+    const size = row.Size as string;
+    if (!bySize.has(size)) bySize.set(size, []);
+    bySize.get(size)!.push(`${row.Color}(${Number(row.Qty ?? 0)})`);
+  }
+  return Array.from(bySize.entries())
+    .map(([size, colors]) => `${size}: ${colors.join(", ")}`)
+    .join("\n");
+}
+
 export type CatalogItem = { product: string; category: string; sizes: string };
 
 /**
