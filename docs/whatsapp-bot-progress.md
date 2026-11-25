@@ -24,10 +24,12 @@ Last updated: **2026-11-19**
 - `WHATSAPP_PHONE_NUMBER_ID` — `1396464750225919`
 - `WHATSAPP_APP_SECRET` — (optional) verifies Meta's signature; skipped if unset
 - `WHATSAPP_GRAPH_VERSION` — (optional) defaults to `v21.0`
-- `GEMINI_API_KEY` — ⛔ **NOT YET SET** — AI provider for Phase 2b (free key from https://aistudio.google.com/api-keys). **This is the chosen provider** (free tier ≈ Rs 0 at ~200 msgs/week; Gemini Flash handles Singlish + honorifics).
-- `ANTHROPIC_API_KEY` — *alternative, not in use.* Claude is the fallback if Gemini's Singlish quality disappoints. The AI layer is built provider-swappable, so switching later is a config change, not a rewrite. (Claude = pay-per-use API key, not a Claude.ai subscription.)
+- `ANTHROPIC_API_KEY` — ✅ **SET (current provider)** — pay-per-use Claude key from platform.claude.com. Powers the bot via **Claude Haiku 5.5** (cheapest tier, ~Rs 0.25–1/month at this volume, reliable — no free-tier quota walls).
+- `CLAUDE_MODEL` — (optional) override the Claude model id; defaults to `claude-haiku-5-5`.
+- `GEMINI_API_KEY` — *free-tier fallback, not primary.* Still wired (`waGemini.ts`); used only if `ANTHROPIC_API_KEY` is unset. Hit free-tier 429/503 limits in testing — the reason we moved to Claude.
+- `GEMINI_MODEL` — (optional) Gemini model override.
 
-> **Provider decision (2026-11-25):** piloting Phase 2b on **Gemini (Google AI Studio free key)** to validate at zero cost. **Remember Claude** as the swappable alternative. Caveat: Gemini free tier may use prompts for training — fine for pilot; move to paid tier / Vercel AI Gateway later if customer-data privacy matters.
+> **Provider decision (2026-11-25):** switched Phase 2b from Gemini to **Claude Haiku 5.5**. Gemini's free tier worked in code but kept hitting 503 (overload) then 429 (daily quota) — unreliable for a real bot. Claude Haiku 5.5 is dirt-cheap at this volume and reliable. The AI layer is provider-swappable via `src/lib/waAi.ts` (picks Claude if `ANTHROPIC_API_KEY` set, else Gemini), so switching back is an env change.
 
 ---
 

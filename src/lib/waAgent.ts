@@ -1,4 +1,4 @@
-import { generateReply } from "@/lib/waGemini";
+import { generateReply } from "@/lib/waAi";
 import { getConvo, saveConvo, type WaConvo } from "@/lib/waConvo";
 import { getStockBySize, getCatalogSummary, type CatalogItem } from "@/lib/waStock";
 import {
