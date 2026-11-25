@@ -14,14 +14,11 @@
 
 export type ChatTurn = { role: "user" | "model"; text: string };
 
-// GEMINI_MODEL may be a comma-separated list — we try each in order. The free
-// tier's main Flash models get 503 "high demand", so we prefer the LITE models
-// first (more free headroom, plenty for this simple shop assistant) and fall
-// back to the full models. Override entirely via the GEMINI_MODEL env var.
-const MODELS = (
-  process.env.GEMINI_MODEL ||
-  "gemini-3.8-flash-lite,gemini-flash-lite-latest,gemini-3.8-flash,gemini-flash-latest"
-)
+// GEMINI_MODEL may be a comma-separated list — tried in order. Keep this SHORT:
+// a big list multiplies calls per message and burns the free-tier quota faster
+// (that's what caused 429s during testing). Lite first (more free headroom),
+// then the full model. Override via the GEMINI_MODEL env var.
+const MODELS = (process.env.GEMINI_MODEL || "gemini-3.8-flash-lite,gemini-3.8-flash")
   .split(",")
   .map((m) => m.trim())
   .filter(Boolean);
@@ -52,13 +49,15 @@ export async function generateReply(
     generationConfig: { temperature: 0.4, maxOutputTokens: 600 },
   });
 
-  // One quick retry per model (bounded latency since we try several models).
   for (const model of MODELS) {
     for (let attempt = 0; attempt < 2; attempt++) {
       const outcome = await callModel(model, key, body);
       if (outcome.kind === "ok") return outcome.text;
+      // 429 = quota exhausted account-wide — retrying or trying other models
+      // just burns more quota, so stop immediately and fall back to 2a.
+      if (outcome.kind === "quota") return null;
       if (outcome.kind === "retry" && attempt === 0) {
-        await sleep(350);
+        await sleep(350); // brief, for transient 503 / network blips only
         continue;
       }
       break; // non-retryable (or retried once) → try next model
@@ -69,8 +68,9 @@ export async function generateReply(
 
 type CallOutcome =
   | { kind: "ok"; text: string | null }
-  | { kind: "retry" }
-  | { kind: "fail" };
+  | { kind: "retry" } // transient (503 / network) — worth one quick retry
+  | { kind: "quota" } // 429 — free-tier quota hit; stop, don't waste more calls
+  | { kind: "fail" }; // e.g. 404 bad model name — try the next model
 
 async function callModel(model: string, key: string, body: string): Promise<CallOutcome> {
   try {
@@ -88,8 +88,8 @@ async function callModel(model: string, key: string, body: string): Promise<Call
 
     const detail = await res.text().catch(() => "");
     console.error(`[wa/gemini] ${model} ${res.status}: ${detail.slice(0, 200)}`);
-    // 429 rate-limited / 503 overloaded → worth retrying the same model.
-    if (res.status === 429 || res.status === 503) return { kind: "retry" };
+    if (res.status === 429) return { kind: "quota" };
+    if (res.status === 503) return { kind: "retry" };
     return { kind: "fail" };
   } catch (err) {
     console.error(`[wa/gemini] ${model} fetch failed:`, err);
