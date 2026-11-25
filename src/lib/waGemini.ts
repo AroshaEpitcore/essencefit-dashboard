@@ -14,10 +14,14 @@
 
 export type ChatTurn = { role: "user" | "model"; text: string };
 
-// gemini-2.0-flash was retired; 3.8-flash is current. GEMINI_MODEL may be a
-// comma-separated list — we try each in order (handy for a lighter fallback
-// when the main model is overloaded), e.g. "gemini-3.8-flash,gemini-flash-latest".
-const MODELS = (process.env.GEMINI_MODEL || "gemini-3.8-flash")
+// GEMINI_MODEL may be a comma-separated list — we try each in order. The free
+// tier's main Flash models get 503 "high demand", so we prefer the LITE models
+// first (more free headroom, plenty for this simple shop assistant) and fall
+// back to the full models. Override entirely via the GEMINI_MODEL env var.
+const MODELS = (
+  process.env.GEMINI_MODEL ||
+  "gemini-3.8-flash-lite,gemini-flash-lite-latest,gemini-3.8-flash,gemini-flash-latest"
+)
   .split(",")
   .map((m) => m.trim())
   .filter(Boolean);
@@ -48,16 +52,16 @@ export async function generateReply(
     generationConfig: { temperature: 0.4, maxOutputTokens: 600 },
   });
 
+  // One quick retry per model (bounded latency since we try several models).
   for (const model of MODELS) {
-    // Retry transient overloads on this model before moving on.
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < 2; attempt++) {
       const outcome = await callModel(model, key, body);
       if (outcome.kind === "ok") return outcome.text;
-      if (outcome.kind === "retry" && attempt < 2) {
-        await sleep(400 * (attempt + 1)); // 400ms, then 800ms
+      if (outcome.kind === "retry" && attempt === 0) {
+        await sleep(350);
         continue;
       }
-      break; // non-retryable (or retries exhausted) → try next model
+      break; // non-retryable (or retried once) → try next model
     }
   }
   return null;
