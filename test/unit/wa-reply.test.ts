@@ -9,6 +9,7 @@ import {
   parseSize,
   expandSizeAliases,
   formatStockReply,
+  parseImageTags,
   type ProductStock,
 } from "../../src/lib/waReply.ts";
 
@@ -64,4 +65,22 @@ test("formatStockReply gives an out-of-stock message when nothing is available",
   assert.match(reply, /Size 32/);
   assert.match(reply, /stock නෑ/);
   assert.doesNotMatch(reply, /available colours/);
+});
+
+test("parseImageTags extracts known image keys and strips the tags", () => {
+  const r = parseImageTags("Here is the chart 👇\n[[IMG:size-chart]]\nAnd colours [[IMG:colours]]");
+  assert.deepEqual(r.imageKeys, ["size-chart", "colours"]);
+  assert.doesNotMatch(r.text, /\[\[IMG/); // tags removed from the text
+  assert.match(r.text, /Here is the chart/);
+});
+
+test("parseImageTags ignores unknown tags and de-dupes", () => {
+  const r = parseImageTags("[[IMG:size-chart]] a [[IMG:size-chart]] b [[IMG:unknown]]");
+  assert.deepEqual(r.imageKeys, ["size-chart"]); // de-duped, unknown dropped
+});
+
+test("parseImageTags with no tags returns text unchanged and no images", () => {
+  const r = parseImageTags("just a normal reply");
+  assert.equal(r.text, "just a normal reply");
+  assert.deepEqual(r.imageKeys, []);
 });

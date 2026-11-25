@@ -24,7 +24,10 @@ Last updated: **2026-11-19**
 - `WHATSAPP_PHONE_NUMBER_ID` — `1396464750225919`
 - `WHATSAPP_APP_SECRET` — (optional) verifies Meta's signature; skipped if unset
 - `WHATSAPP_GRAPH_VERSION` — (optional) defaults to `v21.0`
-- `ANTHROPIC_API_KEY` — ⛔ **NOT YET SET** — needed for Phase 2 Claude step (pay-per-use API key, not a Claude.ai subscription)
+- `GEMINI_API_KEY` — ⛔ **NOT YET SET** — AI provider for Phase 2b (free key from https://aistudio.google.com/api-keys). **This is the chosen provider** (free tier ≈ Rs 0 at ~200 msgs/week; Gemini Flash handles Singlish + honorifics).
+- `ANTHROPIC_API_KEY` — *alternative, not in use.* Claude is the fallback if Gemini's Singlish quality disappoints. The AI layer is built provider-swappable, so switching later is a config change, not a rewrite. (Claude = pay-per-use API key, not a Claude.ai subscription.)
+
+> **Provider decision (2026-11-25):** piloting Phase 2b on **Gemini (Google AI Studio free key)** to validate at zero cost. **Remember Claude** as the swappable alternative. Caveat: Gemini free tier may use prompts for training — fine for pilot; move to paid tier / Vercel AI Gateway later if customer-data privacy matters.
 
 ---
 
@@ -57,13 +60,20 @@ Last updated: **2026-11-19**
   - [x] **Size-alias normalisation**: catalog stores both `M` & `Medium`, `3XL` & `XXXL` as separate rows → `expandSizeAliases` matches all variants case-insensitively so no stock is silently missed
   - [x] Industry touches: webhook **de-dupe** by message id (Meta re-delivers), **read receipts** (blue ticks), graceful error replies
   - [x] Verified end-to-end against live DB (read-only single query): `L`→15 rows, `30`→Corduroy Shorts ×5 colours, `3XL`→Plain Skinner
-  - **Known limitation (ok for MVP):** a common size like `M` returns ALL products in that size (wall of text). Phase 2b (Claude) will scope to the product in conversation context.
+  - **Known limitation (ok for MVP):** a common size like `M` returns ALL products in that size (wall of text). Phase 2b will scope to one product (via the ad referral / conversation). ← *this is the owner's #1 ask*
   - Supabase pooler: bot shares the same pooled `getDb()` — no new connection path (see memory `dont-load-test-live-db`)
-- [ ] **2b. Claude for Singlish / price / colour**
-  - [ ] Set `ANTHROPIC_API_KEY` in Vercel (⛔ prerequisite)
-  - [ ] Wire Claude with tool-calling; Sonnet 5 for chat, Haiku 4.5 for routing
-  - [ ] Hybrid with deterministic FAQ templates (reuse `/whatsapp` page templates)
-  - [ ] Pilot-validate Singlish quality before trusting it with orders
+  - **DEPLOYED to production 2026-11-24** (commits `7f722cd` feat + `b20251e` chore → `main`; Vercel deploy `success`). Verified: `tsc` clean, 31/31 unit tests pass, live dry-run correct, webhook GET handshake 403 on prod. **Real end-to-end test:** message `30` to the test number +1 555 169 0011 → expect live Corduroy Shorts colours.
+- [x] **2b. AI layer — Gemini (provider-swappable; Claude = fallback)** BUILT 2026-11-25
+  - [x] `GEMINI_API_KEY` added to Vercel (free AI Studio key)
+  - [x] Provider adapter: `src/lib/waGemini.ts` (`generateReply`, model `gemini-2.0-flash`, env-overridable `GEMINI_MODEL`); Claude swaps in behind the same signature
+  - [x] **Conversation memory**: `wa_conversations` table + `src/lib/waConvo.ts` (remembers ad product, honorific, profile name, last 12 turns) — migration `db/pg/patches/2026-11-25-wa-conversations.sql` (applied to prod)
+  - [x] **Brain**: `src/lib/waAgent.ts` — grounds Gemini with the live catalog + real stock for any size mentioned, so it never invents numbers; scopes to the ad's product; **falls back to 2a** if the AI is unavailable (bot never goes silent)
+  - [x] **Product scoping** — ad `referral` captured on first inbound, matched to a catalog product; AI answers for that product and offers others on request
+  - [x] **Send images** — AI emits `[[IMG:size-chart]]` / `[[IMG:colours]]` → bot sends the public images at `essencefit.lk/wa/*` (parser `parseImageTags`, unit-tested)
+  - [x] **Honorifics (sir/miss/dear)** — profile name passed to the AI; instructed man→sir, lady→miss, **unknown→dear**
+  - [x] `tsc` clean, **34/34 unit tests pass**, production build green
+  - [ ] **Pilot-validate Singlish quality on real messages** (do after deploy — message the bot)
+  - [ ] *Enhancement:* per-product photos via `products.imageurl` (currently only the two generic `/wa/` images)
 - [ ] **2c. Order placement**
   - [ ] Wrap `createOrder` as a tool the model can call (stays concurrency-safe via `fn_available_qty` / `deduct_stock`)
   - [ ] Decide: v1 places orders, or only answers + hands off to human

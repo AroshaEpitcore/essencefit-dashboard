@@ -61,6 +61,34 @@ export async function getSizesWithColorsForCategory(
   return Array.from(sizeMap.values());
 }
 
+export type CatalogItem = { product: string; category: string; sizes: string };
+
+/**
+ * Compact in-stock catalog — product, its category, and the sizes available —
+ * fed to the AI so it can answer "any other shorts?" and scope to one product.
+ */
+export async function getCatalogSummary(): Promise<CatalogItem[]> {
+  const pool = await getDb();
+  const res = await pool.request().query(`
+    SELECT
+      p.Name   AS Product,
+      cat.Name AS Category,
+      string_agg(DISTINCT s.Name, ', ' ORDER BY s.Name) AS Sizes
+    FROM ProductVariants v
+    INNER JOIN Products   p   ON p.Id  = v.ProductId
+    INNER JOIN Sizes      s   ON s.Id  = v.SizeId
+    INNER JOIN Categories cat ON cat.Id = p.CategoryId
+    WHERE v.Qty > 0
+    GROUP BY p.Name, cat.Name
+    ORDER BY cat.Name, p.Name
+  `);
+  return (res.recordset ?? []).map((r) => ({
+    product: r.Product,
+    category: r.Category,
+    sizes: r.Sizes ?? "",
+  }));
+}
+
 /**
  * What's in stock for one size (by size NAME, e.g. "32" or "L"/"Large"), grouped
  * by product. Used by the bot to answer "32" with live colours + quantities.

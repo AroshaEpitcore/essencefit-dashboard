@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { getStockBySize } from "@/lib/waStock";
 import { parseSize, formatStockReply } from "@/lib/waReply";
+import { runAgent, type WaReferral } from "@/lib/waAgent";
 
 /* WhatsApp Cloud API webhook (Phase 1).
  *
@@ -61,13 +62,16 @@ export async function POST(req: NextRequest) {
       for (const change of entry.changes ?? []) {
         const value = change.value;
         // Delivery/read statuses arrive with `statuses`, not `messages` — ignore.
+        // The sender's WhatsApp display name travels alongside the message, in
+        // value.contacts — used to guess the honorific (sir/miss/dear).
+        const profileName = value?.contacts?.[0]?.profile?.name ?? null;
         for (const msg of value?.messages ?? []) {
           // Meta re-delivers a webhook if it doesn't get a prompt 200 (and
           // occasionally even when it does). Each delivery carries the same
           // message id, so skip ones we've already handled to avoid double
           // replies. Best-effort (per warm instance); see note on seen set.
           if (msg.id && alreadySeen(msg.id)) continue;
-          await handleInboundMessage(msg);
+          await handleInboundMessage(msg, profileName);
         }
       }
     }
@@ -79,8 +83,11 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true });
 }
 
-/* ---- Phase 2a logic: reply to a text message ---- */
-async function handleInboundMessage(msg: WaMessage): Promise<void> {
+/* ---- Phase 2b logic: AI reply, with the 2a stock reply as a safety net ---- */
+async function handleInboundMessage(
+  msg: WaMessage,
+  profileName: string | null
+): Promise<void> {
   const from = msg.from; // customer's wa_id (phone)
   if (!from) return;
 
@@ -90,20 +97,35 @@ async function handleInboundMessage(msg: WaMessage): Promise<void> {
   if (msg.type === "text" && msg.text?.body) {
     const text = msg.text.body;
 
-    // If the message is JUST a size (e.g. "32", "L"), answer with live stock.
-    const size = parseSize(text);
-    if (size) {
-      const reply = await buildStockReply(size);
-      await sendText(from, reply);
-      return;
+    // 1) Try the AI brain (Gemini) — product-scoped, Singlish, honorifics, images.
+    try {
+      const result = await runAgent({
+        waId: from,
+        text,
+        profileName,
+        referral: msg.referral ?? null,
+      });
+      if (result) {
+        for (const link of result.images) await sendImage(from, link);
+        if (result.text) await sendText(from, result.text);
+        return;
+      }
+    } catch (err) {
+      console.error("[wa/webhook] agent failed, falling back:", err);
     }
 
-    // Anything else — canned greeting for now (Claude lands in Phase 2b).
-    const reply =
+    // 2) Fallback (AI unavailable): deterministic 2a behaviour.
+    const size = parseSize(text);
+    if (size) {
+      await sendText(from, await buildStockReply(size));
+      return;
+    }
+    await sendText(
+      from,
       "Thank you for choosing EssenceFit 🙌\n\n" +
-      "ඔයාගේ size එක එවන්න (30 / 32 / 34 / 36 or M / L / XL) — " +
-      "available colours එක්ක මම එකෙලටම බලලා කියන්නම් 👖";
-    await sendText(from, reply);
+        "ඔයාගේ size එක එවන්න (30 / 32 / 34 / 36 or M / L / XL) — " +
+        "available colours එක්ක මම එකෙලටම බලලා කියන්නම් 👖"
+    );
     return;
   }
 
@@ -157,6 +179,38 @@ async function sendText(to: string, bodyText: string): Promise<void> {
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
     console.error(`[wa/webhook] send failed ${res.status}: ${detail}`);
+  }
+}
+
+/* ---- Send an image by public URL (size chart / colours) ---- */
+async function sendImage(to: string, link: string): Promise<void> {
+  const token = process.env.WHATSAPP_TOKEN;
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  if (!token || !phoneNumberId) return;
+
+  try {
+    const res = await fetch(
+      `https://graph.facebook.com/${GRAPH_VERSION}/${phoneNumberId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          to,
+          type: "image",
+          image: { link },
+        }),
+      }
+    );
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      console.error(`[wa/webhook] image send failed ${res.status}: ${detail}`);
+    }
+  } catch (err) {
+    console.error("[wa/webhook] image send error:", err);
   }
 }
 
@@ -229,11 +283,14 @@ type WaMessage = {
   from?: string;
   type?: string;
   text?: { body?: string };
+  // Present on the first message when the customer tapped a Click-to-WhatsApp ad.
+  referral?: WaReferral;
 };
+type WaContact = { profile?: { name?: string }; wa_id?: string };
 type WaWebhookBody = {
   entry?: {
     changes?: {
-      value?: { messages?: WaMessage[] };
+      value?: { messages?: WaMessage[]; contacts?: WaContact[] };
     }[];
   }[];
 };

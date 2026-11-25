@@ -55,6 +55,30 @@ export function parseSize(body: string): string | null {
   return null;
 }
 
+/*
+ * Image sending: the AI can embed a tag like [[IMG:size-chart]] in its reply to
+ * ask the bot to attach an image. Only keys in WA_IMAGE_PATHS are honoured
+ * (public files under essencefit.lk/wa/); unknown tags are simply stripped.
+ */
+export const WA_IMAGE_PATHS: Record<string, string> = {
+  "size-chart": "/wa/size-chart.png",
+  colours: "/wa/colours.jpg",
+};
+
+/** Splits an AI reply into clean text + the image keys it asked to attach. */
+export function parseImageTags(reply: string): { text: string; imageKeys: string[] } {
+  const keys: string[] = [];
+  const text = reply
+    .replace(/\[\[IMG:([a-z0-9-]+)\]\]/gi, (_m, k: string) => {
+      const key = k.toLowerCase();
+      if (WA_IMAGE_PATHS[key]) keys.push(key);
+      return "";
+    })
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  return { text, imageKeys: [...new Set(keys)] };
+}
+
 /** Formats the live stock for a size into the WhatsApp reply text. */
 export function formatStockReply(size: string, stock: ProductStock[]): string {
   if (stock.length === 0) {
