@@ -44,8 +44,16 @@ export async function runAgent(input: AgentInput): Promise<AgentResult | null> {
 
   // Ground the AI with real data.
   const catalog = await getCatalogSummary();
-  const resolvedProduct = convo.productName || (productFromAd && matchCatalog(productFromAd, catalog));
+  const productKnownBefore = !!convo.productName;
+  // Resolve the product from: already-known → the ad referral → the customer's
+  // own words ("corduroy shorts"). Setting it means the AI gets that product's
+  // live stock, and we can proactively send its photos.
+  const resolvedProduct =
+    convo.productName ||
+    (productFromAd && matchCatalog(productFromAd, catalog)) ||
+    matchCatalog(input.text, catalog);
   if (resolvedProduct && !convo.productName) convo.productName = resolvedProduct;
+  const productJustResolved = !!convo.productName && !productKnownBefore;
 
   const size = parseSize(input.text);
   let sizeStock: ProductStock[] | null = null;
@@ -73,9 +81,18 @@ export async function runAgent(input: AgentInput): Promise<AgentResult | null> {
   if (!raw) return null; // AI unavailable → caller falls back to 2a
 
   const { text, imageKeys } = parseImageTags(raw);
-  // Union the AI's requested images with a deterministic keyword match, so a
-  // chart/colours request still attaches the image if the AI omits the tag.
-  const allKeys = [...new Set([...imageKeys, ...detectImageRequest(input.text)])];
+  // Union the AI's requested images with deterministic triggers, so images
+  // attach even if the AI omits the tag:
+  //  - chart/colours on keyword request;
+  //  - Corduroy product photos the first time the product is resolved, or when
+  //    the customer explicitly asks to see photos.
+  const deterministic = [...detectImageRequest(input.text)];
+  const isCorduroy = !!convo.productName && /corduroy/i.test(convo.productName);
+  const asksPhoto = /\b(photo|photos|pic|pics|image|images|penna|pennanna|balanna)\b/i.test(input.text);
+  if (isCorduroy && (productJustResolved || asksPhoto)) {
+    deterministic.push("corduroy-1", "corduroy-2");
+  }
+  const allKeys = [...new Set([...imageKeys, ...deterministic])].filter((k) => WA_IMAGE_PATHS[k]);
   const images = allKeys.map((k) => `${BASE_URL}${WA_IMAGE_PATHS[k]}`);
 
   // Persist memory (append this exchange).
@@ -186,13 +203,32 @@ function guessProduct(ref: WaReferral): string | null {
   return ref.headline || ref.body || ref.source_url || null;
 }
 
-/** Matches referral text against known catalog product names (case-insensitive). */
+// Generic garment words that don't identify a specific product on their own.
+const GENERIC_WORDS = new Set([
+  "short", "shorts", "tshirt", "t-shirt", "shirt", "tee", "polo", "collar",
+  "dryfit", "dry", "fit", "sport", "active", "wear", "plain", "regular",
+  "sleeveless", "skinner", "premium", "size", "color", "colour",
+]);
+
+/**
+ * Matches text against catalog product names. First tries a full-name substring
+ * ("corduroy shorts" → "Corduroy Shorts"), then a distinctive-word match so a
+ * bare "corduroy" still resolves. Generic garment words never match alone.
+ */
 function matchCatalog(text: string, catalog: CatalogItem[]): string | null {
   const hay = text.toLowerCase();
   // Longest product name first, so "Ck Sport short" beats a bare "short".
   const byLen = [...catalog].sort((a, b) => b.product.length - a.product.length);
   for (const c of byLen) {
     if (hay.includes(c.product.toLowerCase())) return c.product;
+  }
+  // Distinctive-word fallback (e.g. "corduroy", "ceylon", "eddie").
+  for (const c of byLen) {
+    const tokens = c.product
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((w) => w.length >= 2 && !GENERIC_WORDS.has(w));
+    if (tokens.some((tok) => new RegExp(`\\b${tok}\\b`).test(hay))) return c.product;
   }
   return null;
 }
