@@ -186,6 +186,11 @@ export async function runAgent(input: AgentInput): Promise<AgentResult | null> {
     ) ||
     /\b\d+\s*(pcs|pc|i)\b/i.test(input.text);
   if (justResolved && !orderish) intents.push("size-chart", "colours");
+  // If they ask for the size chart OR the colours, send both together — owner
+  // prefers the colour image to go out alongside the chart.
+  if (intents.includes("size-chart") || intents.includes("colours")) {
+    intents.push("size-chart", "colours");
+  }
   const productKeys = resolveProductImages(convo.productName, [...new Set(intents)]);
   // Also honour any direct, valid image key the AI emitted (e.g. [[IMG:corduroy-grid]]).
   const directKeys = imageKeys.filter((k) => WA_IMAGE_PATHS[k]);
