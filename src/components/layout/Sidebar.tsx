@@ -47,6 +47,7 @@ const navItems = [
   { href: "/sales", label: "Sales", icon: Receipt },
   { href: "/orders", label: "Orders", icon: ShoppingCart },
   { href: "/web-orders", label: "Website Orders", icon: Globe },
+  { href: "/wa-orders", label: "WhatsApp Orders", icon: MessageSquareQuote },
   { href: "/catalog", label: "Storefront Catalog", icon: Store },
   { href: "/store-settings", label: "Store Settings", icon: Globe },
   { href: "/reviews", label: "Reviews", icon: Star },

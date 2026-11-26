@@ -98,11 +98,11 @@ export async function getProductStockText(productName: string): Promise<string> 
     .join("\n");
 }
 
-export type CatalogItem = { product: string; category: string; sizes: string };
+export type CatalogItem = { product: string; category: string; price: number; sizes: string };
 
 /**
- * Compact in-stock catalog — product, its category, and the sizes available —
- * fed to the AI so it can answer "any other shorts?" and scope to one product.
+ * Compact in-stock catalog — product, category, PRICE and sizes — fed to the AI
+ * so it quotes the right price per product and can offer other items.
  */
 export async function getCatalogSummary(): Promise<CatalogItem[]> {
   const pool = await getDb();
@@ -110,6 +110,7 @@ export async function getCatalogSummary(): Promise<CatalogItem[]> {
     SELECT
       p.Name   AS Product,
       cat.Name AS Category,
+      MAX(COALESCE(p.SellingPrice, 0)) AS Price,
       string_agg(DISTINCT s.Name, ', ' ORDER BY s.Name) AS Sizes
     FROM ProductVariants v
     INNER JOIN Products   p   ON p.Id  = v.ProductId
@@ -122,8 +123,59 @@ export async function getCatalogSummary(): Promise<CatalogItem[]> {
   return (res.recordset ?? []).map((r) => ({
     product: r.Product,
     category: r.Category,
+    price: Number(r.Price ?? 0),
     sizes: r.Sizes ?? "",
   }));
+}
+
+export type ResolvedVariant = {
+  variantId: string;
+  product: string;
+  size: string;
+  colour: string;
+  sellingPrice: number;
+  inStock: number;
+};
+
+/**
+ * Resolves a variant from product + size + colour NAMES (case-insensitive) to
+ * its id, real selling price, and available stock. Used to place a bot-collected
+ * order and to validate the colour actually exists. Null if not found.
+ */
+export async function resolveVariant(
+  product: string,
+  size: string,
+  colour: string
+): Promise<ResolvedVariant | null> {
+  const pool = await getDb();
+  const res = await pool
+    .request()
+    .input("product", product.trim())
+    .input("size", size.trim())
+    .input("colour", colour.trim())
+    .query(`
+      SELECT v.Id AS VariantId, p.Name AS Product, s.Name AS Size, c.Name AS Colour,
+             COALESCE(dbo.fn_available_qty(v.Id), 0) AS InStock,
+             COALESCE(v.SellingPrice, p.SellingPrice, 0) AS SellingPrice
+      FROM ProductVariants v
+      JOIN Products p ON p.Id = v.ProductId
+      JOIN Sizes    s ON s.Id = v.SizeId
+      JOIN Colors   c ON c.Id = v.ColorId
+      WHERE LOWER(p.Name) = LOWER(@product)
+        AND LOWER(s.Name) = LOWER(@size)
+        AND LOWER(c.Name) = LOWER(@colour)
+      LIMIT 1
+    `);
+  const r = (res.recordset ?? [])[0];
+  if (!r) return null;
+  return {
+    variantId: r.VariantId,
+    product: r.Product,
+    size: r.Size,
+    colour: r.Colour,
+    sellingPrice: Number(r.SellingPrice ?? 0),
+    inStock: Number(r.InStock ?? 0),
+  };
 }
 
 /**

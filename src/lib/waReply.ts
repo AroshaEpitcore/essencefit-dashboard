@@ -84,6 +84,49 @@ export function detectImageRequest(text: string): string[] {
   return keys;
 }
 
+export type BotOrderDraft = {
+  items: { product: string; size: string; colour: string; qty: number }[];
+  name?: string;
+  address?: string;
+  phone?: string;
+};
+
+/**
+ * Extracts a completed-order payload the AI emits once it has all details:
+ *   [[ORDER:{"items":[{"product":"Corduroy Shorts","size":"34","colour":"Beige","qty":1}],
+ *            "name":"...","address":"...","phone":"..."}]]
+ * Returns the cleaned text (tag removed) and the parsed draft (or null).
+ */
+export function parseOrderTag(reply: string): { text: string; order: BotOrderDraft | null } {
+  const m = reply.match(/\[\[ORDER:\s*(\{[\s\S]*?\})\s*\]\]/i);
+  const text = reply.replace(/\[\[ORDER:[\s\S]*?\]\]/i, "").replace(/\n{3,}/g, "\n\n").trim();
+  if (!m) return { text, order: null };
+  try {
+    const raw = JSON.parse(m[1]) as BotOrderDraft;
+    if (!Array.isArray(raw.items) || raw.items.length === 0) return { text, order: null };
+    const items = raw.items
+      .filter((i) => i && i.product && i.size && i.colour)
+      .map((i) => ({
+        product: String(i.product),
+        size: String(i.size),
+        colour: String(i.colour),
+        qty: Math.max(1, Math.floor(Number(i.qty) || 1)),
+      }));
+    if (items.length === 0) return { text, order: null };
+    return {
+      text,
+      order: {
+        items,
+        name: raw.name ? String(raw.name) : undefined,
+        address: raw.address ? String(raw.address) : undefined,
+        phone: raw.phone ? String(raw.phone) : undefined,
+      },
+    };
+  } catch {
+    return { text, order: null };
+  }
+}
+
 /** Splits an AI reply into clean text + the image keys it asked to attach. */
 export function parseImageTags(reply: string): { text: string; imageKeys: string[] } {
   const keys: string[] = [];

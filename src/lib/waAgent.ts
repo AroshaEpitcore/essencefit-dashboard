@@ -9,10 +9,12 @@ import {
 import {
   extractSize,
   parseImageTags,
+  parseOrderTag,
   detectImageRequest,
   WA_IMAGE_PATHS,
   type ProductStock,
 } from "@/lib/waReply";
+import { savePendingOrder } from "@/lib/waPendingOrders";
 
 /*
  * The WhatsApp bot "brain" (Phase 2b). Given an inbound message it:
@@ -119,7 +121,25 @@ export async function runAgent(input: AgentInput): Promise<AgentResult | null> {
   const raw = await generateReply(system, convo.history, input.text);
   if (!raw) return null; // AI unavailable → caller falls back to 2a
 
-  const { text, imageKeys } = parseImageTags(raw);
+  // If the AI signalled a completed order, save it for the owner to review and
+  // place (Phase 2c — collect + hand to human). Strip the tag from the reply.
+  const { text: afterOrder, order } = parseOrderTag(raw);
+  if (order) {
+    try {
+      const saved = await savePendingOrder({
+        waId: input.waId,
+        name: order.name ?? convo.profileName ?? null,
+        address: order.address ?? null,
+        phone: order.phone ?? input.waId,
+        items: order.items,
+      });
+      console.log(`[wa/agent] pending order saved ${saved.id} total=${saved.total}`);
+    } catch (err) {
+      console.error("[wa/agent] savePendingOrder failed:", err);
+    }
+  }
+
+  const { text, imageKeys } = parseImageTags(afterOrder);
   // Union the AI's requested images with deterministic triggers, so images
   // attach even if the AI omits the tag:
   //  - chart/colours on keyword request;
@@ -162,7 +182,7 @@ function buildSystemPrompt(
   productStock: string
 ): string {
   const catalogLines = catalog
-    .map((c) => `- ${c.product} (${c.category}) — sizes: ${c.sizes}`)
+    .map((c) => `- ${c.product} (${c.category}) — Rs. ${c.price} — sizes: ${c.sizes}`)
     .join("\n");
 
   // The resolved product's full live stock — present every turn once we know
@@ -236,6 +256,13 @@ ORDER DETAILS — once the customer agrees to order, send:
 1️⃣ Full Name
 2️⃣ Delivery Address
 3️⃣ Contact Number
+
+COMPLETING AN ORDER — when you have the item(s) (product + size + colour + qty) AND the customer's name, address and phone, do BOTH:
+1. Output this tag on its own line (the system reads it; the customer does NOT see it):
+[[ORDER:{"items":[{"product":"Corduroy Shorts","size":"34","colour":"Beige","qty":1}],"name":"<name>","address":"<full address>","phone":"<phone>"}]]
+   - "product" must be the exact product name from IN-STOCK PRODUCTS. One entry per colour/size, with its qty.
+2. Then a short friendly confirmation to the customer (1–2 lines) saying the order is noted and the team will confirm and arrange delivery. Do NOT quote a made-up order number.
+Only emit the tag when you truly have all the details. Price is NOT in the tag — the system calculates it.
 
 RULES:
 - Use stock numbers from the LIVE data below or what you already told them — they are correct; never invent or walk them back.
