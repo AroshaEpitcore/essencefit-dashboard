@@ -10,6 +10,7 @@ import {
   extractSize,
   parseImageTags,
   parseOrderTag,
+  parseProductTag,
   detectImageRequest,
   resolveProductImages,
   isImageIntent,
@@ -66,21 +67,19 @@ export async function runAgent(input: AgentInput): Promise<AgentResult | null> {
 
   // Ground the AI with real data.
   const catalog = await getCatalogSummary();
-  const productKnownBefore = !!convo.productName;
-  // Resolve the product from: already-known → the ad referral → the customer's
-  // own words ("corduroy shorts"). Setting it means the AI gets that product's
-  // live stock, and we can proactively send its photos.
-  const resolvedProduct =
-    convo.productName ||
-    (productFromAd && matchCatalog(productFromAd, catalog)) ||
-    matchCatalog(input.text, catalog);
-  if (resolvedProduct && !convo.productName) convo.productName = resolvedProduct;
-  const productJustResolved = !!convo.productName && !productKnownBefore;
+  const prevProductName = convo.productName;
+  // Resolve the product from the customer's CURRENT words first (so they can
+  // switch products mid-chat), then the ad, then whatever we already knew. The
+  // AI can also override after the reply (typo-tolerant [[PRODUCT]] tag below).
+  const msgProduct = matchCatalog(input.text, catalog);
+  const adProduct = productFromAd ? matchCatalog(productFromAd, catalog) : null;
+  const resolvedProduct = msgProduct || convo.productName || adProduct;
+  if (resolvedProduct) convo.productName = resolvedProduct;
 
-  // First contact with Corduroy Shorts → send the standard welcome message +
-  // size chart + product photos verbatim (matches the manual opening). No AI
-  // call needed, so this is instant and free.
-  if (productJustResolved && /corduroy/i.test(convo.productName ?? "")) {
+  // First contact ever with Corduroy Shorts → send the standard welcome message
+  // + size chart + product photos verbatim (matches the manual opening). No AI
+  // call. Only on the very first product (not when switching products later).
+  if (!prevProductName && /corduroy/i.test(convo.productName ?? "")) {
     convo.history = [
       ...convo.history,
       { role: "user", text: input.text },
@@ -124,9 +123,22 @@ export async function runAgent(input: AgentInput): Promise<AgentResult | null> {
   const raw = await generateReply(system, convo.history, input.text);
   if (!raw) return null; // AI unavailable → caller falls back to 2a
 
+  // The AI identifies the product (handles typos like "Codrouy") via a
+  // [[PRODUCT:<name>]] tag — validate it against the catalog and use it (it's
+  // authoritative, and matches what the AI actually said to the customer).
+  const { text: afterProduct, product: taggedProduct } = parseProductTag(raw);
+  if (taggedProduct) {
+    const matched =
+      catalog.find((c) => c.product.toLowerCase() === taggedProduct.toLowerCase())?.product ||
+      matchCatalog(taggedProduct, catalog);
+    if (matched) convo.productName = matched;
+  }
+  // Product counts as "just resolved" (→ send its images) when it changed this turn.
+  const justResolved = !!convo.productName && convo.productName !== prevProductName;
+
   // If the AI signalled a completed order, save it for the owner to review and
   // place (Phase 2c — collect + hand to human). Strip the tag from the reply.
-  const { text: afterOrder, order } = parseOrderTag(raw);
+  const { text: afterOrder, order } = parseOrderTag(afterProduct);
   if (order) {
     try {
       const saved = await savePendingOrder({
@@ -151,7 +163,7 @@ export async function runAgent(input: AgentInput): Promise<AgentResult | null> {
     ...imageKeys.filter(isImageIntent),
     ...detectImageRequest(input.text),
   ];
-  if (productJustResolved) intents.push("size-chart", "colours");
+  if (justResolved) intents.push("size-chart", "colours");
   const productKeys = resolveProductImages(convo.productName, [...new Set(intents)]);
   // Also honour any direct, valid image key the AI emitted (e.g. [[IMG:corduroy-grid]]).
   const directKeys = imageKeys.filter((k) => WA_IMAGE_PATHS[k]);
@@ -271,6 +283,7 @@ RULES:
 - Keep normal chat to 1–2 lines. The stock-list, price and order-details blocks above are the only longer messages.
 - Do NOT confirm or finalise the order yourself. Once you have their details, say the team will confirm and arrange delivery.
 - WhatsApp text only: *bold* with single asterisks. The "•" bullet in the stock list is fine; no other markdown.
+- PRODUCT: whenever you know which product the customer means — even if they mistype it ("Codrouy"=Corduroy Shorts, "ck"/"ck short"/"ck shorts"=Ck Sport short, "ceylon"=Ceylon Short, "eddie"=Eddie bauer) — put [[PRODUCT:<exact product name from the list above>]] on its own line (hidden from the customer). This tells the system which product's images/stock to use. Once identified, do NOT ask the customer to re-pick the product.
 - IMAGES (attached automatically — don't paste them as text). Use these generic tags; the system sends the RIGHT image for the current product (e.g. CK colours vs Ceylon colours): colour/product image → [[IMG:colours]] (or [[IMG:photos]]); size chart → [[IMG:size-chart]]. Put each tag on its own line. You still also list the in-stock colours as text.
 
 IN-STOCK PRODUCTS:
@@ -301,13 +314,37 @@ const GENERIC_WORDS = new Set([
   "sleeveless", "skinner", "premium", "size", "color", "colour",
 ]);
 
+// Common short names customers use → exact catalog product name. Checked first
+// (longest phrase first) so "ck short"/"ck shorts"/"ck" all map to Ck Sport short.
+const PRODUCT_ALIASES: [string, string][] = [
+  ["ck sport shorts", "Ck Sport short"],
+  ["ck sport short", "Ck Sport short"],
+  ["ck shorts", "Ck Sport short"],
+  ["ck short", "Ck Sport short"],
+  ["ck", "Ck Sport short"],
+  ["corduroy shorts", "Corduroy Shorts"],
+  ["corduroy short", "Corduroy Shorts"],
+  ["corduroy", "Corduroy Shorts"],
+  ["ceylon shorts", "Ceylon Short"],
+  ["ceylon short", "Ceylon Short"],
+  ["ceylon", "Ceylon Short"],
+  ["eddie bauer", "Eddie bauer"],
+  ["eddie", "Eddie bauer"],
+];
+
 /**
- * Matches text against catalog product names. First tries a full-name substring
- * ("corduroy shorts" → "Corduroy Shorts"), then a distinctive-word match so a
- * bare "corduroy" still resolves. Generic garment words never match alone.
+ * Matches text against catalog product names. Order: explicit aliases ("ck
+ * short" → Ck Sport short) → full-name substring → distinctive word. Generic
+ * garment words never match alone. Only returns products that are in stock.
  */
 function matchCatalog(text: string, catalog: CatalogItem[]): string | null {
   const hay = text.toLowerCase();
+  const inStock = (name: string) =>
+    catalog.some((c) => c.product.toLowerCase() === name.toLowerCase());
+  // Aliases first.
+  for (const [alias, product] of PRODUCT_ALIASES) {
+    if (new RegExp(`\\b${alias}\\b`).test(hay) && inStock(product)) return product;
+  }
   // Longest product name first, so "Ck Sport short" beats a bare "short".
   const byLen = [...catalog].sort((a, b) => b.product.length - a.product.length);
   for (const c of byLen) {

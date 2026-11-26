@@ -167,6 +167,17 @@ export function parseOrderTag(reply: string): { text: string; order: BotOrderDra
   }
 }
 
+/**
+ * Extracts a [[PRODUCT:<name>]] tag the AI emits once it has identified which
+ * product the customer means (it handles typos like "Codrouy"). Returns the
+ * cleaned text and the raw product name (caller validates against the catalog).
+ */
+export function parseProductTag(reply: string): { text: string; product: string | null } {
+  const m = reply.match(/\[\[PRODUCT:\s*([^\]]+?)\s*\]\]/i);
+  const text = reply.replace(/\[\[PRODUCT:[^\]]*\]\]/gi, "").replace(/\n{3,}/g, "\n\n").trim();
+  return { text, product: m ? m[1].trim() : null };
+}
+
 /** Splits an AI reply into clean text + the image keys it asked to attach. */
 export function parseImageTags(reply: string): { text: string; imageKeys: string[] } {
   const keys: string[] = [];
