@@ -24,7 +24,7 @@ import { savePendingOrder } from "@/lib/waPendingOrders";
  * The WhatsApp bot "brain" (Phase 2b). Given an inbound message it:
  *   1. loads the customer's conversation memory (ad product, honorific, history),
  *   2. grounds the AI with the live catalog + real stock for any size mentioned,
- *   3. asks Gemini for a reply (Singlish-aware, honorific-aware, product-scoped),
+ *   3. asks the AI (Claude) for a reply (Singlish-aware, honorific-aware, product-scoped),
  *   4. extracts any [[IMG:…]] tags into images to attach,
  *   5. saves the updated memory.
  * Returns null if the AI is unavailable so the webhook can fall back to the

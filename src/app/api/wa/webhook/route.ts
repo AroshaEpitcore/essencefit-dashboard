@@ -97,7 +97,7 @@ async function handleInboundMessage(
   if (msg.type === "text" && msg.text?.body) {
     const text = msg.text.body;
 
-    // 1) Try the AI brain (Gemini) — product-scoped, Singlish, honorifics, images.
+    // 1) Try the AI brain (Claude) — product-scoped, Singlish, honorifics, images.
     try {
       const result = await runAgent({
         waId: from,
