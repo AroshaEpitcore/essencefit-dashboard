@@ -120,12 +120,9 @@ async function handleInboundMessage(
       await sendText(from, await buildStockReply(size));
       return;
     }
-    await sendText(
-      from,
-      "Thank you for choosing EssenceFit 🙌\n\n" +
-        "ඔයාගේ size එක එවන්න (30 / 32 / 34 / 36 or M / L / XL) — " +
-        "available colours එක්ක මම එකෙලටම බලලා කියන්නම් 👖"
-    );
+    // AI momentarily unavailable and not a bare size — a brief neutral line is
+    // far less confusing than re-sending the full welcome mid-conversation.
+    await sendText(from, "Poddak inna dear 🙏 podi delay ekak. Ayemath ekpaarak evannada?");
     return;
   }
 

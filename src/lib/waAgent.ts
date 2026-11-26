@@ -59,14 +59,27 @@ export type AgentInput = {
 export type AgentResult = { text: string; images: string[] };
 
 export async function runAgent(input: AgentInput): Promise<AgentResult | null> {
-  const convo = await getConvo(input.waId);
+  // A transient DB hiccup must not throw the whole agent (that drops the
+  // customer to the jarring 2a greeting) — degrade gracefully instead.
+  let convo: WaConvo;
+  try {
+    convo = await getConvo(input.waId);
+  } catch (err) {
+    console.error("[wa/agent] getConvo failed:", err);
+    convo = { waId: input.waId, profileName: null, honorific: null, productName: null, history: [] };
+  }
 
   // Merge anything new from this message.
   if (input.profileName && !convo.profileName) convo.profileName = input.profileName;
   const productFromAd = input.referral ? guessProduct(input.referral) : null;
 
   // Ground the AI with real data.
-  const catalog = await getCatalogSummary();
+  let catalog: Awaited<ReturnType<typeof getCatalogSummary>> = [];
+  try {
+    catalog = await getCatalogSummary();
+  } catch (err) {
+    console.error("[wa/agent] getCatalogSummary failed:", err);
+  }
   const prevProductName = convo.productName;
   // Resolve the product from the customer's CURRENT words first (so they can
   // switch products mid-chat), then the ad, then whatever we already knew. The
@@ -163,7 +176,16 @@ export async function runAgent(input: AgentInput): Promise<AgentResult | null> {
     ...imageKeys.filter(isImageIntent),
     ...detectImageRequest(input.text),
   ];
-  if (justResolved) intents.push("size-chart", "colours");
+  // Only auto-send the product's images when the customer is BROWSING — not when
+  // the message is already an order step (has a size/colour/qty). This stops the
+  // charts/photos being re-sent once they're ordering.
+  const orderish =
+    !!extractSize(input.text) ||
+    /\b(black|navy|blue|maroon|beige|brown|white|red|pink|green|grey|gray|ash|olive|yellow|dark)\b/i.test(
+      input.text
+    ) ||
+    /\b\d+\s*(pcs|pc|i)\b/i.test(input.text);
+  if (justResolved && !orderish) intents.push("size-chart", "colours");
   const productKeys = resolveProductImages(convo.productName, [...new Set(intents)]);
   // Also honour any direct, valid image key the AI emitted (e.g. [[IMG:corduroy-grid]]).
   const directKeys = imageKeys.filter((k) => WA_IMAGE_PATHS[k]);
@@ -230,7 +252,7 @@ function buildSystemPrompt(
   return `You are the EssenceFit WhatsApp shop assistant for a Sri Lankan clothing store. You reply to real customers on WhatsApp.
 
 STYLE:
-- Match the customer's language. Most write "Singlish" (romanized Sinhala + English). Reply in natural, correct Singlish like a friendly Sri Lankan shop assistant. Keep the Sinhala SIMPLE and correct — everyday words, not literary ones. If unsure how to phrase something in Sinhala, say that part in plain English rather than awkward/broken Sinhala. Never output garbled words or stray characters.
+- Match the customer's writing. Most write ROMANIZED Singlish (Sinhala in English letters, e.g. "size eka kiyanna", "mokakda ona", "stock tiyenawa"). Reply the SAME way — in romanized Singlish, NOT Sinhala Unicode script (romanized is clearer, shorter, and matches them). Only use Sinhala Unicode if the customer writes in Sinhala Unicode. If the customer writes English, reply in English. Keep it simple and correct; if unsure of a Sinhala word, use English for that part. Never output garbled words or stray characters.
 - HONORIFIC: "sir" for a man, "miss" for a woman, "dear" when unsure. ${nameCtx} Default to "dear" — never guess wrongly.
 - BE SHORT. Usually 1–2 lines. Answer only what the customer asked, then ask the ONE next thing. Do not re-explain the whole order process in every message. Don't pile multiple questions or long instructions together.
 - Be confident. Never apologise for or second-guess numbers you have, and never say "I'll check with the team" when the stock data below already answers it.
@@ -250,6 +272,14 @@ UNDERSTANDING THE CUSTOMER (answer what they ACTUALLY asked — don't just repea
 - "mona/monawa/mokak colours" / "colours mnwada" = which colours → give the colour list.
 - "size chart" / "chart" = send the size chart image.
 - If you're unsure what they mean, ask a short clarifying question — don't guess by repeating a previous answer.
+
+ORDER MESSAGES (very important):
+- A message listing item(s) with colour + quantity — even multiple products in one message, e.g. "Ck xl black 2, Corduroy ina 30 maroon 1" — IS the customer placing an order. Do NOT reply with the welcome or "send your size". Instead: check each item against the live stock below, confirm what's available (flag anything out of stock or low), then give the price breakdown and ask for their details. Keep the current order in mind across messages.
+- PRICE BREAKDOWN — when they ask the total ("total eka kiyada", "total price", "ganan"), show it clearly, one line per item then the total, e.g.:
+  Ck Sport XL Black — Rs. 990 × 2 = Rs. 1,980
+  Corduroy 30 Maroon — Rs. 1,500 × 1 = Rs. 1,500
+  Total: Rs. 3,480 · Free delivery 🚚 (3+ items)
+- EDITING THE ORDER: "X eka ain karanna/ain karamu", "X epa", "remove X" = remove that item. "thawa ekak", "add" = add an item. After ANY change, briefly restate the remaining items and the new total. Never reply with the welcome message to an edit.
 
 SHOP FACTS (mention only what's relevant — don't dump everything):
 - Corduroy Shorts: premium imported corduroy, Rs. 1,500 each. Sizes 30/32/34/36 (waist inches).
