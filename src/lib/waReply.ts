@@ -61,27 +61,67 @@ export function parseSize(body: string): string | null {
  * (public files under essencefit.lk/wa/); unknown tags are simply stripped.
  */
 export const WA_IMAGE_PATHS: Record<string, string> = {
-  "size-chart": "/wa/size-chart.png",
-  colours: "/wa/colours.jpg",
-  "corduroy-1": "/wa/corduroy-1.jpg", // Corduroy Shorts product photos
+  // Corduroy Shorts — the two images show the colour options
+  "corduroy-1": "/wa/corduroy-1.jpg",
   "corduroy-2": "/wa/corduroy-2.jpg",
+  "corduroy-size-chart": "/wa/corduroy-size-chart.jpg",
+  // CK / Ceylon / Eddie Bauer shorts — colour images + a shared size chart
+  "ck-colours": "/wa/ck-colours.jpg",
+  "ceylon-colours": "/wa/ceylon-colours.jpg",
+  "eddie-colours": "/wa/eddie-colours.jpg",
+  "shorts-size-chart": "/wa/shorts-size-chart.jpg",
 };
+
+/*
+ * Generic image "intents" the AI (or a keyword) can request; the agent maps
+ * them to the RIGHT product's actual image via PRODUCT_MEDIA, so e.g. a colours
+ * request on CK Sport short sends ck-colours, on Ceylon sends ceylon-colours.
+ */
+export type ImageIntent = "photos" | "size-chart" | "colours";
+const INTENTS: ImageIntent[] = ["photos", "size-chart", "colours"];
+export const isImageIntent = (s: string): s is ImageIntent => (INTENTS as string[]).includes(s);
+
+// Per product: the colour/product image(s) and the size chart.
+const PRODUCT_MEDIA: Record<string, { images: string[]; sizeChart?: string }> = {
+  "corduroy shorts": { images: ["corduroy-1", "corduroy-2"], sizeChart: "corduroy-size-chart" },
+  "ck sport short": { images: ["ck-colours"], sizeChart: "shorts-size-chart" },
+  "ceylon short": { images: ["ceylon-colours"], sizeChart: "shorts-size-chart" },
+  "eddie bauer": { images: ["eddie-colours"], sizeChart: "shorts-size-chart" },
+};
+
+/** Maps generic intents to the resolved product's real image keys. "photos" and
+ *  "colours" both resolve to the product's colour/product image(s); "size-chart"
+ *  to its chart. Returns only images that exist for that product. */
+export function resolveProductImages(
+  productName: string | null,
+  intents: ImageIntent[]
+): string[] {
+  const media = productName ? PRODUCT_MEDIA[productName.trim().toLowerCase()] : undefined;
+  if (!media) return [];
+  const keys: string[] = [];
+  for (const intent of intents) {
+    if ((intent === "photos" || intent === "colours")) keys.push(...media.images);
+    if (intent === "size-chart" && media.sizeChart) keys.push(media.sizeChart);
+  }
+  return [...new Set(keys)].filter((k) => WA_IMAGE_PATHS[k]);
+}
 
 /**
  * Deterministic image-request detection from the customer's message, so a chart
  * / colours request sends the image even if the AI doesn't emit the tag.
  * Conservative keyword match (English + common Singlish).
  */
-export function detectImageRequest(text: string): string[] {
+export function detectImageRequest(text: string): ImageIntent[] {
   const t = text.toLowerCase();
-  const keys: string[] = [];
+  const out: ImageIntent[] = [];
   if (/size\s*chart|sizechart|\bchart\b|size\s*eka|sizes\s*(chart|eka)/.test(t)) {
-    keys.push("size-chart");
+    out.push("size-chart");
   }
-  if (/colou?rs?\b|\bcolour|\bcolor/.test(t)) {
-    keys.push("colours");
+  if (/colou?rs?\b|\bcolour|\bcolor/.test(t)) out.push("colours");
+  if (/\b(photo|photos|pic|pics|image|images|penna|pennanna|balanna)\b/.test(t)) {
+    out.push("photos");
   }
-  return keys;
+  return out;
 }
 
 export type BotOrderDraft = {
@@ -133,7 +173,9 @@ export function parseImageTags(reply: string): { text: string; imageKeys: string
   const text = reply
     .replace(/\[\[IMG:([a-z0-9-]+)\]\]/gi, (_m, k: string) => {
       const key = k.toLowerCase();
-      if (WA_IMAGE_PATHS[key]) keys.push(key);
+      // Keep generic intents (colours/photos/size-chart) and direct real keys;
+      // drop true garbage. The agent maps intents to the product's real images.
+      if (WA_IMAGE_PATHS[key] || isImageIntent(key)) keys.push(key);
       return "";
     })
     .replace(/\n{3,}/g, "\n\n")

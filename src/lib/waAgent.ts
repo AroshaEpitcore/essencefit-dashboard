@@ -11,7 +11,10 @@ import {
   parseImageTags,
   parseOrderTag,
   detectImageRequest,
+  resolveProductImages,
+  isImageIntent,
   WA_IMAGE_PATHS,
+  type ImageIntent,
   type ProductStock,
 } from "@/lib/waReply";
 import { savePendingOrder } from "@/lib/waPendingOrders";
@@ -90,7 +93,7 @@ export async function runAgent(input: AgentInput): Promise<AgentResult | null> {
     }
     return {
       text: CORDUROY_WELCOME,
-      images: ["size-chart", "corduroy-1", "corduroy-2"].map(
+      images: ["corduroy-size-chart", "corduroy-1", "corduroy-2"].map(
         (k) => `${BASE_URL}${WA_IMAGE_PATHS[k]}`
       ),
     };
@@ -140,20 +143,19 @@ export async function runAgent(input: AgentInput): Promise<AgentResult | null> {
   }
 
   const { text, imageKeys } = parseImageTags(afterOrder);
-  // Union the AI's requested images with deterministic triggers, so images
-  // attach even if the AI omits the tag:
-  //  - chart/colours on keyword request;
-  //  - Corduroy product photos the first time the product is resolved, or when
-  //    the customer explicitly asks to see photos.
-  const deterministic = [...detectImageRequest(input.text)];
-  const isCorduroy = !!convo.productName && /corduroy/i.test(convo.productName);
-  const asksPhoto = /\b(photo|photos|pic|pics|image|images|penna|pennanna|balanna)\b/i.test(input.text);
-  if (isCorduroy && (productJustResolved || asksPhoto)) {
-    deterministic.push("corduroy-1", "corduroy-2");
-    // On first engagement, also send the size chart (matches the manual flow).
-    if (productJustResolved) deterministic.push("size-chart");
-  }
-  const allKeys = [...new Set([...imageKeys, ...deterministic])].filter((k) => WA_IMAGE_PATHS[k]);
+  // Collect image INTENTS (generic: photos / size-chart / colours) from the AI's
+  // tags + the customer's keywords, then map them to the CURRENT product's real
+  // images (CK→ck-colours, Ceylon→ceylon-colours, …). On first engagement with a
+  // non-Corduroy product, proactively send its size chart + colours.
+  const intents: ImageIntent[] = [
+    ...imageKeys.filter(isImageIntent),
+    ...detectImageRequest(input.text),
+  ];
+  if (productJustResolved) intents.push("size-chart", "colours");
+  const productKeys = resolveProductImages(convo.productName, [...new Set(intents)]);
+  // Also honour any direct, valid image key the AI emitted (e.g. [[IMG:corduroy-grid]]).
+  const directKeys = imageKeys.filter((k) => WA_IMAGE_PATHS[k]);
+  const allKeys = [...new Set([...productKeys, ...directKeys])];
   const images = allKeys.map((k) => `${BASE_URL}${WA_IMAGE_PATHS[k]}`);
 
   // Persist memory (append this exchange).
@@ -269,7 +271,7 @@ RULES:
 - Keep normal chat to 1–2 lines. The stock-list, price and order-details blocks above are the only longer messages.
 - Do NOT confirm or finalise the order yourself. Once you have their details, say the team will confirm and arrange delivery.
 - WhatsApp text only: *bold* with single asterisks. The "•" bullet in the stock list is fine; no other markdown.
-- IMAGES (attached automatically — don't paste them as text): size chart → [[IMG:size-chart]]; colours → [[IMG:colours]]; Corduroy product photos → [[IMG:corduroy-1]], [[IMG:corduroy-2]]. Put each tag on its own line.
+- IMAGES (attached automatically — don't paste them as text). Use these generic tags; the system sends the RIGHT image for the current product (e.g. CK colours vs Ceylon colours): colour/product image → [[IMG:colours]] (or [[IMG:photos]]); size chart → [[IMG:size-chart]]. Put each tag on its own line. You still also list the in-stock colours as text.
 
 IN-STOCK PRODUCTS:
 ${catalogLines}
