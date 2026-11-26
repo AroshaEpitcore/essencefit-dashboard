@@ -91,6 +91,8 @@ export async function runAgent(input: AgentInput): Promise<AgentResult | null> {
   const asksPhoto = /\b(photo|photos|pic|pics|image|images|penna|pennanna|balanna)\b/i.test(input.text);
   if (isCorduroy && (productJustResolved || asksPhoto)) {
     deterministic.push("corduroy-1", "corduroy-2");
+    // On first engagement, also send the size chart (matches the manual flow).
+    if (productJustResolved) deterministic.push("size-chart");
   }
   const allKeys = [...new Set([...imageKeys, ...deterministic])].filter((k) => WA_IMAGE_PATHS[k]);
   const images = allKeys.map((k) => `${BASE_URL}${WA_IMAGE_PATHS[k]}`);
@@ -175,12 +177,32 @@ UNDERSTANDING THE CUSTOMER (answer what they ACTUALLY asked — don't just repea
 - "size chart" / "chart" = send the size chart image.
 - If you're unsure what they mean, ask a short clarifying question — don't guess by repeating a previous answer.
 
+SHOP FACTS (mention only what's relevant — don't dump everything):
+- Corduroy Shorts: premium imported corduroy, Rs. 1,500 each. Sizes 30/32/34/36 (waist inches).
+- STRETCH: the fabric stretches ~2 inches and the waistband has an adjuster, so e.g. a 34 waist fits 32, and 36 stretches to about 38. If the exact size is out of stock, offer the nearest size and mention the stretch instead of just saying no.
+- DELIVERY: islandwide, 1–2 days. ~Rs. 400 Colombo / 450 outstation / 500 East & North. FREE when buying 3 or more.
+- COD: the customer may open and check the parcel before paying (cash on delivery). East & North are prepaid only.
+
+STOCK LIST FORMAT — when the customer asks the colours/stock for a size, reply EXACTLY in this shape (bullets, with pcs), only colours that are in stock:
+Shorts - <size> Stock List
+
+Corduroy Shorts
+• <Colour> - <n> pcs
+
+PRICE FORMAT — for N shorts: "Rs. 1,500 × N = Rs. <total>" and "Free delivery 🚚" when N ≥ 3.
+
+ORDER DETAILS — once the customer agrees to order, send:
+📦 To place your order, please share:
+1️⃣ Full Name
+2️⃣ Delivery Address
+3️⃣ Contact Number
+
 RULES:
-- State stock/sizes/colours from the LIVE data below or what you already told them. Numbers are correct — never invent or walk back numbers.
-- COLOURS: when listing colours, write the colour NAMES inline, comma-separated (e.g. "Beige, Black, Navy"). NEVER use bullet points / a dash list, and do NOT show the stock quantity numbers to the customer — use quantities only to know what's in stock.
-- Price: Corduroy ~Rs. 1,500, Dry-Fit ~Rs. 990. Buy any 3 items = FREE delivery.
-- WhatsApp formatting only: *bold* with single asterisks; no markdown bullets, headings, or tables.
-- IMAGES (attached automatically — don't paste them as text): size chart → [[IMG:size-chart]]; colour options → [[IMG:colours]]; Corduroy Shorts product photos → [[IMG:corduroy-1]] and [[IMG:corduroy-2]]. Send the product photos once, when the customer first shows interest in Corduroy Shorts. Put each tag on its own line.
+- Use stock numbers from the LIVE data below or what you already told them — they are correct; never invent or walk them back.
+- Keep normal chat to 1–2 lines. The stock-list, price and order-details blocks above are the only longer messages.
+- Do NOT confirm or finalise the order yourself. Once you have their details, say the team will confirm and arrange delivery.
+- WhatsApp text only: *bold* with single asterisks. The "•" bullet in the stock list is fine; no other markdown.
+- IMAGES (attached automatically — don't paste them as text): size chart → [[IMG:size-chart]]; colours → [[IMG:colours]]; Corduroy product photos → [[IMG:corduroy-1]], [[IMG:corduroy-2]]. Put each tag on its own line.
 
 IN-STOCK PRODUCTS:
 ${catalogLines}
