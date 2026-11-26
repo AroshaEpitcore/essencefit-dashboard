@@ -7,7 +7,7 @@ import {
   type CatalogItem,
 } from "@/lib/waStock";
 import {
-  parseSize,
+  extractSize,
   parseImageTags,
   detectImageRequest,
   WA_IMAGE_PATHS,
@@ -26,6 +26,23 @@ import {
  */
 
 const BASE_URL = process.env.WA_PUBLIC_BASE_URL || "https://essencefit.lk";
+
+// The shop's standard opening message (from the admin WhatsApp templates),
+// sent verbatim on first contact for Corduroy Shorts — mirrors the manual flow.
+const CORDUROY_WELCOME = `Thank you so much for choosing EssenceFit 🙌
+
+Size කොහොමද dear 30 32 34 36?
+
+✅ Any 3 items — Free Delivery !
+
+මේක සාමාන්‍ය Baby Corduroy නෙවෙයි. උසස් තත්ත්වයේ Imported Corduroy Material එකකින් නිෂ්පාදනය කරලා තියෙන විශේෂ Collection එකක්.
+
+Casual outings, trips සහ everyday outfits වලට perfect match වෙන stylish look එකක් වගේම, හොඳ durability එකකුත් මේ material එකේ තියෙනවා.
+
+Imported material එකක් නිසා කල්පැවැත්ම ගැනත් විශ්වාසයෙන් යුතුව අවුරුදු ගණනාවක් භාවිතා කරන්න පුළුවන්.
+
+👖 එකක් රු. 1,500යි.
+🚚 Shorts 3ක් ගත්තොත් Free Delivery!`;
 
 export type AgentInput = {
   waId: string;
@@ -55,7 +72,29 @@ export async function runAgent(input: AgentInput): Promise<AgentResult | null> {
   if (resolvedProduct && !convo.productName) convo.productName = resolvedProduct;
   const productJustResolved = !!convo.productName && !productKnownBefore;
 
-  const size = parseSize(input.text);
+  // First contact with Corduroy Shorts → send the standard welcome message +
+  // size chart + product photos verbatim (matches the manual opening). No AI
+  // call needed, so this is instant and free.
+  if (productJustResolved && /corduroy/i.test(convo.productName ?? "")) {
+    convo.history = [
+      ...convo.history,
+      { role: "user", text: input.text },
+      { role: "model", text: CORDUROY_WELCOME },
+    ];
+    try {
+      await saveConvo(convo, input.referral ?? undefined);
+    } catch (err) {
+      console.error("[wa/agent] saveConvo (welcome) failed:", err);
+    }
+    return {
+      text: CORDUROY_WELCOME,
+      images: ["size-chart", "corduroy-1", "corduroy-2"].map(
+        (k) => `${BASE_URL}${WA_IMAGE_PATHS[k]}`
+      ),
+    };
+  }
+
+  const size = extractSize(input.text);
   let sizeStock: ProductStock[] | null = null;
   if (size) {
     try {
@@ -172,6 +211,7 @@ CONVERSATION FLOW (one short step at a time — do NOT jump ahead):
 4. You have all details → confirm the order briefly and say a team member will finalise it. Do NOT confirm the order yourself.
 
 UNDERSTANDING THE CUSTOMER (answer what they ACTUALLY asked — don't just repeat the last list):
+- SIZE: "ina 36", "ina size 36", "size 36", "36 size", "waist 36", or a bare "36" all mean the customer's size is 36 ("ina" = waist). → reply with that size's Stock List using the STOCK LIST FORMAT, listing the real in-stock colours from the data. Do NOT reply vaguely or say "I'll send the colour chart" — give the actual colour list.
 - "ekak kiyada" / "keeyada" / "kiyada" / "keeyak" / "price eka" / "how much" = PRICE question → answer the per-piece price (Corduroy Rs. 1,500, Dry-Fit Rs. 990). Do NOT resend the colour list.
 - "mona/monawa/mokak colours" / "colours mnwada" = which colours → give the colour list.
 - "size chart" / "chart" = send the size chart image.

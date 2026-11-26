@@ -98,6 +98,25 @@ export function parseImageTags(reply: string): { text: string; imageKeys: string
   return { text, imageKeys: [...new Set(keys)] };
 }
 
+/**
+ * Looser size extraction that also catches a size stated mid-sentence with a
+ * cue word: "ina 36" / "size 36" / "36 size" / "waist 36" ("ina" = waist in
+ * Singlish), plus a bare "36". Returns the numeric size or null.
+ */
+export function extractSize(text: string): string | null {
+  const t = text.trim();
+  // cue word before the number: ina/size/waist/weist 36
+  let m = t.match(/\b(?:ina|inna|size|waist|weist)\s*([23]\d)\b/i);
+  if (m) return m[1];
+  // number before a cue word: 36 size / 36 ina
+  m = t.match(/\b([23]\d)\s*(?:size|ina|inna)\b/i);
+  if (m) return m[1];
+  // whole message is just a size
+  const p = parseSize(t);
+  if (p && /^\d{2}$/.test(p)) return p;
+  return null;
+}
+
 /** Formats the live stock for a size into the WhatsApp reply text. */
 export function formatStockReply(size: string, stock: ProductStock[]): string {
   if (stock.length === 0) {
