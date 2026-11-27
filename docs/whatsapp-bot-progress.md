@@ -1,17 +1,26 @@
 # WhatsApp AI Bot — Progress Tracker
 
 Auto-handle Meta-ad WhatsApp inquiries 24/7: FAQs, stock/price/colour answers, and order capture.
-Last updated: **2026-11-19**
+Last updated: **2026-11-27**
 
 ---
+
+## Status: 🟢 LIVE on the real number (reply-only, free)
+
+The bot is live on the **production number** and replying in real time. It is **reply-only** (answers customers who message first) — no marketing/proactive messages — so all chats are **free** on WhatsApp's side. Only ongoing cost ≈ **Rs 1/month** (Claude API).
+
+> The "Missing valid payment method" banner is **expected and harmless** — it only blocks business-initiated messaging, which we don't use. **No payment method needed.**
 
 ## Key references
 
 | Thing | Value |
 |---|---|
 | Meta app | "EssenceFit", App ID `1117599673835710` |
-| Test number | **+1 555 169 0011** (Phone Number ID `1396464750225919`) |
-| WABA / messaging acct | `2155106741748530` |
+| **LIVE number** | **+94 75 149 8119** (Phone Number ID `1391856490688836`) |
+| **LIVE WABA** | `2338374326942425` (display name "Essence Fit", tier 250 customers/24hr) |
+| System User | "EssenceFit Bot" (ID `61596811856215`) — full access to the live WABA |
+| Test number (old) | +1 555 169 0011 (`1396464750225919`) — *replaced; was rate-limited/throttled* |
+| Old test WABA | `2155106741748530` |
 | Webhook URL | `https://essencefit.lk/api/wa/webhook` |
 | Webhook code | `src/app/api/wa/webhook/route.ts` |
 | Owner test phone | `94762946381` (0762946381) |
@@ -21,7 +30,7 @@ Last updated: **2026-11-19**
 ### Env vars (Vercel)
 - `WHATSAPP_VERIFY_TOKEN` — handshake secret (matches Meta's "Verify token" box)
 - `WHATSAPP_TOKEN` — **permanent System User token** ("EssenceFit Bot", never expires) ✅
-- `WHATSAPP_PHONE_NUMBER_ID` — `1396464750225919`
+- `WHATSAPP_PHONE_NUMBER_ID` — `1391856490688836` (LIVE number; was `1396464750225919` test)
 - `WHATSAPP_APP_SECRET` — (optional) verifies Meta's signature; skipped if unset
 - `WHATSAPP_GRAPH_VERSION` — (optional) defaults to `v21.0`
 - `ANTHROPIC_API_KEY` — ✅ **SET (current provider)** — pay-per-use Claude key from platform.claude.com. Powers the bot via **Claude Haiku 5.5** (cheapest tier, ~Rs 0.25–1/month at this volume, reliable — no free-tier quota walls).
@@ -82,11 +91,21 @@ Last updated: **2026-11-19**
 
 ---
 
-## Open decisions / parking lot
+## What's left (as of 2026-11-27)
 
-- [ ] Register the **real bot SIM** eventually (test number works for dev, but a production number is cleaner) — then set `WHATSAPP_PHONE_NUMBER_ID` to the new id in Vercel + redeploy
-- [ ] Confirm SL template rate on Meta rate card
+**For going fully live (no cost):**
+- [ ] **Business Verification** (Meta) — FREE; only to lift the 250/day limit as you grow. Business Settings → Security Center → Start Verification.
+- [ ] **Point Meta ads** (Facebook/Instagram Click-to-WhatsApp) to the new number +94 75 149 8119
+- [ ] **Profile picture + business info** — set in WhatsApp Manager → Phone numbers → Essence Fit → Profile (logo ≥192×192; about, address, website essencefit.lk, hours)
+
+**Optional / nice-to-have:**
+- [ ] **Manual-reply inbox** in the dashboard (human takeover). The Cloud API number is NOT in the green WhatsApp app / Business Suite — all messages hit the webhook — so a custom inbox (list conversations + reply + pause-bot toggle) is the way. Not built yet.
+- [ ] **Owner notification** when a new order lands in `/wa-orders` (email via Resend / WhatsApp)
+- [ ] **Better Singlish**: one-line switch `CLAUDE_MODEL=claude-sonnet-5` in Vercel if Haiku isn't good enough
 - [ ] Add success-path logging to the webhook (currently only `console.error` on failure)
+
+**Decided — not needed:**
+- ✅ No marketing/proactive messages → bot is reply-only → **no payment method needed** (banner is harmless).
 
 ## Reference artifacts
 - English build guide: https://claude.ai/code/artifact/2fd2e3b4-75c6-43b8-8b12-5a414a5291f9
